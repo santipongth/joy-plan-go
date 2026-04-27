@@ -59,6 +59,13 @@ const RHYTHMS = [
   { key: "earlyStarts", emoji: "" },
   { key: "lateNights", emoji: "" },
 ] as const;
+const TRAVEL_MODES = [
+  { key: "any", emoji: "✨" },
+  { key: "walking", emoji: "🚶" },
+  { key: "transit", emoji: "🚇" },
+  { key: "mixed", emoji: "🚶🚇" },
+] as const;
+type TravelModeKey = typeof TRAVEL_MODES[number]["key"];
 
 function HomePage() {
   const t = useT();
@@ -81,6 +88,7 @@ function HomePage() {
   const [accommodation, setAccommodation] = useState<string>("");
   const [rhythm, setRhythm] = useState<string[]>([]);
   const [otherNeeds, setOtherNeeds] = useState("");
+  const [travelMode, setTravelMode] = useState<TravelModeKey>("any");
   const [loading, setLoading] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
 
@@ -97,6 +105,7 @@ function HomePage() {
     setAccommodation("");
     setRhythm([]);
     setOtherNeeds("");
+    setTravelMode("any");
   }
 
   const mapGroups = useMemo(() => {
