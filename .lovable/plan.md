@@ -1,62 +1,73 @@
-## Scope
+## Goals
 
-Three improvements to the **itinerary detail page** (`src/routes/itinerary.$id.tsx`) and **server prompt** (`src/server/preferences-prompt.ts` + `plan-trip.functions.ts`).
+1. Travel mode can be set globally (whole trip) **or** overridden per day, with a "Re-order this day" button per day.
+2. Each day shows a short "why this order" explanation.
+3. Each day shows estimated total walking/transit time + distance.
+4. Each day can have a custom **start point** (hotel / district / one of the day's places) that anchors the reorder.
 
----
+## What you'll see
 
-### 1. Click-to-highlight: link summary categories to map markers
+On `/itinerary/:id`, a new **Travel mode bar** at the top of the day list:
+- Mode selector: Any / Walking / Transit / Mixed (applies to all days by default)
+- "Apply to all days" button
 
-The detail page already has a left panel (days + places) and a right map. Add a **category filter chip bar** above the map that, when clicked, highlights matching markers.
+On every day card, a new compact **Route panel** above the place list:
+- Mode override (Inherit / Walking / Transit / Mixed)
+- Start point selector (Trip origin / Custom text / Pick a place from this day)
+- Estimated total: e.g. `~4.2 km · ~52 min walking`
+- One-line reasoning: e.g. *"Ordered by nearest-neighbour from Hotel Sukhumvit; minimises backtracking, longest leg 1.1 km."*
+- **"Update this day's order"** button → re-runs the local nearest-neighbour reorder using that day's mode + start point (no AI call, instant)
 
-**Categories** (derived from `place.type` field returned by AI: landmark, food, nature, shopping, culture, nightlife, hotel):
-- Render chips with counts for each type present in the trip
-- Plus an "All" chip and per-day chips already exist via visibility store
-- Clicking a type chip sets `highlightedType` state passed to `MapView`
+```text
+┌─ Day 1: Old Town ───────────────────────────────┐
+│ Mode: [Inherit ▾]   Start: [Hotel Riva ▾]       │
+│ ~3.8 km · ~46 min walking                       │
+│ Closest-first from Hotel Riva, longest leg 0.9km│
+│ [Update this day's order]                       │
+│  1. Wat Pho   09:00                             │
+│  2. ...                                         │
+└─────────────────────────────────────────────────┘
+```
 
-**MapView changes** (`src/components/MapView.tsx`):
-- New optional prop `highlightedType?: string | null`
-- When set, markers whose `place.type !== highlightedType` render with `opacity:0.25` and smaller (24px); matching ones get a pulse ring (CSS animation `@keyframes pulse-ring` added to `src/styles.css`)
-- Polylines fade similarly
-- Clicking a marker continues to fly-to + open popup
-- Add a `selectedPlaceId` prop too: when a list item on the left is clicked, the matching marker opens its popup and the map pans to it
+## Technical details
 
-**Detail page changes**:
-- Click a place row in the day list → setSelectedPlaceId → map pans/opens popup
-- Add a small floating chip toolbar above the map area with type filters
+**Types (`src/lib/types.ts`)**
+- Add `travelMode?: TravelMode` to `Itinerary` (global default).
+- Add `travelMode?: TravelMode` and `startPoint?: { label: string; lat?: number; lng?: number; placeId?: string }` to `DayPlan`.
 
-### 2. Per-day editing: swap places between days
+**Store (`src/lib/store.ts`)**
+- Add `setItineraryMode(id, mode)`, `setDayMode(id, dayIdx, mode)`, `setDayStart(id, dayIdx, sp)`, `applyModeToAllDays(id, mode)`. All `touch()` updatedAt.
 
-Per-day **regenerate**, **remove**, and **add** are already implemented. Add the missing piece: **move/swap a place to another day**.
+**Server geo helpers (`src/server/dedupe.ts`)** — already has `reorderPlacesByDistance` + `travelCostMeters`. Add a small client-safe twin **`src/lib/route-utils.ts`** so the itinerary page can reorder without an AI call:
+- Re-export pure functions: `haversineMeters`, `travelCostMeters`, `reorderPlacesFromAnchor(places, anchor, mode)`.
+- `estimateDayTravel(places, mode, anchor?)` → `{ totalMeters, totalMinutes, longestLegMeters, legs }`.
+  - Walking speed: 4.8 km/h. Transit average: 18 km/h with 4 min wait per leg. Mixed: 8 km/h.
+- `routeReasoning(mode, anchorLabel?, longestLegMeters)` → localized one-liner.
 
-- New store action `movePlace(id, fromDayIdx, toDayIdx, placeId)` in `src/lib/store.ts`
-- In each place row, add a small "Move to day…" dropdown (DropdownMenu) listing the other days; selecting one moves the place
-- Show a brief toast on success
-- Drag-and-drop across days is out of scope (current dnd-kit setup is per-day vertical sortable); a dropdown action is simpler and consistent with mobile UX
-- Add i18n keys: `moveToDay`, `moveDayPrompt`, `moveSuccess`
+**Itinerary page (`src/routes/itinerary.$id.tsx`)**
+- New top "Travel mode" toolbar (uses store `itinerary.travelMode`).
+- For each day, render a `<DayRoutePanel>`:
+  - Mode = `day.travelMode ?? itinerary.travelMode ?? "any"`.
+  - Anchor resolution: `day.startPoint` → if `placeId`, use that place's lat/lng; if has lat/lng, use those; else use itinerary `origin` (geocoded fallback: just label, anchor = first place); else first place in the day.
+  - Show stats from `estimateDayTravel`.
+  - Buttons:
+    - **Update this day's order**: call `reorderPlacesFromAnchor`, push via `reorderPlaces(id, dayIdx, newOrder)`. Toast "Day N reordered".
+    - Mode dropdown sets `day.travelMode`.
+    - Start point dropdown lists: `Inherit (trip origin)`, places in this day, `Custom…` (prompt for label) — saved to `day.startPoint`.
 
-### 3. Server-side cross-day dedupe by lat/lng similarity
+**Server prompt (`src/server/plan-trip.functions.ts`)**
+- When generating, pass `day.startPoint?.label` (if present) into `planSingleDay` so AI orders from that anchor. New optional `startLabel` field on `PlanDayInput`. Used in user prompt: `Start the day at: ${startLabel}.`
 
-In `src/server/plan-trip.functions.ts`, after the AI returns `parsed.days`, post-process:
+**i18n (`src/lib/i18n.ts`)**
+- Add: `applyToAll`, `inherit`, `startPoint`, `customStart`, `pickFromDay`, `updateDayOrder`, `dayReordered`, `routeStats` (`"~{km} km · ~{min} min {mode}"`), `reasonNearestFrom` (`"Closest-first from {start}; longest leg {km} km"`), `reasonNoMode` (`"AI default order — pick a mode to optimise"`).
 
-- Helper `dedupePlacesAcrossDays(days)`:
-  - Iterate every place across days in order
-  - For each place, check if any prior accepted place is "similar":
-    - Distance via Haversine ≤ **150 m**, OR
-    - Normalized name match (lowercase, strip punctuation, collapse spaces) equals a prior name
-  - If duplicate: drop it (keep first occurrence)
-  - If a day ends up with < 2 places after dedupe, that's acceptable (frontend can show a warning); we do not synthesize replacements in this round
-- Apply the same dedupe in `planSingleDay` against the `existingDaysSummary` — extend `PlanDayInput` to optionally accept `existingPlaces?: { name: string; lat: number; lng: number }[]` and after AI returns, drop any returned place that matches one
-- Update `regenerateDay`/`regenerateAll` callers in `src/routes/itinerary.$id.tsx` to pass `existingPlaces` (computed from the other days' places)
-- Strengthen the prompt with: `"Avoid revisiting any place from other days. Each place must be a unique location (distinct name AND coordinates more than ~200m apart from any other day's place)."`
+## Files
 
-Helper `haversineMeters(a, b)` and `normalizeName(s)` placed in a new file `src/server/dedupe.ts`.
+- edit `src/lib/types.ts`
+- edit `src/lib/store.ts`
+- new `src/lib/route-utils.ts`
+- edit `src/routes/itinerary.$id.tsx` (toolbar + DayRoutePanel)
+- edit `src/server/plan-trip.functions.ts` (accept `startLabel`)
+- edit `src/lib/i18n.ts`
 
-## Files to edit
-
-- `src/routes/itinerary.$id.tsx` — type filter chips, place click → map focus, "Move to day" dropdown, pass `existingPlaces` to regen
-- `src/components/MapView.tsx` — `highlightedType`, `selectedPlaceId` props, fade non-matching markers
-- `src/styles.css` — pulse-ring animation
-- `src/lib/store.ts` — `movePlace` action
-- `src/lib/i18n.ts` — `moveToDay`, `moveSuccess`, `filterByType`, `allTypes`
-- `src/server/dedupe.ts` (new) — haversine + name normalization
-- `src/server/plan-trip.functions.ts` — apply dedupe post-AI for both functions; extend `PlanDayInput` with `existingPlaces`; tighten prompt
+No new dependencies. All reordering on the itinerary page is instant/client-side; AI is only used when you explicitly regenerate a day.

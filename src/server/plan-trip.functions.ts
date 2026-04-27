@@ -24,6 +24,7 @@ interface PlanDayInput {
   rhythm?: string[];
   otherNeeds?: string;
   travelMode?: TravelMode;
+  startLabel?: string;
   lang: "th" | "en";
 }
 
@@ -55,9 +56,10 @@ export const planSingleDay = createServerFn({ method: "POST" })
       data.travelMode && data.travelMode !== "any"
         ? ` Order the places in the order a traveler would actually visit them by ${data.travelMode === "walking" ? "walking" : data.travelMode === "transit" ? "public transit" : "a mix of walking and public transit"}, minimizing back-and-forth.`
         : "";
+    const startInstr = data.startLabel ? ` Start the day at: ${data.startLabel}. Order the rest by proximity from there.` : "";
     const user = `Trip to ${data.destination}. Generate ONLY day ${data.dayNumber} of ${data.totalDays}.${
       data.existingDaysSummary ? ` Other days cover: ${data.existingDaysSummary}. Do NOT repeat those places; pick different ones.` : ""
-    }${existingList ? ` Forbidden places (already used in other days, do NOT include or pick anything within ~200m): ${existingList}.` : ""}${modeInstr}${prefsBlock}`;
+    }${existingList ? ` Forbidden places (already used in other days, do NOT include or pick anything within ~200m): ${existingList}.` : ""}${modeInstr}${startInstr}${prefsBlock}`;
 
     const tool = {
       type: "function" as const,
