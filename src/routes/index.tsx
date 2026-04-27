@@ -468,6 +468,25 @@ function HomePage() {
                     </div>
                   </div>
 
+                  {issues.length > 0 && (
+                    <div className="rounded-md border bg-muted/40 p-2.5 space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        {t("issuesTitle")}
+                      </div>
+                      <ul className="space-y-0.5">
+                        {issues.map((iss) => (
+                          <li
+                            key={iss.key}
+                            className={`text-xs ${iss.level === "error" ? "text-destructive" : "text-amber-600 dark:text-amber-400"}`}
+                          >
+                            • {iss.msg}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between pt-2 border-t">
                     <Button type="button" variant="link" size="sm" onClick={clearPrefs} className="px-0">
                       {t("clear")}
