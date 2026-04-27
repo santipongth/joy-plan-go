@@ -1273,9 +1273,26 @@ function DayRoutePanel({
           <PopoverContent className="p-0 w-[300px]" align="start">
             <Command shouldFilter={true}>
               <CommandInput
+                autoFocus
                 placeholder={t("searchStartPoint")}
                 value={startQuery}
                 onValueChange={setStartQuery}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.stopPropagation();
+                    setStartOpen(false);
+                    return;
+                  }
+                  if (e.key === "Enter" && startQuery.trim()) {
+                    // If cmdk has no selected item (no matches), use the typed text as a custom label.
+                    const root = (e.currentTarget.closest("[cmdk-root]") as HTMLElement) || null;
+                    const selected = root?.querySelector('[cmdk-item][data-selected="true"]');
+                    if (!selected) {
+                      e.preventDefault();
+                      chooseCustom();
+                    }
+                  }
+                }}
               />
               <CommandList>
                 <CommandEmpty>
