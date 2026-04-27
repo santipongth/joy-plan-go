@@ -932,6 +932,9 @@ function DaySection({
 
       <DayRoutePanel
         day={day}
+        dayIdx={dayIdx}
+        allDays={allDays}
+        color={color}
         effectiveMode={effectiveMode}
         inheritedMode={inheritedMode}
         tripOriginLabel={tripOriginLabel}
