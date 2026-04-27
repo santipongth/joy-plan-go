@@ -45,13 +45,25 @@ function modeProfile(mode: TravelMode): { kmh: number; overheadMin: number; labe
 /**
  * Reorder places along a nearest-neighbour path starting from `anchor`.
  * If anchor is null, anchors on the first place (keeps it first).
+ * Cached by [places ref, mode, anchorKey] so repeated calls are O(1).
  */
+const reorderCache: WeakMap<object, Map<string, unknown[]>> = new WeakMap();
+
 export function reorderPlacesFromAnchor<P extends { lat: number; lng: number }>(
   places: P[],
   anchor: { lat: number; lng: number } | null,
   mode: TravelMode,
 ): P[] {
   if (mode === "any" || places.length <= 1) return places;
+  const key = `${mode}|${anchor ? `${anchor.lat.toFixed(5)},${anchor.lng.toFixed(5)}` : "_"}`;
+  let bucket = reorderCache.get(places as unknown as object);
+  if (!bucket) {
+    bucket = new Map();
+    reorderCache.set(places as unknown as object, bucket);
+  }
+  const cached = bucket.get(key);
+  if (cached) return cached as P[];
+
   const remaining = [...places];
   const ordered: P[] = [];
   let current: { lat: number; lng: number };
@@ -75,6 +87,7 @@ export function reorderPlacesFromAnchor<P extends { lat: number; lng: number }>(
     ordered.push(next);
     current = next;
   }
+  bucket.set(key, ordered as unknown[]);
   return ordered;
 }
 
@@ -87,6 +100,8 @@ export interface DayTravelEstimate {
 }
 
 /** Estimate total walking/transit distance + minutes through a day's places. */
+const estimateCache: WeakMap<object, Map<string, DayTravelEstimate>> = new WeakMap();
+
 export function estimateDayTravel(
   places: Place[],
   mode: TravelMode,
@@ -96,6 +111,15 @@ export function estimateDayTravel(
   if (places.length === 0) {
     return { totalMeters: 0, totalMinutes: 0, longestLegMeters: 0, legs: 0, modeLabel: profile.label };
   }
+  const key = `${mode}|${anchor ? `${anchor.lat.toFixed(5)},${anchor.lng.toFixed(5)}` : "_"}`;
+  let bucket = estimateCache.get(places as unknown as object);
+  if (!bucket) {
+    bucket = new Map();
+    estimateCache.set(places as unknown as object, bucket);
+  }
+  const cached = bucket.get(key);
+  if (cached) return cached;
+
   let totalMeters = 0;
   let longestLegMeters = 0;
   let legs = 0;
@@ -111,7 +135,15 @@ export function estimateDayTravel(
   }
   const km = totalMeters / 1000;
   const totalMinutes = Math.round((km / profile.kmh) * 60 + profile.overheadMin * legs);
-  return { totalMeters, totalMinutes, longestLegMeters, legs, modeLabel: profile.label };
+  const result: DayTravelEstimate = {
+    totalMeters,
+    totalMinutes,
+    longestLegMeters,
+    legs,
+    modeLabel: profile.label,
+  };
+  bucket.set(key, result);
+  return result;
 }
 
 /** Resolve an anchor coordinate from a DayStartPoint + the day's places. */
