@@ -270,6 +270,48 @@ function ItineraryDetail() {
     return t("aiError");
   }
 
+  /**
+   * Pop one undo entry for a day and apply it (or apply explicit `prevSnapshot`).
+   * Shows a toast describing how many steps were undone and remaining count.
+   */
+  function undoReorder(dayIdx: number, dayNumber: number, prevSnapshot?: Place[]) {
+    const before = historyDepths[dayIdx] ?? 0;
+    let prev = prevSnapshot;
+    if (prev) {
+      // Toast-action snapshot path: also pop one entry to keep stack consistent.
+      popHistory(id, dayIdx);
+    } else {
+      prev = popHistory(id, dayIdx);
+    }
+    if (!prev) return;
+    reorderPlaces(id, dayIdx, prev);
+    const remaining = Math.max(0, before - 1);
+    const key = remaining > 0 ? "undidStepRemaining" : "undidStepNoMore";
+    toast.success(
+      t(key).replace("{day}", String(dayNumber)).replace("{remaining}", String(remaining)),
+    );
+  }
+
+  /** Wrap regenerateDay with a confirmation when the day's undo stack is non-empty. */
+  function requestRegenerateDay(dayIdx: number) {
+    const depth = historyDepths[dayIdx] ?? 0;
+    if (depth > 0) {
+      setPendingRegenDay(dayIdx);
+      return;
+    }
+    void regenerateDay(dayIdx);
+  }
+
+  /** Wrap regenerateAll with a confirmation when any day has undo entries. */
+  function requestRegenerateAll() {
+    const hasAny = Object.values(historyDepths).some((n) => n > 0);
+    if (hasAny) {
+      setPendingRegenAll(true);
+      return;
+    }
+    void regenerateAll();
+  }
+
   async function regenerateDay(dayIdx: number) {
     if (!itinerary) return;
     const target = itinerary.days[dayIdx];
