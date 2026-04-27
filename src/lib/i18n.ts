@@ -240,6 +240,11 @@ export const dict = {
     warnOtherNeedsTooLong: "Other needs exceeds 1000 characters",
     warnDestinationTooLong: "Destination name is too long",
     issuesTitle: "Heads up",
+    moveToDay: "Move to day",
+    moveSuccess: "Moved to day {n}",
+    filterByType: "Filter by type",
+    allTypes: "All types",
+    focusOnMap: "Focus on map",
   },
 } as const;
 
