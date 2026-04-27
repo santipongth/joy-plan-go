@@ -147,6 +147,33 @@ function ItineraryDetail() {
       }));
   }, [itinerary, visibleDays]);
 
+  const typeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (!itinerary) return counts;
+    itinerary.days.forEach((d) => {
+      d.places.forEach((p) => {
+        const tp = (p.type || "").toLowerCase().trim();
+        if (!tp) return;
+        counts.set(tp, (counts.get(tp) || 0) + 1);
+      });
+    });
+    return counts;
+  }, [itinerary]);
+
+  function handleMovePlace(placeId: string, fromDayIdx: number, toDayIdx: number) {
+    if (!itinerary || fromDayIdx === toDayIdx) return;
+    movePlace(id, fromDayIdx, toDayIdx, placeId);
+    const targetDay = itinerary.days[toDayIdx]?.day;
+    if (targetDay !== undefined) {
+      toast.success(t("moveSuccess").replace("{n}", String(targetDay)));
+    }
+  }
+
+  function focusPlace(placeId: string) {
+    setSelectedPlaceId(null);
+    setTimeout(() => setSelectedPlaceId(placeId), 0);
+  }
+
   if (!itinerary) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
