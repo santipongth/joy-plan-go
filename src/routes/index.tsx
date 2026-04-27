@@ -109,6 +109,49 @@ function HomePage() {
     );
   }, [itineraries]);
 
+  // ===== Live preferences validation =====
+  const issues = useMemo(() => {
+    const list: { level: "warn" | "error"; key: string; msg: string }[] = [];
+    if (otherNeeds.length > 1000) list.push({ level: "error", key: "otherLen", msg: t("warnOtherNeedsTooLong") });
+    if (destination.trim().length > 200) list.push({ level: "error", key: "dest", msg: t("warnDestinationTooLong") });
+    if (interests.length === 0 && !otherNeeds.trim() && travelStyle.length === 0)
+      list.push({ level: "warn", key: "noInt", msg: t("warnNoInterests") });
+    if (days > 10 && (pace === "packed" || pace === "ambitious"))
+      list.push({ level: "warn", key: "paceLong", msg: t("warnPaceLong") });
+    if (rhythm.includes("earlyStarts") && rhythm.includes("lateNights"))
+      list.push({ level: "warn", key: "rhythm", msg: t("warnRhythmConflict") });
+    return list;
+  }, [otherNeeds, destination, interests, travelStyle, days, pace, rhythm, t]);
+
+  // ===== Summary categories =====
+  const summaryCategories: { label: string; value: string }[] = useMemo(() => {
+    const items: { label: string; value: string }[] = [];
+    if (destination.trim()) items.push({ label: t("headingTo"), value: destination.trim() });
+    if (origin.trim()) items.push({ label: t("startingFrom"), value: origin.trim() });
+    if (startDate) items.push({ label: t("dateDuration"), value: `${startDate} · ${days} ${t("days")}` });
+    else items.push({ label: t("duration"), value: `${days} ${t("days")}` });
+    if (interests.length) items.push({ label: t("interests"), value: interests.map((i) => t(i as keyof typeof dict.en) as string).join(", ") });
+    if (budget) items.push({ label: t("budget"), value: t(budget as keyof typeof dict.en) as string });
+    if (pace) items.push({ label: t("pace"), value: t(pace as keyof typeof dict.en) as string });
+    if (companions) items.push({ label: t("companions"), value: t(companions as keyof typeof dict.en) as string });
+    if (travelStyle.length) items.push({ label: t("travelStyle"), value: travelStyle.map((s) => t(s as keyof typeof dict.en) as string).join(", ") });
+    if (accommodation) items.push({ label: t("accommodation"), value: t(accommodation as keyof typeof dict.en) as string });
+    if (rhythm.length) items.push({ label: t("rhythm"), value: rhythm.map((r) => t(r as keyof typeof dict.en) as string).join(", ") });
+    if (otherNeeds.trim()) items.push({ label: t("otherNeeds"), value: otherNeeds.trim().slice(0, 120) + (otherNeeds.length > 120 ? "…" : "") });
+    return items;
+  }, [destination, origin, startDate, days, interests, budget, pace, companions, travelStyle, accommodation, rhythm, otherNeeds, t]);
+
+  const TOTAL_CATEGORIES = 8; // interests, budget, pace, companions, travelStyle, accommodation, rhythm, otherNeeds
+  const filledCategories =
+    (interests.length ? 1 : 0) +
+    (budget ? 1 : 0) +
+    (pace ? 1 : 0) +
+    (companions ? 1 : 0) +
+    (travelStyle.length ? 1 : 0) +
+    (accommodation ? 1 : 0) +
+    (rhythm.length ? 1 : 0) +
+    (otherNeeds.trim() ? 1 : 0);
+
   function toggleInterest(i: string) {
     setInterests((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]));
   }
