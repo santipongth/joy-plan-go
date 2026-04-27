@@ -21,10 +21,10 @@ export default function PrintItinerary({ itinerary, t }: Props) {
         </p>
       </header>
 
-      {itinerary.days.map((d, idx) => {
+      {itinerary.days.map((d) => {
         const color = dayColor(d.day - 1);
         return (
-          <section key={d.day} className="print-day" style={{ pageBreakAfter: idx < itinerary.days.length - 1 ? "always" : "auto" }}>
+          <section key={d.day} className="print-day">
             <div className="print-day-header" style={{ borderLeftColor: color }}>
               <div className="print-day-badge" style={{ background: color }}>{d.day}</div>
               <div>
