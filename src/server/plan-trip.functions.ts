@@ -105,7 +105,10 @@ export const planSingleDay = createServerFn({ method: "POST" })
       const call = json.choices?.[0]?.message?.tool_calls?.[0];
       if (!call?.function?.arguments) return { day: null, error: "NO_TOOL_CALL" };
       const parsed = JSON.parse(call.function.arguments) as AIDay;
-      return { day: parsed };
+      // Drop any places that duplicate other days' places by name or lat/lng
+      const existing: PlaceLite[] = data.existingPlaces || [];
+      const cleanedPlaces = filterDuplicatesAgainst(parsed.places || [], existing, 200);
+      return { day: { ...parsed, places: cleanedPlaces } };
     } catch (e) {
       console.error("planSingleDay failed", e);
       return { day: null, error: "EXCEPTION" };
