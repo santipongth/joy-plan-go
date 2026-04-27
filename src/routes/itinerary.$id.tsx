@@ -89,16 +89,24 @@ function ItineraryDetail() {
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(itinerary?.title ?? "");
-  const [visibleDays, setVisibleDays] = useState<Set<number>>(new Set());
+  const visibleArr = useVisibilityStore((s) => s.visibleDaysByItinerary[id]);
+  const setVisible = useVisibilityStore((s) => s.setVisible);
+  const toggleVisible = useVisibilityStore((s) => s.toggle);
   const [regenLoading, setRegenLoading] = useState<number | null>(null);
+  const [regenErrors, setRegenErrors] = useState<Record<number, string>>({});
 
-  // initialize visible days when itinerary loads
+  // initialize visible days when itinerary loads (default = all)
   useEffect(() => {
-    if (itinerary && visibleDays.size === 0) {
-      setVisibleDays(new Set(itinerary.days.map((d) => d.day)));
+    if (itinerary && visibleArr === undefined) {
+      setVisible(id, itinerary.days.map((d) => d.day));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itinerary?.id]);
+  }, [itinerary?.id, visibleArr === undefined]);
+
+  const visibleDays = useMemo(
+    () => new Set(visibleArr ?? itinerary?.days.map((d) => d.day) ?? []),
+    [visibleArr, itinerary]
+  );
 
   const groups = useMemo(() => {
     if (!itinerary) return [];
@@ -147,16 +155,17 @@ function ItineraryDetail() {
   }
 
   function toggleDay(day: number) {
-    setVisibleDays((prev) => {
-      const next = new Set(prev);
-      if (next.has(day)) next.delete(day);
-      else next.add(day);
-      return next;
-    });
+    toggleVisible(id, day);
   }
 
   function showAllDays() {
-    setVisibleDays(new Set(itinerary!.days.map((d) => d.day)));
+    setVisible(id, itinerary!.days.map((d) => d.day));
+  }
+
+  function errorMessage(code: string): string {
+    if (code === "RATE_LIMIT") return t("rateLimit");
+    if (code === "PAYMENT_REQUIRED") return t("paymentRequired");
+    return t("aiError");
   }
 
   async function regenerateDay(dayIdx: number) {
@@ -178,7 +187,17 @@ function ItineraryDetail() {
         },
       });
       if (res.error || !res.day) {
-        toast.error(t("aiError"));
+        const code = res.error || "AI_ERROR";
+        const msg = errorMessage(code);
+        setRegenErrors((prev) => ({ ...prev, [target.day]: msg }));
+        toast.error(`${t("regenFailed")} — ${t("day")} ${target.day}`, {
+          description: msg,
+          duration: 10000,
+          action: {
+            label: t("retry"),
+            onClick: () => regenerateDay(dayIdx),
+          },
+        });
         return;
       }
       const newDay: DayPlan = {
@@ -195,7 +214,20 @@ function ItineraryDetail() {
         })),
       };
       replaceDay(id, dayIdx, newDay);
+      setRegenErrors((prev) => {
+        const next = { ...prev };
+        delete next[target.day];
+        return next;
+      });
       toast.success("✓");
+    } catch (e) {
+      const msg = t("aiError");
+      setRegenErrors((prev) => ({ ...prev, [target.day]: msg }));
+      toast.error(`${t("regenFailed")} — ${t("day")} ${target.day}`, {
+        description: msg,
+        duration: 10000,
+        action: { label: t("retry"), onClick: () => regenerateDay(dayIdx) },
+      });
     } finally {
       setRegenLoading(null);
     }
