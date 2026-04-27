@@ -349,11 +349,31 @@ function ItineraryDetail() {
               {t("back")}
             </Button>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={regenerateAll}
+                disabled={regenAllLoading}
+                title={t("regenerateAll")}
+              >
+                {regenAllLoading ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4 mr-1" />
+                )}
+                <span className="hidden sm:inline">
+                  {regenAllLoading ? t("regeneratingAll") : t("regenerateAll")}
+                </span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportPdf} title={t("print")}>
+                <Printer className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">{t("print")}</span>
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Download className="h-4 w-4 mr-1" />
-                    {t("export")}
+                    <span className="hidden sm:inline">{t("export")}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
