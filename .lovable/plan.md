@@ -1,64 +1,62 @@
-## สิ่งที่จะทำ
+## Scope
 
-### 1. Summary Card ด้านขวา (เรียลไทม์ก่อนกดยืนยัน)
-เพิ่ม **PreferencesSummary** เป็นการ์ดลอยซ้อนทับด้านบนของแผนที่ (ฝั่งขวา) บน `src/routes/index.tsx` แสดงผลทันทีเมื่อผู้ใช้แก้ไขค่าใด ๆ ใน Preferences
+Three improvements to the **itinerary detail page** (`src/routes/itinerary.$id.tsx`) and **server prompt** (`src/server/preferences-prompt.ts` + `plan-trip.functions.ts`).
 
-แสดงข้อมูลแบ่งเป็นหมวด:
-- Destination + Origin + Start date + Duration
-- Interests (badges)
-- Budget / Pace / Travel pace
-- Companions / Travel style / Accommodation / Day's rhythm
-- Other needs (truncate ที่ ~120 ตัวอักษร)
+---
 
-ดีไซน์:
-- การ์ดเล็กในมุมขวาบนของ MapView area, พื้นหลัง `bg-background/95 backdrop-blur`, แสดงเฉพาะหมวดที่มีค่า
-- มี header "สรุปความชอบของคุณ / Your preferences"
-- มีตัวนับ "X / Y categories selected"
-- ถ้ายังไม่ได้เลือกอะไรเลย แสดงข้อความ hint
+### 1. Click-to-highlight: link summary categories to map markers
 
-### 2. Validation + คำเตือนก่อนส่งแพลน
-ใน `onAIPlan` (และ `onCreateMyself`) เพิ่มลำดับการตรวจสอบ ก่อนเรียก server:
+The detail page already has a left panel (days + places) and a right map. Add a **category filter chip bar** above the map that, when clicked, highlights matching markers.
 
-- **Required**: destination ต้องไม่ว่าง → toast.error
-- **Soft warnings** (toast.warning, ยังคงส่งได้): 
-  - ไม่เลือก interests เลย และไม่กรอก otherNeeds → "เลือกอย่างน้อย 1 ประเภททริปเพื่อผลลัพธ์ดีขึ้น"
-  - days > 10 และ pace = "packed"/"ambitious" → "ทริปยาวร่วมกับจังหวะอัดแน่นอาจเหนื่อย"
-- **Hard errors** (block submit):
-  - otherNeeds เกิน 1000 ตัวอักษร → toast.error
-  - destination > 200 ตัวอักษร
-  - days < 1 หรือ > 14
-  - rhythm มี earlyStarts และ lateNights พร้อมกัน → เตือนว่าขัดแย้งกัน (ให้ผู้ใช้ยืนยัน)
+**Categories** (derived from `place.type` field returned by AI: landmark, food, nature, shopping, culture, nightlife, hotel):
+- Render chips with counts for each type present in the trip
+- Plus an "All" chip and per-day chips already exist via visibility store
+- Clicking a type chip sets `highlightedType` state passed to `MapView`
 
-เพิ่มแถบ inline warning เล็ก ๆ ภายใน Preferences panel แสดงรายการ issues สด ๆ ขณะแก้ไข (สีเหลือง/แดงตามระดับ)
+**MapView changes** (`src/components/MapView.tsx`):
+- New optional prop `highlightedType?: string | null`
+- When set, markers whose `place.type !== highlightedType` render with `opacity:0.25` and smaller (24px); matching ones get a pulse ring (CSS animation `@keyframes pulse-ring` added to `src/styles.css`)
+- Polylines fade similarly
+- Clicking a marker continues to fly-to + open popup
+- Add a `selectedPlaceId` prop too: when a list item on the left is clicked, the matching marker opens its popup and the map pans to it
 
-เพิ่ม i18n keys ใหม่: `summaryTitle`, `summaryEmpty`, `categoriesSelected`, `warnNoInterests`, `warnPaceLong`, `warnRhythmConflict`, `warnOtherNeedsTooLong`, `warnDestinationTooLong`
+**Detail page changes**:
+- Click a place row in the day list → setSelectedPlaceId → map pans/opens popup
+- Add a small floating chip toolbar above the map area with type filters
 
-### 3. ปรับ prompt ฝั่ง server ให้เป็นระเบียบ + dedupe
-แก้ `src/server/plan-trip.functions.ts`:
+### 2. Per-day editing: swap places between days
 
-- เพิ่ม helper `buildPreferencesBlock(data)` ที่:
-  - แปลงทุกฟิลด์เป็น **bullet list หมวดหมู่** แทน inline text:
-    ```
-    User Preferences:
-    - Travel companions: Family
-    - Travel style: Cultural, Historical
-    - Budget: Mid-range
-    - Pace: Moderate
-    - Accommodation: Premium
-    - Day rhythm: Early starts
-    - Interests: Culture, Food
-    - Other needs: <text>
-    ```
-  - **Deduplicate** ค่าซ้ำในแต่ละ array (case-insensitive) — เช่น "Cultural" ใน travelStyle ซ้อน "Culture" ใน interests
-  - **ตรวจ conflict ภายใน**: ถ้า rhythm มีทั้ง earlyStarts + lateNights → รวมเป็น "Flexible (mixed early/late)"
-  - กรองค่าว่าง / undefined / whitespace-only ออก
-  - ตัด otherNeeds เหลือไม่เกิน 1000 ตัวอักษร (server-side guard)
-- เพิ่มประโยคใน system prompt: `"Strictly respect the user preferences listed below. If two preferences conflict, prioritise the more specific one and note the trade-off briefly in the day's title or place description."`
-- ใช้ helper เดียวกันทั้งใน `planTrip` และ `planSingleDay` (ส่ง preferences เพิ่มผ่าน input ของ `planSingleDay` เพื่อให้ regenerate รายวันสอดคล้องกัน — เพิ่ม optional fields เดียวกันใน `PlanDayInput`)
+Per-day **regenerate**, **remove**, and **add** are already implemented. Add the missing piece: **move/swap a place to another day**.
 
-อัปเดต call site ของ `planSingleDay` ใน `src/routes/itinerary.$id.tsx` ให้ส่งค่า preferences ที่บันทึกไว้กับ itinerary (ถ้ามี — ขั้นนี้จะไม่ persist preferences ลง store ในรอบนี้ จะส่งเฉพาะ interests/budget/pace ที่มีอยู่แล้ว)
+- New store action `movePlace(id, fromDayIdx, toDayIdx, placeId)` in `src/lib/store.ts`
+- In each place row, add a small "Move to day…" dropdown (DropdownMenu) listing the other days; selecting one moves the place
+- Show a brief toast on success
+- Drag-and-drop across days is out of scope (current dnd-kit setup is per-day vertical sortable); a dropdown action is simpler and consistent with mobile UX
+- Add i18n keys: `moveToDay`, `moveDayPrompt`, `moveSuccess`
 
-## ไฟล์ที่จะแก้
-- `src/routes/index.tsx` — Summary card, validation logic, inline warnings
-- `src/server/plan-trip.functions.ts` — `buildPreferencesBlock` helper, dedupe, conflict resolve, ใช้ทั้ง 2 server fn
-- `src/lib/i18n.ts` — i18n keys ใหม่ (TH/EN)
+### 3. Server-side cross-day dedupe by lat/lng similarity
+
+In `src/server/plan-trip.functions.ts`, after the AI returns `parsed.days`, post-process:
+
+- Helper `dedupePlacesAcrossDays(days)`:
+  - Iterate every place across days in order
+  - For each place, check if any prior accepted place is "similar":
+    - Distance via Haversine ≤ **150 m**, OR
+    - Normalized name match (lowercase, strip punctuation, collapse spaces) equals a prior name
+  - If duplicate: drop it (keep first occurrence)
+  - If a day ends up with < 2 places after dedupe, that's acceptable (frontend can show a warning); we do not synthesize replacements in this round
+- Apply the same dedupe in `planSingleDay` against the `existingDaysSummary` — extend `PlanDayInput` to optionally accept `existingPlaces?: { name: string; lat: number; lng: number }[]` and after AI returns, drop any returned place that matches one
+- Update `regenerateDay`/`regenerateAll` callers in `src/routes/itinerary.$id.tsx` to pass `existingPlaces` (computed from the other days' places)
+- Strengthen the prompt with: `"Avoid revisiting any place from other days. Each place must be a unique location (distinct name AND coordinates more than ~200m apart from any other day's place)."`
+
+Helper `haversineMeters(a, b)` and `normalizeName(s)` placed in a new file `src/server/dedupe.ts`.
+
+## Files to edit
+
+- `src/routes/itinerary.$id.tsx` — type filter chips, place click → map focus, "Move to day" dropdown, pass `existingPlaces` to regen
+- `src/components/MapView.tsx` — `highlightedType`, `selectedPlaceId` props, fade non-matching markers
+- `src/styles.css` — pulse-ring animation
+- `src/lib/store.ts` — `movePlace` action
+- `src/lib/i18n.ts` — `moveToDay`, `moveSuccess`, `filterByType`, `allTypes`
+- `src/server/dedupe.ts` (new) — haversine + name normalization
+- `src/server/plan-trip.functions.ts` — apply dedupe post-AI for both functions; extend `PlanDayInput` with `existingPlaces`; tighten prompt
