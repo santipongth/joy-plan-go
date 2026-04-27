@@ -125,6 +125,11 @@ interface PlanInput {
   interests?: string[];
   budget?: string;
   pace?: string;
+  companions?: string;
+  travelStyle?: string[];
+  accommodation?: string;
+  rhythm?: string[];
+  otherNeeds?: string;
   lang: "th" | "en";
 }
 
@@ -151,7 +156,13 @@ export const planTrip = createServerFn({ method: "POST" })
 
     const user = `Plan a ${data.durationDays}-day trip${data.origin ? ` starting from ${data.origin}` : ""} to ${data.destination}.${
       data.interests?.length ? ` Interests: ${data.interests.join(", ")}.` : ""
-    }${data.budget ? ` Budget: ${data.budget}.` : ""}${data.pace ? ` Pace: ${data.pace}.` : ""} Provide a creative trip title.`;
+    }${data.budget ? ` Budget: ${data.budget}.` : ""}${data.pace ? ` Pace: ${data.pace}.` : ""}${
+      data.companions ? ` Travel companions: ${data.companions}.` : ""
+    }${data.travelStyle?.length ? ` Travel style: ${data.travelStyle.join(", ")}.` : ""}${
+      data.accommodation ? ` Accommodation level: ${data.accommodation}.` : ""
+    }${data.rhythm?.length ? ` Day rhythm: ${data.rhythm.join(", ")}.` : ""}${
+      data.otherNeeds ? ` Other needs: ${data.otherNeeds}.` : ""
+    } Provide a creative trip title.`;
 
     const tool = {
       type: "function" as const,
