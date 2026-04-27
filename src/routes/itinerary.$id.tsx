@@ -153,6 +153,10 @@ function ItineraryDetail() {
   } | null>(null);
   const planTripFn = useServerFn(planTrip);
 
+  // Pending regenerate confirmations when undo stack is non-empty
+  const [pendingRegenDay, setPendingRegenDay] = useState<number | null>(null);
+  const [pendingRegenAll, setPendingRegenAll] = useState(false);
+
   // initialize / sync visible days when itinerary loads or day numbers change
   const dayNumbersKey = itinerary?.days.map((d) => d.day).join(",") ?? "";
   useEffect(() => {
