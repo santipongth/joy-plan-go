@@ -482,17 +482,13 @@ function ItineraryDetail() {
                     .replace("{n}", String(Math.max(1, regenAllProgress.current)))
                     .replace("{total}", String(regenAllProgress.total))}
                 </span>
-                <span className="flex items-center gap-2">
+                <span className="flex items-center gap-3">
                   {regenAllProgress.etaSec !== null && (
                     <span className="tabular-nums">
-                      {t("timeLeft")}
-                      {t("timeLeft").length > 1 ? " " : ""}
-                      {regenAllProgress.etaSec}
-                      {t("seconds").startsWith(" ") ? "" : t("seconds").length > 2 ? " " : ""}
-                      {t("seconds")}
+                      {t("timeLeft")} {regenAllProgress.etaSec}{t("seconds").startsWith(" ") ? "" : " "}{t("seconds")}
                     </span>
                   )}
-                  <span>
+                  <span className="tabular-nums">
                     {Math.round(
                       (regenAllProgress.current / Math.max(1, regenAllProgress.total)) * 100
                     )}
