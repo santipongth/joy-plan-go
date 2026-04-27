@@ -51,9 +51,13 @@ export const planSingleDay = createServerFn({ method: "POST" })
     const existingList = (data.existingPlaces || [])
       .map((p) => `${p.name} (${p.lat.toFixed(4)},${p.lng.toFixed(4)})`)
       .join("; ");
+    const modeInstr =
+      data.travelMode && data.travelMode !== "any"
+        ? ` Order the places in the order a traveler would actually visit them by ${data.travelMode === "walking" ? "walking" : data.travelMode === "transit" ? "public transit" : "a mix of walking and public transit"}, minimizing back-and-forth.`
+        : "";
     const user = `Trip to ${data.destination}. Generate ONLY day ${data.dayNumber} of ${data.totalDays}.${
       data.existingDaysSummary ? ` Other days cover: ${data.existingDaysSummary}. Do NOT repeat those places; pick different ones.` : ""
-    }${existingList ? ` Forbidden places (already used in other days, do NOT include or pick anything within ~200m): ${existingList}.` : ""}${prefsBlock}`;
+    }${existingList ? ` Forbidden places (already used in other days, do NOT include or pick anything within ~200m): ${existingList}.` : ""}${modeInstr}${prefsBlock}`;
 
     const tool = {
       type: "function" as const,
@@ -112,7 +116,8 @@ export const planSingleDay = createServerFn({ method: "POST" })
       // Drop any places that duplicate other days' places by name or lat/lng
       const existing: PlaceLite[] = data.existingPlaces || [];
       const cleanedPlaces = filterDuplicatesAgainst(parsed.places || [], existing, 200);
-      return { day: { ...parsed, places: cleanedPlaces } };
+      const orderedPlaces = reorderPlacesByDistance(cleanedPlaces, data.travelMode || "any");
+      return { day: { ...parsed, places: orderedPlaces } };
     } catch (e) {
       console.error("planSingleDay failed", e);
       return { day: null, error: "EXCEPTION" };
