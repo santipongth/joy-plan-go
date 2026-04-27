@@ -1,14 +1,55 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useItineraryStore, makeId } from "@/lib/store";
-import { useT } from "@/lib/i18n";
+import { useT, useLangStore } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Trash2, Plus, Compass, MapPin, Clock, Pencil, Check } from "lucide-react";
+import {
+  ArrowLeft,
+  Trash2,
+  Plus,
+  Compass,
+  MapPin,
+  Clock,
+  Pencil,
+  Check,
+  GripVertical,
+  Sparkles,
+  Loader2,
+  Eye,
+  EyeOff,
+  Download,
+  Share2,
+  FileDown,
+} from "lucide-react";
 import MapView, { dayColor } from "@/components/MapView";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { Place, DayPlan } from "@/lib/types";
+import { planSingleDay } from "@/server/plan-trip.functions";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
@@ -32,24 +73,38 @@ function ItineraryDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const t = useT();
+  const lang = useLangStore((s) => s.lang);
   const itinerary = useItineraryStore((s) => s.itineraries.find((i) => i.id === id));
   const update = useItineraryStore((s) => s.update);
   const removeItin = useItineraryStore((s) => s.remove);
   const removePlace = useItineraryStore((s) => s.removePlace);
   const addPlace = useItineraryStore((s) => s.addPlace);
+  const reorderPlaces = useItineraryStore((s) => s.reorderPlaces);
+  const replaceDay = useItineraryStore((s) => s.replaceDay);
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(itinerary?.title ?? "");
-  const [activeDay, setActiveDay] = useState(1);
+  const [visibleDays, setVisibleDays] = useState<Set<number>>(new Set());
+  const [regenLoading, setRegenLoading] = useState<number | null>(null);
+
+  // initialize visible days when itinerary loads
+  useEffect(() => {
+    if (itinerary && visibleDays.size === 0) {
+      setVisibleDays(new Set(itinerary.days.map((d) => d.day)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itinerary?.id]);
 
   const groups = useMemo(() => {
     if (!itinerary) return [];
-    return itinerary.days.map((d) => ({
-      day: d.day,
-      color: dayColor(d.day - 1),
-      places: d.places,
-    }));
-  }, [itinerary]);
+    return itinerary.days
+      .filter((d) => visibleDays.has(d.day))
+      .map((d) => ({
+        day: d.day,
+        color: dayColor(d.day - 1),
+        places: d.places,
+      }));
+  }, [itinerary, visibleDays]);
 
   if (!itinerary) {
     return (
@@ -86,23 +141,117 @@ function ItineraryDetail() {
     });
   }
 
+  function toggleDay(day: number) {
+    setVisibleDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(day)) next.delete(day);
+      else next.add(day);
+      return next;
+    });
+  }
+
+  function showAllDays() {
+    setVisibleDays(new Set(itinerary!.days.map((d) => d.day)));
+  }
+
+  async function regenerateDay(dayIdx: number) {
+    if (!itinerary) return;
+    const target = itinerary.days[dayIdx];
+    setRegenLoading(target.day);
+    try {
+      const summary = itinerary.days
+        .filter((_, idx) => idx !== dayIdx)
+        .map((d) => `Day ${d.day}: ${d.places.map((p) => p.name).join(", ")}`)
+        .join("; ");
+      const res = await planSingleDay({
+        data: {
+          destination: itinerary.destination,
+          dayNumber: target.day,
+          totalDays: itinerary.durationDays,
+          existingDaysSummary: summary,
+          lang,
+        },
+      });
+      if (res.error || !res.day) {
+        toast.error(t("aiError"));
+        return;
+      }
+      const newDay: DayPlan = {
+        day: target.day,
+        title: res.day.title,
+        places: res.day.places.map((p) => ({
+          id: makeId(),
+          name: p.name,
+          description: p.description,
+          type: p.type,
+          time: p.time,
+          lat: p.lat,
+          lng: p.lng,
+        })),
+      };
+      replaceDay(id, dayIdx, newDay);
+      toast.success("✓");
+    } finally {
+      setRegenLoading(null);
+    }
+  }
+
+  function exportPdf() {
+    // Print-friendly: open print dialog (user can save as PDF)
+    window.print();
+  }
+
+  async function copyShareLink() {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success(t("linkCopied"));
+    } catch {
+      prompt(t("shareLink"), url);
+    }
+  }
+
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <Toaster position="top-center" />
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] min-h-screen">
-        <div className="overflow-auto px-4 sm:px-8 py-6">
-          <header className="flex items-center justify-between mb-6">
+        <div className="overflow-auto px-4 sm:px-8 py-6 print:overflow-visible">
+          <header className="flex items-center justify-between mb-6 print:hidden">
             <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
               <ArrowLeft className="h-4 w-4 mr-1" />
               {t("back")}
             </Button>
-            <LangSwitch />
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-1" />
+                    {t("export")}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportPdf}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    {t("exportPdf")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={copyShareLink}>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    {t("shareLink")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <LangSwitch />
+            </div>
           </header>
 
-          <div className="mb-6">
+          <div className="mb-4">
             {editingTitle ? (
               <div className="flex gap-2">
-                <Input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} className="text-xl font-bold" />
+                <Input
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  className="text-xl font-bold"
+                />
                 <Button size="icon" onClick={saveTitle}>
                   <Check className="h-4 w-4" />
                 </Button>
@@ -115,7 +264,7 @@ function ItineraryDetail() {
                     setTitleDraft(itinerary.title);
                     setEditingTitle(true);
                   }}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground print:hidden"
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
@@ -126,88 +275,72 @@ function ItineraryDetail() {
             </p>
           </div>
 
+          {/* Day legend with show/hide toggles */}
+          <div className="mb-6 p-3 rounded-lg bg-card/60 border print:bg-transparent">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {t("daysLegend")} · {t("showOnMap")}
+              </span>
+              <button
+                onClick={showAllDays}
+                className="text-xs text-primary hover:underline print:hidden"
+              >
+                {t("allDays")}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {itinerary.days.map((d) => {
+                const color = dayColor(d.day - 1);
+                const visible = visibleDays.has(d.day);
+                return (
+                  <button
+                    key={d.day}
+                    onClick={() => toggleDay(d.day)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                      visible
+                        ? "bg-background shadow-sm"
+                        : "bg-muted/50 opacity-50"
+                    }`}
+                    style={{ borderColor: visible ? color : undefined }}
+                  >
+                    <span
+                      className="h-3 w-3 rounded-full"
+                      style={{ background: color }}
+                    />
+                    {t("day")} {d.day}
+                    {visible ? (
+                      <Eye className="h-3 w-3 text-muted-foreground" />
+                    ) : (
+                      <EyeOff className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="space-y-6">
             {itinerary.days.map((d, dayIdx) => {
               const color = dayColor(d.day - 1);
               return (
-                <section
+                <DaySection
                   key={d.day}
-                  onMouseEnter={() => setActiveDay(d.day)}
-                  className={`relative pl-6 ${activeDay === d.day ? "" : "opacity-90"}`}
-                >
-                  <div
-                    className="absolute left-0 top-2 bottom-2 w-1 rounded-full"
-                    style={{ background: color }}
-                  />
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="font-bold flex items-center gap-2">
-                      <span
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-white font-semibold"
-                        style={{ background: color }}
-                      >
-                        {d.day}
-                      </span>
-                      {t("day")} {d.day}
-                      {d.title && <span className="text-muted-foreground font-normal text-sm">— {d.title}</span>}
-                    </h2>
-                    <Button size="sm" variant="ghost" onClick={() => onAddPlace(dayIdx)}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      {t("addPlace")}
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {d.places.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic pl-2">—</p>
-                    )}
-                    {d.places.map((p, i) => (
-                      <Card key={p.id} className="p-3 hover:shadow-md transition-shadow group">
-                        <div className="flex items-start gap-3">
-                          <div
-                            className="flex-shrink-0 h-7 w-7 rounded-full text-xs flex items-center justify-center text-white font-semibold"
-                            style={{ background: color }}
-                          >
-                            {i + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-semibold text-sm">{p.name}</h3>
-                              {p.time && (
-                                <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {p.time}
-                                </span>
-                              )}
-                              {p.type && (
-                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                  {p.type}
-                                </span>
-                              )}
-                            </div>
-                            {p.description && (
-                              <p className="text-xs text-muted-foreground mt-1">{p.description}</p>
-                            )}
-                            <p className="text-[10px] text-muted-foreground/70 mt-1 inline-flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {p.lat.toFixed(4)}, {p.lng.toFixed(4)}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => removePlace(id, dayIdx, p.id)}
-                            className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                </section>
+                  day={d}
+                  dayIdx={dayIdx}
+                  color={color}
+                  itineraryId={id}
+                  onAddPlace={() => onAddPlace(dayIdx)}
+                  onRemovePlace={(placeId) => removePlace(id, dayIdx, placeId)}
+                  onReorder={(places) => reorderPlaces(id, dayIdx, places)}
+                  onRegenerate={() => regenerateDay(dayIdx)}
+                  regenerating={regenLoading === d.day}
+                  t={t}
+                />
               );
             })}
           </div>
 
-          <div className="mt-8 pt-6 border-t flex justify-between">
+          <div className="mt-8 pt-6 border-t flex justify-between print:hidden">
             <Button
               variant="destructive"
               size="sm"
@@ -224,16 +357,218 @@ function ItineraryDetail() {
           </div>
         </div>
 
-        <div className="hidden lg:block sticky top-0 h-screen p-4">
+        <div className="hidden lg:block sticky top-0 h-screen p-4 print:hidden">
           {groups.flatMap((g) => g.places).length === 0 ? (
             <div className="h-full rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
               <Compass className="h-12 w-12 opacity-40" />
             </div>
           ) : (
-            <MapView groups={groups} />
+            <div className="relative h-full">
+              <MapView groups={groups} />
+              {/* Floating legend on map */}
+              <div className="absolute top-3 right-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[180px]">
+                <div className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
+                  {t("daysLegend")}
+                </div>
+                <div className="space-y-1">
+                  {itinerary.days
+                    .filter((d) => visibleDays.has(d.day))
+                    .map((d) => (
+                      <div key={d.day} className="flex items-center gap-1.5 text-xs">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                          style={{ background: dayColor(d.day - 1) }}
+                        />
+                        <span className="truncate">
+                          {t("day")} {d.day}
+                          {d.title ? ` — ${d.title}` : ""}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+interface DaySectionProps {
+  day: DayPlan;
+  dayIdx: number;
+  color: string;
+  itineraryId: string;
+  onAddPlace: () => void;
+  onRemovePlace: (placeId: string) => void;
+  onReorder: (places: Place[]) => void;
+  onRegenerate: () => void;
+  regenerating: boolean;
+  t: (k: any) => string;
+}
+
+function DaySection({
+  day,
+  color,
+  onAddPlace,
+  onRemovePlace,
+  onReorder,
+  onRegenerate,
+  regenerating,
+  t,
+}: DaySectionProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = day.places.findIndex((p) => p.id === active.id);
+    const newIdx = day.places.findIndex((p) => p.id === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    onReorder(arrayMove(day.places, oldIdx, newIdx));
+  }
+
+  return (
+    <section className="relative pl-6">
+      <div
+        className="absolute left-0 top-2 bottom-2 w-1 rounded-full"
+        style={{ background: color }}
+      />
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+        <h2 className="font-bold flex items-center gap-2">
+          <span
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-white font-semibold"
+            style={{ background: color }}
+          >
+            {day.day}
+          </span>
+          {t("day")} {day.day}
+          {day.title && (
+            <span className="text-muted-foreground font-normal text-sm">— {day.title}</span>
+          )}
+        </h2>
+        <div className="flex gap-1 print:hidden">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onRegenerate}
+            disabled={regenerating}
+            title={t("regenerateDay")}
+          >
+            {regenerating ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-1" />
+            )}
+            {regenerating ? t("regenerating") : t("regenerateDay")}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onAddPlace}>
+            <Plus className="h-4 w-4 mr-1" />
+            {t("addPlace")}
+          </Button>
+        </div>
+      </div>
+
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext
+          items={day.places.map((p) => p.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-2">
+            {day.places.length === 0 && (
+              <p className="text-xs text-muted-foreground italic pl-2">—</p>
+            )}
+            {day.places.map((p, i) => (
+              <SortablePlace
+                key={p.id}
+                place={p}
+                index={i}
+                color={color}
+                onRemove={() => onRemovePlace(p.id)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </section>
+  );
+}
+
+function SortablePlace({
+  place,
+  index,
+  color,
+  onRemove,
+}: {
+  place: Place;
+  index: number;
+  color: string;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: place.id,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className="p-3 hover:shadow-md transition-shadow group"
+    >
+      <div className="flex items-start gap-2">
+        <button
+          {...attributes}
+          {...listeners}
+          className="touch-none cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 -m-1 print:hidden"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <div
+          className="flex-shrink-0 h-7 w-7 rounded-full text-xs flex items-center justify-center text-white font-semibold"
+          style={{ background: color }}
+        >
+          {index + 1}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-semibold text-sm">{place.name}</h3>
+            {place.time && (
+              <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {place.time}
+              </span>
+            )}
+            {place.type && (
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                {place.type}
+              </span>
+            )}
+          </div>
+          {place.description && (
+            <p className="text-xs text-muted-foreground mt-1">{place.description}</p>
+          )}
+          <p className="text-[10px] text-muted-foreground/70 mt-1 inline-flex items-center gap-1">
+            <MapPin className="h-3 w-3" />
+            {place.lat.toFixed(4)}, {place.lng.toFixed(4)}
+          </p>
+        </div>
+        <button
+          onClick={onRemove}
+          className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity print:hidden"
+          aria-label="Remove"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    </Card>
   );
 }
