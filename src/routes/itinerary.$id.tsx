@@ -339,16 +339,22 @@ function ItineraryDetail() {
           startedAt: refineStartedAt,
           etaSec: null,
         });
-        const summary = skeleton
-          .filter((_, idx) => idx !== i)
+        const otherDaysAll = skeleton.filter((_, idx) => idx !== i);
+        const summary = otherDaysAll
           .map((d) => `Day ${d.day}: ${d.places.map((p) => p.name).join(", ")}`)
           .join("; ");
+        const existingPlaces = otherDaysAll.flatMap((d) =>
+          d.places
+            .filter((p) => typeof p.lat === "number" && typeof p.lng === "number")
+            .map((p) => ({ name: p.name, lat: p.lat, lng: p.lng })),
+        );
         const dayRes = await planSingleDay({
           data: {
             destination: itinerary.destination,
             dayNumber: target.day,
             totalDays: realTotal,
             existingDaysSummary: summary,
+            existingPlaces,
             lang,
           },
         });
