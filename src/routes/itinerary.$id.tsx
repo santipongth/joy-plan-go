@@ -568,7 +568,7 @@ function ItineraryDetail() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={regenerateAll}
+                onClick={requestRegenerateAll}
                 disabled={regenAllProgress !== null}
                 title={t("regenerateAll")}
               >
