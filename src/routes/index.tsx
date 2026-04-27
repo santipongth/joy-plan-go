@@ -32,6 +32,34 @@ export const Route = createFileRoute("/")({
 
 const INTERESTS: Array<keyof typeof dict.en> = ["culture", "nature", "food", "shopping", "family", "nightlife"];
 
+const COMPANIONS = [
+  { key: "solo", emoji: "🧍" },
+  { key: "family_c", emoji: "👨‍👩‍👧" },
+  { key: "couple", emoji: "💑" },
+  { key: "friends", emoji: "🧑‍🤝‍🧑" },
+  { key: "elderly", emoji: "🧓" },
+] as const;
+
+const STYLES = [
+  { key: "cultural", emoji: "🎭" },
+  { key: "classic", emoji: "🌟" },
+  { key: "natureStyle", emoji: "🌿" },
+  { key: "cityscape", emoji: "🏙️" },
+  { key: "historical", emoji: "🏛️" },
+] as const;
+
+const PACES = [
+  { key: "ambitious", emoji: "🥾" },
+  { key: "moderate", emoji: "" },
+  { key: "relaxedPace", emoji: "🌴" },
+] as const;
+
+const ACCOMMODATIONS = ["comfort", "premium", "luxury"] as const;
+const RHYTHMS = [
+  { key: "earlyStarts", emoji: "" },
+  { key: "lateNights", emoji: "" },
+] as const;
+
 function HomePage() {
   const t = useT();
   const lang = useLangStore((s) => s.lang);
