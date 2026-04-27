@@ -145,6 +145,12 @@ export const dict = {
     reasonNearestNoStart: "ไล่จากจุดที่ใกล้ที่สุด ลดการย้อนกลับ · ขาที่ไกลสุด {km} กม.",
     reasonNoMode: "ใช้ลำดับตาม AI — เลือกโหมดเพื่อจัดเส้นทาง",
     customStartPrompt: "ระบุชื่อจุดเริ่มต้น (เช่น โรงแรม/ย่าน)",
+    searchStartPoint: "ค้นหาจุดเริ่มต้น…",
+    useCustomLabel: "ใช้ \"{q}\" เป็นจุดเริ่มต้น",
+    otherDays: "สถานที่จากวันอื่น",
+    miniMapTitle: "แผนที่เส้นทางวันนี้",
+    startMarker: "จุดเริ่มต้น",
+    noStartChosen: "ยังไม่ได้เลือกจุดเริ่มต้น",
   },
   en: {
     appName: "Trip.Planner",
@@ -287,6 +293,12 @@ export const dict = {
     reasonNearestNoStart: "Closest-first ordering minimises backtracking · longest leg {km} km",
     reasonNoMode: "Using AI's default order — pick a mode to optimise",
     customStartPrompt: "Name your start point (hotel, district, etc.)",
+    searchStartPoint: "Search start point…",
+    useCustomLabel: "Use \"{q}\" as start",
+    otherDays: "Places from other days",
+    miniMapTitle: "Today's route map",
+    startMarker: "Start",
+    noStartChosen: "No start point chosen",
   },
 } as const;
 

@@ -59,6 +59,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import DayMiniMap from "@/components/DayMiniMap";
 import { estimateDayTravel, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
 
@@ -922,6 +932,9 @@ function DaySection({
 
       <DayRoutePanel
         day={day}
+        dayIdx={dayIdx}
+        allDays={allDays}
+        color={color}
         effectiveMode={effectiveMode}
         inheritedMode={inheritedMode}
         tripOriginLabel={tripOriginLabel}
@@ -1129,6 +1142,9 @@ function TripModeBar({
 
 function DayRoutePanel({
   day,
+  dayIdx,
+  allDays,
+  color,
   effectiveMode,
   inheritedMode,
   tripOriginLabel,
@@ -1138,6 +1154,9 @@ function DayRoutePanel({
   t,
 }: {
   day: DayPlan;
+  dayIdx: number;
+  allDays: DayPlan[];
+  color: string;
   effectiveMode: TravelMode;
   inheritedMode: TravelMode;
   tripOriginLabel?: string;
@@ -1165,11 +1184,38 @@ function DayRoutePanel({
     reasoning = t("reasonNearestNoStart").replace("{km}", longestKm);
   }
 
-  function pickCustomStart() {
-    const label = window.prompt(t("customStartPrompt"));
+  const [startOpen, setStartOpen] = useState(false);
+  const [startQuery, setStartQuery] = useState("");
+
+  const otherDayPlaces = allDays
+    .map((d, idx) => ({ d, idx }))
+    .filter(({ idx }) => idx !== dayIdx)
+    .flatMap(({ d }) => d.places.map((p) => ({ p, dayNum: d.day })));
+
+  function chooseInherit() {
+    onSetDayStart(undefined);
+    setStartOpen(false);
+  }
+  function chooseTripOrigin() {
+    if (tripOriginLabel) onSetDayStart({ label: tripOriginLabel });
+    else onSetDayStart(undefined);
+    setStartOpen(false);
+  }
+  function choosePlace(p: Place) {
+    onSetDayStart({ label: p.name, lat: p.lat, lng: p.lng, placeId: p.id });
+    setStartOpen(false);
+  }
+  function chooseCustom() {
+    const label = startQuery.trim();
     if (!label) return;
     onSetDayStart({ label });
+    setStartOpen(false);
+    setStartQuery("");
   }
+
+  const anchorForMap = anchor
+    ? { lat: anchor.lat, lng: anchor.lng, label: startLabel }
+    : null;
 
   return (
     <div className="mb-3 rounded-lg border bg-muted/30 p-3 text-xs space-y-2">
@@ -1194,32 +1240,86 @@ function DayRoutePanel({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline" className="h-7 text-xs">
+
+        <Popover open={startOpen} onOpenChange={setStartOpen}>
+          <PopoverTrigger asChild>
+            <Button size="sm" variant="outline" className="h-7 text-xs max-w-[260px] truncate">
               {t("startPoint")}: {startLabel}
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="max-w-[260px]">
-            <DropdownMenuItem onClick={() => onSetDayStart(undefined)}>
-              {tripOriginLabel ? `${t("tripOrigin")} (${tripOriginLabel})` : t("inherit")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={pickCustomStart}>{t("customStart")}</DropdownMenuItem>
-            {day.places.length > 0 && (
-              <div className="px-2 py-1 text-[10px] uppercase text-muted-foreground">
-                {t("pickFromDay")}
-              </div>
-            )}
-            {day.places.map((p) => (
-              <DropdownMenuItem
-                key={p.id}
-                onClick={() => onSetDayStart({ label: p.name, lat: p.lat, lng: p.lng, placeId: p.id })}
-              >
-                {p.name}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </PopoverTrigger>
+          <PopoverContent className="p-0 w-[300px]" align="start">
+            <Command shouldFilter={true}>
+              <CommandInput
+                placeholder={t("searchStartPoint")}
+                value={startQuery}
+                onValueChange={setStartQuery}
+              />
+              <CommandList>
+                <CommandEmpty>
+                  {startQuery.trim() ? (
+                    <button
+                      type="button"
+                      onClick={chooseCustom}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-accent"
+                    >
+                      {t("useCustomLabel").replace("{q}", startQuery.trim())}
+                    </button>
+                  ) : (
+                    <span className="px-3 py-2 text-xs text-muted-foreground block">—</span>
+                  )}
+                </CommandEmpty>
+                <CommandGroup heading={t("tripOrigin")}>
+                  <CommandItem onSelect={chooseInherit} value="__inherit__">
+                    {tripOriginLabel ? `${t("tripOrigin")} (${tripOriginLabel})` : t("inherit")}
+                  </CommandItem>
+                  {tripOriginLabel && (
+                    <CommandItem onSelect={chooseTripOrigin} value={`origin:${tripOriginLabel}`}>
+                      {tripOriginLabel}
+                    </CommandItem>
+                  )}
+                </CommandGroup>
+                {day.places.length > 0 && (
+                  <CommandGroup heading={t("pickFromDay")}>
+                    {day.places.map((p) => (
+                      <CommandItem
+                        key={p.id}
+                        value={`day:${p.name}`}
+                        onSelect={() => choosePlace(p)}
+                      >
+                        {p.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+                {otherDayPlaces.length > 0 && (
+                  <CommandGroup heading={t("otherDays")}>
+                    {otherDayPlaces.map(({ p, dayNum }) => (
+                      <CommandItem
+                        key={`${dayNum}-${p.id}`}
+                        value={`other:${dayNum}:${p.name}`}
+                        onSelect={() => choosePlace(p)}
+                      >
+                        <span className="text-muted-foreground mr-2">D{dayNum}</span>
+                        {p.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+                {startQuery.trim() && (
+                  <CommandGroup heading=" ">
+                    <CommandItem
+                      value={`__custom__:${startQuery}`}
+                      onSelect={chooseCustom}
+                    >
+                      {t("useCustomLabel").replace("{q}", startQuery.trim())}
+                    </CommandItem>
+                  </CommandGroup>
+                )}
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
         <Button
           size="sm"
           variant="default"
@@ -1238,6 +1338,12 @@ function DayRoutePanel({
         </span>
         <span className="text-foreground/80">{reasoning}</span>
       </div>
+      <DayMiniMap
+        places={day.places}
+        anchor={anchorForMap}
+        color={color}
+        startLabel={startLabel}
+      />
     </div>
   );
 }
