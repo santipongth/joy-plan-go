@@ -264,8 +264,10 @@ function ItineraryDetail() {
   async function regenerateAll() {
     if (!itinerary) return;
     if (!confirm(t("confirmRegenAll"))) return;
-    setRegenAllLoading(true);
+    const total = itinerary.durationDays;
+    setRegenAllProgress({ current: 0, total });
     try {
+      // First: get fresh trip skeleton (title + day count)
       const res = await planTripFn({
         data: {
           origin: itinerary.origin,
@@ -285,7 +287,8 @@ function ItineraryDetail() {
         });
         return;
       }
-      const newDays: DayPlan[] = res.days.map((d) => ({
+      // Commit the skeleton immediately so the UI shows new days/titles
+      const skeleton: DayPlan[] = res.days.map((d) => ({
         day: d.day,
         title: d.title,
         places: d.places.map((p) => ({
@@ -301,18 +304,64 @@ function ItineraryDetail() {
       update(id, {
         title: res.title || itinerary.title,
         citiesCount: res.citiesCount || itinerary.citiesCount,
-        days: newDays,
+        days: skeleton,
       });
-      // Reset visibility to all days (and persist)
-      setVisible(id, newDays.map((d) => d.day));
+      setVisible(id, skeleton.map((d) => d.day));
       setRegenErrors({});
-      toast.success("✓");
+
+      // Then: stream per-day refinement so user sees progress per day
+      const realTotal = skeleton.length;
+      setRegenAllProgress({ current: 0, total: realTotal });
+      for (let i = 0; i < skeleton.length; i++) {
+        const target = skeleton[i];
+        setRegenAllProgress({ current: i + 1, total: realTotal });
+        const summary = skeleton
+          .filter((_, idx) => idx !== i)
+          .map((d) => `Day ${d.day}: ${d.places.map((p) => p.name).join(", ")}`)
+          .join("; ");
+        const dayRes = await planSingleDay({
+          data: {
+            destination: itinerary.destination,
+            dayNumber: target.day,
+            totalDays: realTotal,
+            existingDaysSummary: summary,
+            lang,
+          },
+        });
+        if (dayRes.error || !dayRes.day) {
+          const code = dayRes.error || "AI_ERROR";
+          const msg = errorMessage(code);
+          toast.error(`${t("regenFailed")} — ${t("day")} ${target.day}`, {
+            description: msg,
+            duration: 10000,
+            action: { label: t("retry"), onClick: () => regenerateAll() },
+          });
+          return;
+        }
+        const newDay: DayPlan = {
+          day: target.day,
+          title: dayRes.day.title,
+          places: dayRes.day.places.map((p) => ({
+            id: makeId(),
+            name: p.name,
+            description: p.description,
+            type: p.type,
+            time: p.time,
+            lat: p.lat,
+            lng: p.lng,
+          })),
+        };
+        replaceDay(id, i, newDay);
+        // update local skeleton so subsequent summaries reflect committed places
+        skeleton[i] = newDay;
+      }
+      toast.success(t("regenAllSuccess"));
     } catch {
       toast.error(t("aiError"), {
         action: { label: t("retry"), onClick: () => regenerateAll() },
       });
     } finally {
-      setRegenAllLoading(false);
+      setRegenAllProgress(null);
     }
   }
 
