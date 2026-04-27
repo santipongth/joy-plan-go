@@ -98,7 +98,12 @@ function ItineraryDetail() {
   const toggleVisible = useVisibilityStore((s) => s.toggle);
   const [regenLoading, setRegenLoading] = useState<number | null>(null);
   const [regenErrors, setRegenErrors] = useState<Record<number, string>>({});
-  const [regenAllProgress, setRegenAllProgress] = useState<{ current: number; total: number } | null>(null);
+  const [regenAllProgress, setRegenAllProgress] = useState<{
+    current: number;
+    total: number;
+    startedAt: number;
+    etaSec: number | null;
+  } | null>(null);
   const planTripFn = useServerFn(planTrip);
 
   // initialize / sync visible days when itinerary loads or day numbers change
