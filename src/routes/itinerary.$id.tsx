@@ -323,12 +323,12 @@ function ItineraryDetail() {
       const failedDays: number[] = [];
       for (let i = 0; i < skeleton.length; i++) {
         const target = skeleton[i];
-        setRegenAllProgress((prev) => ({
+        setRegenAllProgress({
           current: i + 1,
           total: realTotal,
           startedAt: refineStartedAt,
-          etaSec: prev?.etaSec ?? null,
-        }));
+          etaSec: null,
+        });
         const summary = skeleton
           .filter((_, idx) => idx !== i)
           .map((d) => `Day ${d.day}: ${d.places.map((p) => p.name).join(", ")}`)
