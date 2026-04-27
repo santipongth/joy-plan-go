@@ -887,6 +887,85 @@ function ItineraryDetail() {
           )}
         </div>
       </div>
+
+      {/* Confirmation: regenerate single day with pending undo entries */}
+      <AlertDialog
+        open={pendingRegenDay !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingRegenDay(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("regenConfirmTitle").replace(
+                "{day}",
+                pendingRegenDay !== null
+                  ? String(itinerary.days[pendingRegenDay]?.day ?? "")
+                  : "",
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("regenConfirmBody").replace(
+                "{n}",
+                pendingRegenDay !== null
+                  ? String(historyDepths[pendingRegenDay] ?? 0)
+                  : "0",
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                const idx = pendingRegenDay;
+                setPendingRegenDay(null);
+                if (idx !== null) void regenerateDay(idx);
+              }}
+            >
+              {t("regenConfirmAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmation: regenerate ALL when any day has pending undo */}
+      <AlertDialog
+        open={pendingRegenAll}
+        onOpenChange={(open) => {
+          if (!open) setPendingRegenAll(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("regenAllConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("regenAllConfirmBody").replace(
+                "{days}",
+                Object.entries(historyDepths)
+                  .filter(([, n]) => n > 0)
+                  .map(([idxStr]) => itinerary.days[Number(idxStr)]?.day)
+                  .filter((n): n is number => typeof n === "number")
+                  .sort((a, b) => a - b)
+                  .join(", "),
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setPendingRegenAll(false);
+                void regenerateAll();
+              }}
+            >
+              {t("regenConfirmAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
