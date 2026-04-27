@@ -561,9 +561,43 @@ function HomePage() {
           </section>
         </div>
 
-        {/* RIGHT — Map */}
-        <div className="hidden lg:block sticky top-0 h-screen p-4">
+        {/* RIGHT — Map + Summary overlay */}
+        <div className="hidden lg:block sticky top-0 h-screen p-4 relative">
           <MapView groups={mapGroups} />
+          <div className="absolute top-6 right-6 w-80 max-h-[calc(100vh-3rem)] overflow-auto rounded-xl border bg-background/95 backdrop-blur shadow-lg p-4 z-[1000]">
+            <div className="flex items-center gap-2 mb-2">
+              <ListChecks className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">{t("summaryTitle")}</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              {t("categoriesSelected").replace("{n}", String(filledCategories)).replace("{total}", String(TOTAL_CATEGORIES))}
+            </p>
+            {summaryCategories.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">{t("summaryEmpty")}</p>
+            ) : (
+              <ul className="space-y-2">
+                {summaryCategories.map((c, i) => (
+                  <li key={i} className="text-xs">
+                    <div className="text-muted-foreground">{c.label}</div>
+                    <div className="font-medium text-foreground break-words">{c.value}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {issues.length > 0 && (
+              <div className="mt-3 pt-3 border-t space-y-1">
+                {issues.map((iss) => (
+                  <div
+                    key={iss.key}
+                    className={`text-xs flex items-start gap-1 ${iss.level === "error" ? "text-destructive" : "text-amber-600 dark:text-amber-400"}`}
+                  >
+                    <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                    <span>{iss.msg}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
