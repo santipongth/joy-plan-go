@@ -25,6 +25,8 @@ export interface DayPlan {
   startPoint?: DayStartPoint;
 }
 
+export type BudgetTier = "low" | "medium" | "high";
+
 export interface Itinerary {
   id: string;
   title: string;
@@ -36,6 +38,8 @@ export interface Itinerary {
   days: DayPlan[];
   citiesCount: number;
   travelMode?: TravelMode; // global default
+  budget?: BudgetTier;
+  travelers?: number;
   createdAt: number;
   updatedAt: number;
 }

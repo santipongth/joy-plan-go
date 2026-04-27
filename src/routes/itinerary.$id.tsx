@@ -71,7 +71,18 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import DayMiniMap from "@/components/DayMiniMap";
+import BudgetEstimate from "@/components/BudgetEstimate";
 import { estimateDayTravel, haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
 
@@ -141,6 +152,10 @@ function ItineraryDetail() {
     etaSec: number | null;
   } | null>(null);
   const planTripFn = useServerFn(planTrip);
+
+  // Pending regenerate confirmations when undo stack is non-empty
+  const [pendingRegenDay, setPendingRegenDay] = useState<number | null>(null);
+  const [pendingRegenAll, setPendingRegenAll] = useState(false);
 
   // initialize / sync visible days when itinerary loads or day numbers change
   const dayNumbersKey = itinerary?.days.map((d) => d.day).join(",") ?? "";
@@ -253,6 +268,48 @@ function ItineraryDetail() {
     if (code === "RATE_LIMIT") return t("rateLimit");
     if (code === "PAYMENT_REQUIRED") return t("paymentRequired");
     return t("aiError");
+  }
+
+  /**
+   * Pop one undo entry for a day and apply it (or apply explicit `prevSnapshot`).
+   * Shows a toast describing how many steps were undone and remaining count.
+   */
+  function undoReorder(dayIdx: number, dayNumber: number, prevSnapshot?: Place[]) {
+    const before = historyDepths[dayIdx] ?? 0;
+    let prev = prevSnapshot;
+    if (prev) {
+      // Toast-action snapshot path: also pop one entry to keep stack consistent.
+      popHistory(id, dayIdx);
+    } else {
+      prev = popHistory(id, dayIdx);
+    }
+    if (!prev) return;
+    reorderPlaces(id, dayIdx, prev);
+    const remaining = Math.max(0, before - 1);
+    const key = remaining > 0 ? "undidStepRemaining" : "undidStepNoMore";
+    toast.success(
+      t(key).replace("{day}", String(dayNumber)).replace("{remaining}", String(remaining)),
+    );
+  }
+
+  /** Wrap regenerateDay with a confirmation when the day's undo stack is non-empty. */
+  function requestRegenerateDay(dayIdx: number) {
+    const depth = historyDepths[dayIdx] ?? 0;
+    if (depth > 0) {
+      setPendingRegenDay(dayIdx);
+      return;
+    }
+    void regenerateDay(dayIdx);
+  }
+
+  /** Wrap regenerateAll with a confirmation when any day has undo entries. */
+  function requestRegenerateAll() {
+    const hasAny = Object.values(historyDepths).some((n) => n > 0);
+    if (hasAny) {
+      setPendingRegenAll(true);
+      return;
+    }
+    void regenerateAll();
   }
 
   async function regenerateDay(dayIdx: number) {
@@ -511,7 +568,7 @@ function ItineraryDetail() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={regenerateAll}
+                onClick={requestRegenerateAll}
                 disabled={regenAllProgress !== null}
                 title={t("regenerateAll")}
               >
@@ -622,6 +679,12 @@ function ItineraryDetail() {
             </p>
           </div>
 
+          <BudgetEstimate
+            itinerary={itinerary}
+            onTravelersChange={(n) => update(id, { travelers: n })}
+            onTierChange={(b) => update(id, { budget: b })}
+          />
+
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
             <div className="flex items-center justify-between mb-2">
@@ -695,7 +758,7 @@ function ItineraryDetail() {
                   onAddPlace={() => onAddPlace(dayIdx)}
                   onRemovePlace={(placeId) => removePlace(id, dayIdx, placeId)}
                   onReorder={(places) => reorderPlaces(id, dayIdx, places)}
-                  onRegenerate={() => regenerateDay(dayIdx)}
+                  onRegenerate={() => requestRegenerateDay(dayIdx)}
                   onMovePlace={(placeId, toDayIdx) => handleMovePlace(placeId, dayIdx, toDayIdx)}
                   onFocusPlace={focusPlace}
                   onSetDayMode={(m) => setDayMode(id, dayIdx, m)}
@@ -710,10 +773,7 @@ function ItineraryDetail() {
                       duration: 5000,
                       action: {
                         label: t("undo"),
-                        onClick: () => {
-                          popHistory(id, dayIdx);
-                          reorderPlaces(id, dayIdx, prev);
-                        },
+                        onClick: () => undoReorder(dayIdx, d.day, prev),
                       },
                     });
                   }}
@@ -721,12 +781,7 @@ function ItineraryDetail() {
                   errorMessage={regenErrors[d.day]}
                   onDismissError={() => clearRegenError(d.day)}
                   onPushHistory={(prev) => pushHistory(id, dayIdx, prev)}
-                  onUndoReorder={() => {
-                    const prev = popHistory(id, dayIdx);
-                    if (!prev) return;
-                    reorderPlaces(id, dayIdx, prev);
-                    toast.success(t("undoApplied"));
-                  }}
+                  onUndoReorder={() => undoReorder(dayIdx, d.day)}
                   historyDepth={historyDepths[dayIdx] ?? 0}
                   t={t}
                 />
@@ -832,6 +887,85 @@ function ItineraryDetail() {
           )}
         </div>
       </div>
+
+      {/* Confirmation: regenerate single day with pending undo entries */}
+      <AlertDialog
+        open={pendingRegenDay !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingRegenDay(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("regenConfirmTitle").replace(
+                "{day}",
+                pendingRegenDay !== null
+                  ? String(itinerary.days[pendingRegenDay]?.day ?? "")
+                  : "",
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("regenConfirmBody").replace(
+                "{n}",
+                pendingRegenDay !== null
+                  ? String(historyDepths[pendingRegenDay] ?? 0)
+                  : "0",
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                const idx = pendingRegenDay;
+                setPendingRegenDay(null);
+                if (idx !== null) void regenerateDay(idx);
+              }}
+            >
+              {t("regenConfirmAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmation: regenerate ALL when any day has pending undo */}
+      <AlertDialog
+        open={pendingRegenAll}
+        onOpenChange={(open) => {
+          if (!open) setPendingRegenAll(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("regenAllConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("regenAllConfirmBody").replace(
+                "{days}",
+                Object.entries(historyDepths)
+                  .filter(([, n]) => n > 0)
+                  .map(([idxStr]) => itinerary.days[Number(idxStr)]?.day)
+                  .filter((n): n is number => typeof n === "number")
+                  .sort((a, b) => a - b)
+                  .join(", "),
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setPendingRegenAll(false);
+                void regenerateAll();
+              }}
+            >
+              {t("regenConfirmAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
