@@ -129,6 +129,11 @@ function HomePage() {
           interests: interests.map((k) => dict.en[k as keyof typeof dict.en] as string),
           budget,
           pace,
+          companions: companions ? (dict.en[companions as keyof typeof dict.en] as string) : undefined,
+          travelStyle: travelStyle.map((k) => dict.en[k as keyof typeof dict.en] as string),
+          accommodation: accommodation ? (dict.en[accommodation as keyof typeof dict.en] as string) : undefined,
+          rhythm: rhythm.map((k) => dict.en[k as keyof typeof dict.en] as string),
+          otherNeeds: otherNeeds.trim() || undefined,
           lang,
         },
       });
