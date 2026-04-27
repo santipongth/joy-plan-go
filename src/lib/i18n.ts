@@ -80,6 +80,10 @@ export const dict = {
     regeneratingDay: "กำลังสร้างวัน {n} จาก {total}...",
     regenSuccess: "สร้างวัน {n} ใหม่สำเร็จ",
     regenAllSuccess: "สร้างทริปใหม่สำเร็จ",
+    regenSomeFailed: "บางวันสร้างไม่สำเร็จ — กดลองอีกครั้งที่วันนั้น",
+    timeLeft: "เหลือประมาณ",
+    seconds: "วิ",
+    page: "หน้า",
   },
   en: {
     appName: "Trip.Planner",
@@ -157,6 +161,10 @@ export const dict = {
     regeneratingDay: "Generating day {n} of {total}...",
     regenSuccess: "Day {n} regenerated successfully",
     regenAllSuccess: "Trip regenerated successfully",
+    regenSomeFailed: "Some days failed — retry from each day",
+    timeLeft: "~",
+    seconds: "s left",
+    page: "Page",
   },
 } as const;
 
