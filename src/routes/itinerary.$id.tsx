@@ -638,10 +638,13 @@ function ItineraryDetail() {
                   dayIdx={dayIdx}
                   color={color}
                   itineraryId={id}
+                  allDays={itinerary.days}
                   onAddPlace={() => onAddPlace(dayIdx)}
                   onRemovePlace={(placeId) => removePlace(id, dayIdx, placeId)}
                   onReorder={(places) => reorderPlaces(id, dayIdx, places)}
                   onRegenerate={() => regenerateDay(dayIdx)}
+                  onMovePlace={(placeId, toDayIdx) => handleMovePlace(placeId, dayIdx, toDayIdx)}
+                  onFocusPlace={focusPlace}
                   regenerating={regenLoading === d.day}
                   errorMessage={regenErrors[d.day]}
                   onDismissError={() => clearRegenError(d.day)}
