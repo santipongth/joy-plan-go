@@ -634,9 +634,20 @@ function ItineraryDetail() {
             </div>
           </div>
 
+          <TripModeBar
+            mode={itinerary.travelMode ?? "any"}
+            onChange={(m) => setItineraryMode(id, m)}
+            onApplyAll={() => {
+              applyModeToAllDays(id, itinerary.travelMode ?? "any");
+              toast.success(t("applyToAll"));
+            }}
+            t={t}
+          />
+
           <div className="space-y-6">
             {itinerary.days.map((d, dayIdx) => {
               const color = dayColor(d.day - 1);
+              const effectiveMode: TravelMode = d.travelMode ?? itinerary.travelMode ?? "any";
               return (
                 <DaySection
                   key={d.day}
@@ -645,12 +656,23 @@ function ItineraryDetail() {
                   color={color}
                   itineraryId={id}
                   allDays={itinerary.days}
+                  tripOriginLabel={itinerary.origin}
+                  effectiveMode={effectiveMode}
+                  inheritedMode={itinerary.travelMode ?? "any"}
                   onAddPlace={() => onAddPlace(dayIdx)}
                   onRemovePlace={(placeId) => removePlace(id, dayIdx, placeId)}
                   onReorder={(places) => reorderPlaces(id, dayIdx, places)}
                   onRegenerate={() => regenerateDay(dayIdx)}
                   onMovePlace={(placeId, toDayIdx) => handleMovePlace(placeId, dayIdx, toDayIdx)}
                   onFocusPlace={focusPlace}
+                  onSetDayMode={(m) => setDayMode(id, dayIdx, m)}
+                  onSetDayStart={(sp) => setDayStart(id, dayIdx, sp)}
+                  onReorderByMode={() => {
+                    const anchor = resolveAnchor(d.startPoint, d.places);
+                    const newOrder = reorderPlacesFromAnchor(d.places, anchor, effectiveMode);
+                    reorderPlaces(id, dayIdx, newOrder);
+                    toast.success(t("dayReordered").replace("{n}", String(d.day)));
+                  }}
                   regenerating={regenLoading === d.day}
                   errorMessage={regenErrors[d.day]}
                   onDismissError={() => clearRegenError(d.day)}
