@@ -1604,50 +1604,5 @@ function DayTimeline({
       </div>
     </div>
   );
-  }
+}
 
-  /**
-   * Pop one undo entry for a day and apply it (or apply explicit `prevSnapshot`).
-   * Shows a toast describing how many steps were undone and remaining count.
-   */
-  function undoReorder(dayIdx: number, dayNumber: number, prevSnapshot?: Place[]) {
-    const before = historyDepths[dayIdx] ?? 0;
-    let prev = prevSnapshot;
-    if (prev) {
-      // Explicit snapshot path (toast-action right after a reorder): also pop one entry to keep stack consistent.
-      popHistory(id, dayIdx);
-    } else {
-      prev = popHistory(id, dayIdx);
-    }
-    if (!prev) return;
-    reorderPlaces(id, dayIdx, prev);
-    const remaining = Math.max(0, before - 1);
-    const key = remaining > 0 ? "undidStepRemaining" : "undidStepNoMore";
-    toast.success(
-      t(key).replace("{day}", String(dayNumber)).replace("{remaining}", String(remaining)),
-    );
-  }
-
-  /** Wrap regenerateDay with a confirmation when the day's undo stack is non-empty. */
-  function requestRegenerateDay(dayIdx: number) {
-    const depth = historyDepths[dayIdx] ?? 0;
-    if (depth > 0) {
-      setPendingRegenDay(dayIdx);
-      return;
-    }
-    void regenerateDay(dayIdx);
-  }
-
-  /** Wrap regenerateAll with a confirmation when any day has undo entries. */
-  function requestRegenerateAll() {
-    const affected = Object.entries(historyDepths)
-      .filter(([, n]) => n > 0)
-      .map(([idxStr]) => itinerary?.days[Number(idxStr)]?.day)
-      .filter((n): n is number => typeof n === "number")
-      .sort((a, b) => a - b);
-    if (affected.length > 0) {
-      setPendingRegenAll(true);
-      return;
-    }
-    void regenerateAll();
-  }
