@@ -42,11 +42,14 @@ export const planSingleDay = createServerFn({ method: "POST" })
       data.lang === "th"
         ? "ตอบเป็นภาษาไทย คำอธิบายเป็นภาษาไทย"
         : "Respond in English.";
-    const sys = `You are an expert travel planner. Generate ONE day of a trip with 3-5 places including accurate lat/lng. ${langInstr}`;
+    const sys = `You are an expert travel planner. Generate ONE day of a trip with 3-5 places including accurate lat/lng. Each place must be a UNIQUE location: distinct name AND coordinates more than ~200m apart from any other day's place. Never revisit places mentioned in other days. ${langInstr}`;
     const prefsBlock = buildPreferencesBlock(data);
+    const existingList = (data.existingPlaces || [])
+      .map((p) => `${p.name} (${p.lat.toFixed(4)},${p.lng.toFixed(4)})`)
+      .join("; ");
     const user = `Trip to ${data.destination}. Generate ONLY day ${data.dayNumber} of ${data.totalDays}.${
       data.existingDaysSummary ? ` Other days cover: ${data.existingDaysSummary}. Do NOT repeat those places; pick different ones.` : ""
-    }${prefsBlock}`;
+    }${existingList ? ` Forbidden places (already used in other days, do NOT include or pick anything within ~200m): ${existingList}.` : ""}${prefsBlock}`;
 
     const tool = {
       type: "function" as const,
