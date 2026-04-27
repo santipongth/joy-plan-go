@@ -330,18 +330,21 @@ function HomePage() {
                   <div>
                     <Label className="text-xs text-muted-foreground mb-2 block">{t("travelMode")}</Label>
                     <div className="flex flex-wrap gap-2">
-                      {TRAVEL_MODES.map((m) => (
-                        <Button
-                          key={m.key}
-                          type="button"
-                          size="sm"
-                          variant={travelMode === m.key ? "default" : "outline"}
-                          onClick={() => setTravelMode(m.key)}
-                        >
-                          <span className="mr-1">{m.emoji}</span>
-                          {t(`mode${m.key.charAt(0).toUpperCase() + m.key.slice(1)}` as keyof typeof dict.en)}
-                        </Button>
-                      ))}
+                      {TRAVEL_MODES.map((m) => {
+                        const labelKey = ("mode" + m.key.charAt(0).toUpperCase() + m.key.slice(1)) as keyof typeof dict.en;
+                        return (
+                          <Button
+                            key={m.key}
+                            type="button"
+                            size="sm"
+                            variant={travelMode === m.key ? "default" : "outline"}
+                            onClick={() => setTravelMode(m.key)}
+                          >
+                            <span className="mr-1">{m.emoji}</span>
+                            {t(labelKey)}
+                          </Button>
+                        );
+                      })}
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-1.5">{t("travelModeHint")}</p>
                   </div>
