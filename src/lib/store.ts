@@ -70,7 +70,15 @@ export const useItineraryStore = create<State>()(
         set((s) => ({
           itineraries: s.itineraries.map((i) => {
             if (i.id !== id) return i;
-            const days = i.days.map((d, idx) => (idx === dayIndex ? day : d));
+            const days = i.days.map((d, idx) => {
+              if (idx !== dayIndex) return d;
+              // Preserve user-chosen travelMode and startPoint across AI regeneration
+              return {
+                ...day,
+                travelMode: day.travelMode ?? d.travelMode,
+                startPoint: day.startPoint ?? d.startPoint,
+              };
+            });
             return touch({ ...i, days });
           }),
         })),
@@ -118,7 +126,26 @@ export const useItineraryStore = create<State>()(
           }),
         })),
     }),
-    { name: "trip-planner-itineraries" }
+    {
+      name: "trip-planner-itineraries",
+      version: 2,
+      migrate: (persistedState: any, version: number) => {
+        if (!persistedState || typeof persistedState !== "object") return persistedState;
+        if (version < 2 && Array.isArray(persistedState.itineraries)) {
+          persistedState.itineraries = persistedState.itineraries.map((it: any) => ({
+            ...it,
+            days: Array.isArray(it.days)
+              ? it.days.map((d: any) => ({
+                  travelMode: d?.travelMode,
+                  startPoint: d?.startPoint,
+                  ...d,
+                }))
+              : it.days,
+          }));
+        }
+        return persistedState;
+      },
+    }
   )
 );
 
