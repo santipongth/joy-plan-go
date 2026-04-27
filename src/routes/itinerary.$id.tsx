@@ -390,6 +390,8 @@ function ItineraryDetail() {
             totalDays: realTotal,
             existingDaysSummary: summary,
             existingPlaces,
+            travelMode: target.travelMode ?? itinerary.travelMode,
+            startLabel: target.startPoint?.label,
             lang,
           },
         });
