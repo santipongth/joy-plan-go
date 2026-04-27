@@ -125,6 +125,11 @@ interface PlanInput {
   interests?: string[];
   budget?: string;
   pace?: string;
+  companions?: string;
+  travelStyle?: string[];
+  accommodation?: string;
+  rhythm?: string[];
+  otherNeeds?: string;
   lang: "th" | "en";
 }
 
