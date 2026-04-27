@@ -193,6 +193,7 @@ function HomePage() {
           accommodation: accommodation ? (dict.en[accommodation as keyof typeof dict.en] as string) : undefined,
           rhythm: rhythm.map((k) => dict.en[k as keyof typeof dict.en] as string),
           otherNeeds: otherNeeds.trim() || undefined,
+          travelMode,
           lang,
         },
       });
