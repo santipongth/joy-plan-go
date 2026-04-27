@@ -1,63 +1,70 @@
 ## Goals
 
-1. Make sure each day's `travelMode` and `startPoint` survive a page refresh.
-2. Replace the `window.prompt` "custom start" picker with a searchable dropdown of candidate start points.
-3. Add a per-day mini map that draws the day's ordered route as a polyline starting from the selected start point.
+1. Make sure the selected start point — including its `lat`, `lng`, and `placeId` — survives both AI regeneration and a browser refresh.
+2. Make the per-day mini map well-behaved: gestures don't hijack page scroll, and Leaflet instances are torn down properly when routes change.
+3. Make the start-point dropdown feel instant by memoizing/caching the per-day route stats and the dropdown's option list.
 
 ---
 
-## 1. Persist per-day travel settings
+## 1. Robust start-point persistence
 
-The Zustand store already uses `persist({ name: "trip-planner-itineraries" })` and `setDayMode` / `setDayStart` mutate `day.travelMode` / `day.startPoint` inside the persisted `itineraries` array, so values *are* written to localStorage. What's missing is guaranteeing they round-trip cleanly:
+Today the store persists `startPoint`, but two gaps remain:
 
-- Add `travelMode?: TravelMode` and `startPoint?: DayStartPoint` to the `DayPlan` shape returned by `planSingleDay` / `planTrip` server functions in `src/server/plan-trip.functions.ts` so newly generated days don't strip them when the AI re-renders a day.
-- In `src/lib/store.ts`, bump the persist config with `version: 2` and a tiny `migrate` that ensures `days[i].travelMode` / `days[i].startPoint` exist (default `undefined`). This protects users who already have data from the previous version and avoids hydration warnings.
-- In `replaceDay` (used after AI regeneration of a single day), preserve the previous day's `travelMode` and `startPoint` unless the new `DayPlan` explicitly provides them — otherwise the AI re-gen will silently wipe the user's chosen start.
+- **AI regeneration replaces a day's `places` with brand-new IDs.** If the user chose a start point that points to a place via `placeId`, the ID becomes stale on regen and `resolveAnchor` falls through to the stored `lat`/`lng` (works), but if no lat/lng was stored, the anchor silently breaks.
+- **Old persisted data from before per-day start points** may have `startPoint` shapes without lat/lng.
 
-## 2. Searchable start-point dropdown
+Fixes in `src/lib/store.ts`:
 
-Replace the `window.prompt` flow inside `DayRoutePanel` (`src/routes/itinerary.$id.tsx`, ~line 1168) with a shadcn `Command` (cmdk) popover.
+- In `replaceDay`, when the AI returns a new day:
+  - If the new day has its own `startPoint`, keep it.
+  - Otherwise, take the previous `startPoint` and try to **remap `placeId`** to the new place list by matching on place `name`. If matched, write the new `placeId` plus its `lat`/`lng` and the original label.
+  - If no match, fall back to the previously stored `lat`/`lng` (drop the stale `placeId`) so the anchor still works.
+  - As a last resort, keep just the `label` (still a useful display anchor).
+- Bump persist `version: 3` with a migrate that, for any `startPoint` having a `placeId`, fills in `lat`/`lng` from the matching place in that day if currently missing.
 
-Source list (in order):
-1. "Inherit from trip" → clears `startPoint` (uses trip origin).
-2. Trip origin (`itinerary.origin`) as a pickable item.
-3. Each place from the **current day** (label = place name, sets `placeId` + coords).
-4. Each place from **other days** (grouped under "Other days") so users can anchor to their hotel even if it lives on day 1.
-5. A free-text input at the bottom of the popover ("Use custom label…") that creates a `{ label }`-only `DayStartPoint` when submitted — same behavior as the old prompt but inline.
+In `src/routes/itinerary.$id.tsx` (the start picker `choosePlace`), the option already writes `{ label, lat, lng, placeId }` — verify this stays the case for places picked from *other* days too (it currently does, since we pass the same `Place` object).
 
-Implementation notes:
-- Use existing `@/components/ui/command` + `@/components/ui/popover` (already part of shadcn setup; verify with `code--list_dir src/components/ui` and add via `bun add cmdk` if missing).
-- Keep the trigger button styling identical to the current `Button` so layout is unchanged.
-- Add i18n keys: `searchStartPoint`, `useCustomLabel`, `otherDays`.
+## 2. Mini map gesture + lifecycle hardening
 
-## 3. Per-day mini map with ordered polyline
+In `src/components/DayMiniMap.tsx`:
 
-Create a small reusable component `src/components/DayMiniMap.tsx`:
-- Lazy-loads `leaflet` (mirrors the pattern in `src/components/MapView.tsx`).
-- Props: `places: Place[]`, `anchor: { lat: number; lng: number } | null`, `color: string`, `height?: string` (default `160px`).
-- Draws:
-  - A start marker (distinctive icon — small "S" pin) at `anchor` if present.
-  - Numbered circle markers for each place in current order using `color`.
-  - A `L.polyline` connecting `anchor → place1 → place2 → …` in order.
-  - `fitBounds` over all points with a small padding.
-- Re-renders when the places array reference changes (after reorder).
+- Map options:
+  - `scrollWheelZoom: false` (already set).
+  - Add `touchZoom: false` and `doubleClickZoom: false` so two-finger gestures and double-tap zoom don't fight scroll on mobile.
+  - Keep `dragging: true` but set `inertia: false` and `keyboard: false` to avoid the map stealing keyboard focus.
+  - Stop wheel events from bubbling so scrolling over the map continues to scroll the page (delegate via `L.DomEvent.disableScrollPropagation` on the container, NOT `disableClickPropagation`, so clicks still work).
+- Lifecycle cleanup:
+  - In the unmount cleanup function, call `mapRef.current?.remove()` and null out `mapRef`, `layerRef`, `LRef`. Today the map is never destroyed — switching itineraries leaks DOM listeners and Leaflet instances and can cause "Map container is already initialized" on re-mount.
+  - Also remove the previous `featureGroup` before adding a new one (already done) but use `map.eachLayer` as a defensive reset if the cached `layerRef` ever gets out of sync.
+- Resize: when the parent container changes size (e.g. opening/closing collapsibles), call `map.invalidateSize()` after a microtask. Use a `ResizeObserver` on the container so the map keeps the right viewport.
 
-Embed it inside `DayRoutePanel` (or directly in `DaySection`, after `DayRoutePanel` and before the place list) so it sits between the route stats and the draggable place list. Use the day's `color` so it visually matches the day's legend dot.
+## 3. Memoize/cache the heavy per-day work
 
-If the day has fewer than 1 place and no anchor, render nothing.
+In `src/routes/itinerary.$id.tsx` `DayRoutePanel`:
+
+- Wrap `resolveAnchor(day.startPoint, day.places)` and `estimateDayTravel(day.places, effectiveMode, anchor)` in `useMemo` keyed by `[day.places, day.startPoint, effectiveMode]`.
+- Wrap `otherDayPlaces` in `useMemo` keyed by `[allDays, dayIdx]`.
+- Compute `startLabel` and `reasoning` from the memoized values so they don't recompute on every parent re-render (e.g., regen toasts).
+
+In `src/lib/route-utils.ts`:
+
+- Add a small **module-level WeakMap cache** keyed by the `places` array reference for `estimateDayTravel`. Cache value is `Map<modeKey + anchorKey, DayTravelEstimate>`. This means as long as the user only flips travel mode or start point, no re-walks happen on subsequent renders for the same place list.
+- Same idea for `reorderPlacesFromAnchor` — cache by `[places ref, mode, anchorKey]` so repeatedly clicking "update day order" with no changes is a no-op.
+
+Debouncing:
+
+- The dropdown itself doesn't run heavy work, but selecting a start point triggers an immediate store write + re-render of all days. Add a 120ms debounce around `setDayStart` writes inside `DayRoutePanel` so rapid keyboard navigation through cmdk options doesn't thrash the store. Use a small `useDebouncedCallback` helper inline (no new dep) — `useRef<NodeJS.Timeout>` + `useEffect` cleanup.
 
 ---
 
-## Technical summary (for engineers)
+## Technical summary
 
-- **Files edited**: `src/lib/store.ts`, `src/lib/types.ts` (no shape change, just doc), `src/lib/i18n.ts`, `src/routes/itinerary.$id.tsx`, `src/server/plan-trip.functions.ts`.
-- **Files created**: `src/components/DayMiniMap.tsx`, possibly `src/components/StartPointPicker.tsx` for the cmdk popover.
-- **No DB / server changes** beyond echoing optional fields through server functions.
-- **Risk**: persist version bump — keep `migrate` permissive (return state untouched if shape is fine) so existing trips load.
-
----
+- **Files edited**: `src/lib/store.ts`, `src/lib/route-utils.ts`, `src/routes/itinerary.$id.tsx`, `src/components/DayMiniMap.tsx`.
+- **No new packages**, no DB changes.
+- **Persist version**: bump to `3` with a migrate that backfills `lat`/`lng` on `startPoint`s referencing a placeId.
+- **Risk**: WeakMap cache keys on the `places` array reference — Zustand returns new arrays on every update, so cache entries naturally GC. No stale data risk.
 
 ## Out of scope
 
-- Real walking/transit routing via an external API (current estimate is haversine-based; mini map polyline will be straight lines, not snapped to streets).
-- Persisting per-day settings to a remote DB.
+- Real routing API (still straight-line polylines).
+- Server-side persistence of itineraries (still localStorage only).

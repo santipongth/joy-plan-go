@@ -72,11 +72,37 @@ export const useItineraryStore = create<State>()(
             if (i.id !== id) return i;
             const days = i.days.map((d, idx) => {
               if (idx !== dayIndex) return d;
-              // Preserve user-chosen travelMode and startPoint across AI regeneration
+              // Preserve user-chosen travelMode and startPoint across AI regeneration.
+              // If previous startPoint referenced a placeId from old places, remap it
+              // to the new places by name match; otherwise keep stored lat/lng so
+              // resolveAnchor still works.
+              const prevSP = d.startPoint;
+              let nextSP: DayStartPoint | undefined = day.startPoint ?? prevSP;
+              if (!day.startPoint && prevSP?.placeId && Array.isArray(day.places)) {
+                const oldPlace = d.places.find((p) => p.id === prevSP.placeId);
+                const matched = oldPlace
+                  ? day.places.find((p) => p.name === oldPlace.name)
+                  : undefined;
+                if (matched) {
+                  nextSP = {
+                    label: prevSP.label,
+                    placeId: matched.id,
+                    lat: matched.lat,
+                    lng: matched.lng,
+                  };
+                } else if (
+                  typeof prevSP.lat === "number" &&
+                  typeof prevSP.lng === "number"
+                ) {
+                  nextSP = { label: prevSP.label, lat: prevSP.lat, lng: prevSP.lng };
+                } else {
+                  nextSP = { label: prevSP.label };
+                }
+              }
               return {
                 ...day,
                 travelMode: day.travelMode ?? d.travelMode,
-                startPoint: day.startPoint ?? d.startPoint,
+                startPoint: nextSP,
               };
             });
             return touch({ ...i, days });
@@ -128,7 +154,7 @@ export const useItineraryStore = create<State>()(
     }),
     {
       name: "trip-planner-itineraries",
-      version: 2,
+      version: 3,
       migrate: (persistedState: any, version: number) => {
         if (!persistedState || typeof persistedState !== "object") return persistedState;
         if (version < 2 && Array.isArray(persistedState.itineraries)) {
@@ -140,6 +166,33 @@ export const useItineraryStore = create<State>()(
                   startPoint: d?.startPoint,
                   ...d,
                 }))
+              : it.days,
+          }));
+        }
+        if (version < 3 && Array.isArray(persistedState.itineraries)) {
+          // Backfill lat/lng on startPoints that referenced a placeId but never
+          // stored coordinates, so resolveAnchor keeps working after refresh.
+          persistedState.itineraries = persistedState.itineraries.map((it: any) => ({
+            ...it,
+            days: Array.isArray(it.days)
+              ? it.days.map((d: any) => {
+                  const sp = d?.startPoint;
+                  if (
+                    sp &&
+                    sp.placeId &&
+                    (typeof sp.lat !== "number" || typeof sp.lng !== "number") &&
+                    Array.isArray(d.places)
+                  ) {
+                    const match = d.places.find((p: any) => p?.id === sp.placeId);
+                    if (match && typeof match.lat === "number" && typeof match.lng === "number") {
+                      return {
+                        ...d,
+                        startPoint: { ...sp, lat: match.lat, lng: match.lng },
+                      };
+                    }
+                  }
+                  return d;
+                })
               : it.days,
           }));
         }

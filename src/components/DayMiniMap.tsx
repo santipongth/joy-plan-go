@@ -20,7 +20,9 @@ export default function DayMiniMap({
   const mapRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
   const LRef = useRef<any>(null);
+  const resizeObsRef = useRef<ResizeObserver | null>(null);
 
+  // Initialize map once on mount; tear down completely on unmount.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -33,21 +35,52 @@ export default function DayMiniMap({
           zoomControl: false,
           attributionControl: false,
           scrollWheelZoom: false,
+          doubleClickZoom: false,
+          touchZoom: false,
+          boxZoom: false,
+          keyboard: false,
           dragging: true,
-          
+          inertia: false,
         }).setView([0, 0], 2);
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
         }).addTo(mapRef.current);
+        // Don't let scroll/touch gestures bubble out — keeps page scroll working
+        // but avoids the map hijacking it either.
+        L.DomEvent.disableScrollPropagation(containerRef.current);
+        // Keep viewport correct when the parent collapses/expands.
+        if (typeof ResizeObserver !== "undefined") {
+          resizeObsRef.current = new ResizeObserver(() => {
+            queueMicrotask(() => mapRef.current?.invalidateSize());
+          });
+          resizeObsRef.current.observe(containerRef.current);
+        }
       }
       drawRoute();
     })();
     return () => {
       cancelled = true;
+      try {
+        resizeObsRef.current?.disconnect();
+      } catch {
+        /* ignore */
+      }
+      resizeObsRef.current = null;
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch {
+          /* ignore */
+        }
+        mapRef.current = null;
+      }
+      layerRef.current = null;
+      LRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Redraw when inputs change.
   useEffect(() => {
     if (LRef.current && mapRef.current) drawRoute();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -57,10 +90,17 @@ export default function DayMiniMap({
     const L = LRef.current;
     const map = mapRef.current;
     if (!L || !map) return;
+
+    // Defensive: clear previous overlay layer (and any stray markers/polylines).
     if (layerRef.current) {
-      map.removeLayer(layerRef.current);
+      try {
+        map.removeLayer(layerRef.current);
+      } catch {
+        /* ignore */
+      }
       layerRef.current = null;
     }
+
     const group = L.featureGroup();
 
     const validPlaces = places.filter(
@@ -121,7 +161,7 @@ export default function DayMiniMap({
     <div
       ref={containerRef}
       className="w-full rounded-md overflow-hidden border bg-muted/30"
-      style={{ height }}
+      style={{ height, touchAction: "pan-y" }}
     />
   );
 }
