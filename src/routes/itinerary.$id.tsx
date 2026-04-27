@@ -252,6 +252,70 @@ function ItineraryDetail() {
     }
   }
 
+  function clearRegenError(day: number) {
+    setRegenErrors((prev) => {
+      if (!(day in prev)) return prev;
+      const next = { ...prev };
+      delete next[day];
+      return next;
+    });
+  }
+
+  async function regenerateAll() {
+    if (!itinerary) return;
+    if (!confirm(t("confirmRegenAll"))) return;
+    setRegenAllLoading(true);
+    try {
+      const res = await planTripFn({
+        data: {
+          origin: itinerary.origin,
+          destination: itinerary.destination,
+          durationDays: itinerary.durationDays,
+          startDate: itinerary.startDate,
+          lang,
+        },
+      });
+      if (res.error || !res.days?.length) {
+        const code = res.error || "AI_ERROR";
+        const msg = errorMessage(code);
+        toast.error(t("regenFailed"), {
+          description: msg,
+          duration: 10000,
+          action: { label: t("retry"), onClick: () => regenerateAll() },
+        });
+        return;
+      }
+      const newDays: DayPlan[] = res.days.map((d) => ({
+        day: d.day,
+        title: d.title,
+        places: d.places.map((p) => ({
+          id: makeId(),
+          name: p.name,
+          description: p.description,
+          type: p.type,
+          time: p.time,
+          lat: p.lat,
+          lng: p.lng,
+        })),
+      }));
+      update(id, {
+        title: res.title || itinerary.title,
+        citiesCount: res.citiesCount || itinerary.citiesCount,
+        days: newDays,
+      });
+      // Reset visibility to all days (and persist)
+      setVisible(id, newDays.map((d) => d.day));
+      setRegenErrors({});
+      toast.success("✓");
+    } catch {
+      toast.error(t("aiError"), {
+        action: { label: t("retry"), onClick: () => regenerateAll() },
+      });
+    } finally {
+      setRegenAllLoading(false);
+    }
+  }
+
   function exportPdf() {
     // Print-friendly: open print dialog (user can save as PDF)
     window.print();
