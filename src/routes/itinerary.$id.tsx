@@ -26,6 +26,9 @@ import {
   FileDown,
   AlertTriangle,
   RefreshCw,
+  X,
+  Printer,
+  Wand2,
 } from "lucide-react";
 import MapView, { dayColor } from "@/components/MapView";
 import PrintItinerary from "@/components/PrintItinerary";
@@ -48,7 +51,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Place, DayPlan } from "@/lib/types";
-import { planSingleDay } from "@/server/plan-trip.functions";
+import { planSingleDay, planTrip } from "@/server/plan-trip.functions";
+import { useServerFn } from "@tanstack/react-start";
 import {
   DropdownMenu,
   DropdownMenuContent,
