@@ -311,6 +311,13 @@ function HomePage() {
                 </div>
               </div>
 
+              <div>
+                <Label className="text-xs text-muted-foreground mb-2 block">
+                  {t("duration")}: <span className="font-semibold text-foreground">{days}</span>
+                </Label>
+                <Slider min={1} max={14} step={1} value={[days]} onValueChange={(v) => setDays(v[0])} />
+              </div>
+
               <Collapsible open={prefsOpen} onOpenChange={setPrefsOpen}>
                 <CollapsibleTrigger asChild>
                   <button type="button" className="flex items-center gap-2 text-sm font-medium hover:text-primary">
@@ -321,11 +328,24 @@ function HomePage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-4 space-y-4">
                   <div>
-                    <Label className="text-xs text-muted-foreground mb-2 block">
-                      {t("duration")}: <span className="font-semibold text-foreground">{days}</span>
-                    </Label>
-                    <Slider min={1} max={14} step={1} value={[days]} onValueChange={(v) => setDays(v[0])} />
+                    <Label className="text-xs text-muted-foreground mb-2 block">{t("travelMode")}</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {TRAVEL_MODES.map((m) => (
+                        <Button
+                          key={m.key}
+                          type="button"
+                          size="sm"
+                          variant={travelMode === m.key ? "default" : "outline"}
+                          onClick={() => setTravelMode(m.key)}
+                        >
+                          <span className="mr-1">{m.emoji}</span>
+                          {t(`mode${m.key.charAt(0).toUpperCase() + m.key.slice(1)}` as keyof typeof dict.en)}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">{t("travelModeHint")}</p>
                   </div>
+                </CollapsibleContent>
                   <div>
                     <Label className="text-xs text-muted-foreground mb-2 block">{t("interests")}</Label>
                     <div className="flex flex-wrap gap-2">
