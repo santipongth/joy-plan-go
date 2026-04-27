@@ -685,10 +685,17 @@ function ItineraryDetail() {
                     const anchor = resolveAnchor(d.startPoint, d.places);
                     const newOrder = reorderPlacesFromAnchor(d.places, anchor, effectiveMode);
                     const prev = d.places;
+                    pushHistory(id, dayIdx, prev);
                     reorderPlaces(id, dayIdx, newOrder);
                     toast.success(t("dayReordered").replace("{n}", String(d.day)), {
                       duration: 5000,
-                      action: { label: t("undo"), onClick: () => reorderPlaces(id, dayIdx, prev) },
+                      action: {
+                        label: t("undo"),
+                        onClick: () => {
+                          popHistory(id, dayIdx);
+                          reorderPlaces(id, dayIdx, prev);
+                        },
+                      },
                     });
                   }}
                   regenerating={regenLoading === d.day}
