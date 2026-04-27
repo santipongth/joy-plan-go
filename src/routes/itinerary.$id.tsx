@@ -50,7 +50,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Place, DayPlan } from "@/lib/types";
+import type { Place, DayPlan, TravelMode, DayStartPoint } from "@/lib/types";
 import { planSingleDay, planTrip } from "@/server/plan-trip.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -59,6 +59,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { estimateDayTravel, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
+import { dict } from "@/lib/i18n";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
