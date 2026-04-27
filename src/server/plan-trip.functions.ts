@@ -24,6 +24,7 @@ interface PlanDayInput {
   rhythm?: string[];
   otherNeeds?: string;
   travelMode?: TravelMode;
+  startLabel?: string;
   lang: "th" | "en";
 }
 
