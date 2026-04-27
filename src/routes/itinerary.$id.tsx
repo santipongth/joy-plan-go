@@ -916,6 +916,17 @@ function DaySection({
         </Alert>
       )}
 
+      <DayRoutePanel
+        day={day}
+        effectiveMode={effectiveMode}
+        inheritedMode={inheritedMode}
+        tripOriginLabel={tripOriginLabel}
+        onSetDayMode={onSetDayMode}
+        onSetDayStart={onSetDayStart}
+        onReorderByMode={onReorderByMode}
+        t={t}
+      />
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext
           items={day.places.map((p) => p.id)}
