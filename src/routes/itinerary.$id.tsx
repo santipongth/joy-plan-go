@@ -569,6 +569,7 @@ interface DaySectionProps {
   onRegenerate: () => void;
   regenerating: boolean;
   errorMessage?: string;
+  onDismissError?: () => void;
   t: (k: any) => string;
 }
 
@@ -581,6 +582,7 @@ function DaySection({
   onRegenerate,
   regenerating,
   errorMessage,
+  onDismissError,
   t,
 }: DaySectionProps) {
   const sensors = useSensors(
