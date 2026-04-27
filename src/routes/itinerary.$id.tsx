@@ -988,13 +988,43 @@ function SortablePlace({
             {place.lat.toFixed(4)}, {place.lng.toFixed(4)}
           </p>
         </div>
-        <button
-          onClick={onRemove}
-          className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity print:hidden"
-          aria-label="Remove"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1 print:hidden">
+          <button
+            onClick={onFocus}
+            className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-primary transition-opacity p-1"
+            aria-label={focusLabel}
+            title={focusLabel}
+          >
+            <MapPin className="h-4 w-4" />
+          </button>
+          {otherDays.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity p-1 text-[10px] font-semibold"
+                  aria-label={moveLabel}
+                  title={moveLabel}
+                >
+                  →D
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {otherDays.map((d) => (
+                  <DropdownMenuItem key={d.idx} onClick={() => onMove(d.idx)}>
+                    {moveLabel} {d.day}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <button
+            onClick={onRemove}
+            className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity p-1"
+            aria-label="Remove"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </Card>
   );
