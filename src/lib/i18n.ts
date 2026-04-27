@@ -158,6 +158,10 @@ export const dict = {
     legMinutes: "{n} นาที",
     reordered: "จัดลำดับใหม่แล้ว",
     undo: "ย้อนกลับ",
+    undoApplied: "ย้อนการจัดลำดับแล้ว",
+    undoTooltip: "ย้อนการจัดลำดับล่าสุด ({n})",
+    showMinutes: "แสดงนาที",
+    hideMinutes: "ซ่อนนาที",
     timelineLabel: "ลำดับการเดินทาง",
   },
   en: {
@@ -314,6 +318,10 @@ export const dict = {
     legMinutes: "{n} min",
     reordered: "Reordered",
     undo: "Undo",
+    undoApplied: "Reorder undone",
+    undoTooltip: "Undo last reorder ({n})",
+    showMinutes: "Show minutes",
+    hideMinutes: "Hide minutes",
     timelineLabel: "Trip order",
   },
 } as const;
