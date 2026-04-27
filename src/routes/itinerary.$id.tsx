@@ -31,6 +31,7 @@ import {
   X,
   Printer,
   Wand2,
+  Undo2,
 } from "lucide-react";
 import MapView, { dayColor } from "@/components/MapView";
 import PrintItinerary from "@/components/PrintItinerary";
