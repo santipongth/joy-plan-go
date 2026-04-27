@@ -684,8 +684,12 @@ function ItineraryDetail() {
                   onReorderByMode={() => {
                     const anchor = resolveAnchor(d.startPoint, d.places);
                     const newOrder = reorderPlacesFromAnchor(d.places, anchor, effectiveMode);
+                    const prev = d.places;
                     reorderPlaces(id, dayIdx, newOrder);
-                    toast.success(t("dayReordered").replace("{n}", String(d.day)));
+                    toast.success(t("dayReordered").replace("{n}", String(d.day)), {
+                      duration: 5000,
+                      action: { label: t("undo"), onClick: () => reorderPlaces(id, dayIdx, prev) },
+                    });
                   }}
                   regenerating={regenLoading === d.day}
                   errorMessage={regenErrors[d.day]}
@@ -854,7 +858,13 @@ function DaySection({
     const oldIdx = day.places.findIndex((p) => p.id === active.id);
     const newIdx = day.places.findIndex((p) => p.id === over.id);
     if (oldIdx < 0 || newIdx < 0) return;
-    onReorder(arrayMove(day.places, oldIdx, newIdx));
+    const prev = day.places;
+    const next = arrayMove(day.places, oldIdx, newIdx);
+    onReorder(next);
+    toast.success(t("reordered"), {
+      duration: 5000,
+      action: { label: t("undo"), onClick: () => onReorder(prev) },
+    });
   }
 
   return (
