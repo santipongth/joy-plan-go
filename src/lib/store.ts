@@ -70,6 +70,21 @@ export const useItineraryStore = create<State>()(
             return touch({ ...i, days });
           }),
         })),
+      movePlace: (id, fromDayIdx, toDayIdx, placeId) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) => {
+            if (i.id !== id) return i;
+            if (fromDayIdx === toDayIdx) return i;
+            const moving = i.days[fromDayIdx]?.places.find((p) => p.id === placeId);
+            if (!moving) return i;
+            const days = i.days.map((d, idx) => {
+              if (idx === fromDayIdx) return { ...d, places: d.places.filter((p) => p.id !== placeId) };
+              if (idx === toDayIdx) return { ...d, places: [...d.places, moving] };
+              return d;
+            });
+            return touch({ ...i, days });
+          }),
+        })),
     }),
     { name: "trip-planner-itineraries" }
   )
