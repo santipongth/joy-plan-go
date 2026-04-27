@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
 import { MapPin, Calendar, Heart, Sparkles, ChevronDown, Compass, Trash2 } from "lucide-react";
 import { useT, useLangStore, dict } from "@/lib/i18n";
 import { LangSwitch } from "@/components/LangSwitch";
