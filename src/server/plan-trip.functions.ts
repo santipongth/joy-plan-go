@@ -1,5 +1,100 @@
 import { createServerFn } from "@tanstack/react-start";
 
+interface PlanDayInput {
+  destination: string;
+  dayNumber: number;
+  totalDays: number;
+  existingDaysSummary?: string;
+  interests?: string[];
+  budget?: string;
+  pace?: string;
+  lang: "th" | "en";
+}
+
+export interface AIDayResult {
+  day: AIDay | null;
+  error?: string;
+}
+
+export const planSingleDay = createServerFn({ method: "POST" })
+  .inputValidator((input: PlanDayInput) => {
+    if (!input.destination) throw new Error("destination required");
+    return input;
+  })
+  .handler(async ({ data }): Promise<AIDayResult> => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) return { day: null, error: "LOVABLE_API_KEY not configured" };
+
+    const langInstr =
+      data.lang === "th"
+        ? "ตอบเป็นภาษาไทย คำอธิบายเป็นภาษาไทย"
+        : "Respond in English.";
+    const sys = `You are an expert travel planner. Generate ONE day of a trip with 3-5 places including accurate lat/lng. ${langInstr}`;
+    const user = `Trip to ${data.destination}. Generate ONLY day ${data.dayNumber} of ${data.totalDays}.${
+      data.existingDaysSummary ? ` Other days cover: ${data.existingDaysSummary}. Do NOT repeat those places; pick different ones.` : ""
+    }${data.interests?.length ? ` Interests: ${data.interests.join(", ")}.` : ""}${data.budget ? ` Budget: ${data.budget}.` : ""}${data.pace ? ` Pace: ${data.pace}.` : ""}`;
+
+    const tool = {
+      type: "function" as const,
+      function: {
+        name: "create_day",
+        description: "Return one structured day",
+        parameters: {
+          type: "object",
+          properties: {
+            day: { type: "number" },
+            title: { type: "string" },
+            places: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  type: { type: "string" },
+                  time: { type: "string" },
+                  lat: { type: "number" },
+                  lng: { type: "number" },
+                },
+                required: ["name", "description", "type", "time", "lat", "lng"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["day", "title", "places"],
+          additionalProperties: false,
+        },
+      },
+    };
+
+    try {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: user },
+          ],
+          tools: [tool],
+          tool_choice: { type: "function", function: { name: "create_day" } },
+        }),
+      });
+      if (res.status === 429) return { day: null, error: "RATE_LIMIT" };
+      if (res.status === 402) return { day: null, error: "PAYMENT_REQUIRED" };
+      if (!res.ok) return { day: null, error: "AI_ERROR" };
+      const json = await res.json();
+      const call = json.choices?.[0]?.message?.tool_calls?.[0];
+      if (!call?.function?.arguments) return { day: null, error: "NO_TOOL_CALL" };
+      const parsed = JSON.parse(call.function.arguments) as AIDay;
+      return { day: parsed };
+    } catch (e) {
+      console.error("planSingleDay failed", e);
+      return { day: null, error: "EXCEPTION" };
+    }
+  });
+
 export interface AIPlace {
   name: string;
   description: string;
