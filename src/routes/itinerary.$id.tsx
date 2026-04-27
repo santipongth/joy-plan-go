@@ -392,7 +392,6 @@ function ItineraryDetail() {
       setRegenAllProgress(null);
     }
   }
-  }
 
   function exportPdf() {
     // Print-friendly: open print dialog (user can save as PDF)
