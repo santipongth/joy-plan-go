@@ -112,6 +112,7 @@ function ItineraryDetail() {
   const applyModeToAllDays = useItineraryStore((s) => s.applyModeToAllDays);
   const pushHistory = useReorderHistoryStore((s) => s.push);
   const popHistory = useReorderHistoryStore((s) => s.pop);
+  const clearHistory = useReorderHistoryStore((s) => s.clear);
   const historyStacks = useReorderHistoryStore((s) => s.stacks);
   const historyDepths = useMemo(() => {
     const out: Record<number, number> = {};
