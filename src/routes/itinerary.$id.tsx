@@ -402,16 +402,22 @@ function ItineraryDetail() {
                 variant="outline"
                 size="sm"
                 onClick={regenerateAll}
-                disabled={regenAllLoading}
+                disabled={regenAllProgress !== null}
                 title={t("regenerateAll")}
               >
-                {regenAllLoading ? (
+                {regenAllProgress !== null ? (
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                 ) : (
                   <Wand2 className="h-4 w-4 mr-1" />
                 )}
                 <span className="hidden sm:inline">
-                  {regenAllLoading ? t("regeneratingAll") : t("regenerateAll")}
+                  {regenAllProgress !== null
+                    ? regenAllProgress.current === 0
+                      ? t("regeneratingAll")
+                      : t("regeneratingDay")
+                          .replace("{n}", String(regenAllProgress.current))
+                          .replace("{total}", String(regenAllProgress.total))
+                    : t("regenerateAll")}
                 </span>
               </Button>
               <Button variant="outline" size="sm" onClick={exportPdf} title={t("print")}>
@@ -439,6 +445,34 @@ function ItineraryDetail() {
               <LangSwitch />
             </div>
           </header>
+
+          {regenAllProgress !== null && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                <span>
+                  {t("regeneratingDay")
+                    .replace("{n}", String(Math.max(1, regenAllProgress.current)))
+                    .replace("{total}", String(regenAllProgress.total))}
+                </span>
+                <span>
+                  {Math.round(
+                    (regenAllProgress.current / Math.max(1, regenAllProgress.total)) * 100
+                  )}
+                  %
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300"
+                  style={{
+                    width: `${
+                      (regenAllProgress.current / Math.max(1, regenAllProgress.total)) * 100
+                    }%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="mb-4">
             {editingTitle ? (
