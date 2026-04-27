@@ -675,7 +675,41 @@ function ItineraryDetail() {
             </div>
           ) : (
             <div className="relative h-full">
-              <MapView groups={groups} />
+              <MapView
+                groups={groups}
+                highlightedType={highlightedType}
+                selectedPlaceId={selectedPlaceId}
+              />
+              {/* Type filter chips */}
+              {typeCounts.size > 0 && (
+                <div className="absolute top-3 left-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[calc(100%-220px)] flex flex-wrap gap-1">
+                  <button
+                    onClick={() => setHighlightedType(null)}
+                    className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                      highlightedType === null
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background hover:bg-muted"
+                    }`}
+                  >
+                    {t("allTypes")}
+                  </button>
+                  {Array.from(typeCounts.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([tp, n]) => (
+                      <button
+                        key={tp}
+                        onClick={() => setHighlightedType(highlightedType === tp ? null : tp)}
+                        className={`text-[11px] px-2 py-1 rounded-full border transition-colors capitalize ${
+                          highlightedType === tp
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {tp} <span className="opacity-60">({n})</span>
+                      </button>
+                    ))}
+                </div>
+              )}
               {/* Floating legend on map — clickable to toggle */}
               <div className="absolute top-3 right-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[200px]">
                 <div className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
