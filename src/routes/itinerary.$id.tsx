@@ -309,6 +309,7 @@ function ItineraryDetail() {
         })),
       };
       replaceDay(id, dayIdx, newDay);
+      clearHistory(id, dayIdx);
       setRegenErrors((prev) => {
         const next = { ...prev };
         delete next[target.day];
@@ -385,6 +386,7 @@ function ItineraryDetail() {
       });
       setVisible(id, skeleton.map((d) => d.day));
       setRegenErrors({});
+      clearHistory(id);
 
       // Then: stream per-day refinement so user sees progress per day
       const realTotal = skeleton.length;
@@ -449,6 +451,7 @@ function ItineraryDetail() {
           })),
         };
         replaceDay(id, i, newDay);
+        clearHistory(id, i);
         skeleton[i] = newDay;
         successCount++;
         // Compute ETA from successful completions only
