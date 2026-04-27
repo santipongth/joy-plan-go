@@ -34,7 +34,7 @@ export default function DayMiniMap({
           attributionControl: false,
           scrollWheelZoom: false,
           dragging: true,
-          tap: false,
+          
         }).setView([0, 0], 2);
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
