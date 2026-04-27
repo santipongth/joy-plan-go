@@ -98,7 +98,7 @@ function ItineraryDetail() {
   const toggleVisible = useVisibilityStore((s) => s.toggle);
   const [regenLoading, setRegenLoading] = useState<number | null>(null);
   const [regenErrors, setRegenErrors] = useState<Record<number, string>>({});
-  const [regenAllLoading, setRegenAllLoading] = useState(false);
+  const [regenAllProgress, setRegenAllProgress] = useState<{ current: number; total: number } | null>(null);
   const planTripFn = useServerFn(planTrip);
 
   // initialize / sync visible days when itinerary loads or day numbers change
@@ -238,7 +238,7 @@ function ItineraryDetail() {
         delete next[target.day];
         return next;
       });
-      toast.success("✓");
+      toast.success(t("regenSuccess").replace("{n}", String(target.day)));
     } catch (e) {
       const msg = t("aiError");
       setRegenErrors((prev) => ({ ...prev, [target.day]: msg }));
