@@ -13,6 +13,7 @@ interface State {
   removePlace: (id: string, dayIndex: number, placeId: string) => void;
   reorderPlaces: (id: string, dayIndex: number, places: Place[]) => void;
   replaceDay: (id: string, dayIndex: number, day: DayPlan) => void;
+  movePlace: (id: string, fromDayIdx: number, toDayIdx: number, placeId: string) => void;
 }
 
 const touch = (it: Itinerary): Itinerary => ({ ...it, updatedAt: Date.now() });
@@ -66,6 +67,21 @@ export const useItineraryStore = create<State>()(
           itineraries: s.itineraries.map((i) => {
             if (i.id !== id) return i;
             const days = i.days.map((d, idx) => (idx === dayIndex ? day : d));
+            return touch({ ...i, days });
+          }),
+        })),
+      movePlace: (id, fromDayIdx, toDayIdx, placeId) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) => {
+            if (i.id !== id) return i;
+            if (fromDayIdx === toDayIdx) return i;
+            const moving = i.days[fromDayIdx]?.places.find((p) => p.id === placeId);
+            if (!moving) return i;
+            const days = i.days.map((d, idx) => {
+              if (idx === fromDayIdx) return { ...d, places: d.places.filter((p) => p.id !== placeId) };
+              if (idx === toDayIdx) return { ...d, places: [...d.places, moving] };
+              return d;
+            });
             return touch({ ...i, days });
           }),
         })),

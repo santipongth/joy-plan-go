@@ -90,6 +90,10 @@ function ItineraryDetail() {
   const addPlace = useItineraryStore((s) => s.addPlace);
   const reorderPlaces = useItineraryStore((s) => s.reorderPlaces);
   const replaceDay = useItineraryStore((s) => s.replaceDay);
+  const movePlace = useItineraryStore((s) => s.movePlace);
+
+  const [highlightedType, setHighlightedType] = useState<string | null>(null);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(itinerary?.title ?? "");
@@ -142,6 +146,33 @@ function ItineraryDetail() {
         places: d.places,
       }));
   }, [itinerary, visibleDays]);
+
+  const typeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (!itinerary) return counts;
+    itinerary.days.forEach((d) => {
+      d.places.forEach((p) => {
+        const tp = (p.type || "").toLowerCase().trim();
+        if (!tp) return;
+        counts.set(tp, (counts.get(tp) || 0) + 1);
+      });
+    });
+    return counts;
+  }, [itinerary]);
+
+  function handleMovePlace(placeId: string, fromDayIdx: number, toDayIdx: number) {
+    if (!itinerary || fromDayIdx === toDayIdx) return;
+    movePlace(id, fromDayIdx, toDayIdx, placeId);
+    const targetDay = itinerary.days[toDayIdx]?.day;
+    if (targetDay !== undefined) {
+      toast.success(t("moveSuccess").replace("{n}", String(targetDay)));
+    }
+  }
+
+  function focusPlace(placeId: string) {
+    setSelectedPlaceId(null);
+    setTimeout(() => setSelectedPlaceId(placeId), 0);
+  }
 
   if (!itinerary) {
     return (
@@ -197,16 +228,22 @@ function ItineraryDetail() {
     const target = itinerary.days[dayIdx];
     setRegenLoading(target.day);
     try {
-      const summary = itinerary.days
-        .filter((_, idx) => idx !== dayIdx)
+      const otherDays = itinerary.days.filter((_, idx) => idx !== dayIdx);
+      const summary = otherDays
         .map((d) => `Day ${d.day}: ${d.places.map((p) => p.name).join(", ")}`)
         .join("; ");
+      const existingPlaces = otherDays.flatMap((d) =>
+        d.places
+          .filter((p) => typeof p.lat === "number" && typeof p.lng === "number")
+          .map((p) => ({ name: p.name, lat: p.lat, lng: p.lng })),
+      );
       const res = await planSingleDay({
         data: {
           destination: itinerary.destination,
           dayNumber: target.day,
           totalDays: itinerary.durationDays,
           existingDaysSummary: summary,
+          existingPlaces,
           lang,
         },
       });
@@ -329,16 +366,22 @@ function ItineraryDetail() {
           startedAt: refineStartedAt,
           etaSec: null,
         });
-        const summary = skeleton
-          .filter((_, idx) => idx !== i)
+        const otherDaysAll = skeleton.filter((_, idx) => idx !== i);
+        const summary = otherDaysAll
           .map((d) => `Day ${d.day}: ${d.places.map((p) => p.name).join(", ")}`)
           .join("; ");
+        const existingPlaces = otherDaysAll.flatMap((d) =>
+          d.places
+            .filter((p) => typeof p.lat === "number" && typeof p.lng === "number")
+            .map((p) => ({ name: p.name, lat: p.lat, lng: p.lng })),
+        );
         const dayRes = await planSingleDay({
           data: {
             destination: itinerary.destination,
             dayNumber: target.day,
             totalDays: realTotal,
             existingDaysSummary: summary,
+            existingPlaces,
             lang,
           },
         });
@@ -595,10 +638,13 @@ function ItineraryDetail() {
                   dayIdx={dayIdx}
                   color={color}
                   itineraryId={id}
+                  allDays={itinerary.days}
                   onAddPlace={() => onAddPlace(dayIdx)}
                   onRemovePlace={(placeId) => removePlace(id, dayIdx, placeId)}
                   onReorder={(places) => reorderPlaces(id, dayIdx, places)}
                   onRegenerate={() => regenerateDay(dayIdx)}
+                  onMovePlace={(placeId, toDayIdx) => handleMovePlace(placeId, dayIdx, toDayIdx)}
+                  onFocusPlace={focusPlace}
                   regenerating={regenLoading === d.day}
                   errorMessage={regenErrors[d.day]}
                   onDismissError={() => clearRegenError(d.day)}
@@ -632,7 +678,41 @@ function ItineraryDetail() {
             </div>
           ) : (
             <div className="relative h-full">
-              <MapView groups={groups} />
+              <MapView
+                groups={groups}
+                highlightedType={highlightedType}
+                selectedPlaceId={selectedPlaceId}
+              />
+              {/* Type filter chips */}
+              {typeCounts.size > 0 && (
+                <div className="absolute top-3 left-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[calc(100%-220px)] flex flex-wrap gap-1">
+                  <button
+                    onClick={() => setHighlightedType(null)}
+                    className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                      highlightedType === null
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background hover:bg-muted"
+                    }`}
+                  >
+                    {t("allTypes")}
+                  </button>
+                  {Array.from(typeCounts.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([tp, n]) => (
+                      <button
+                        key={tp}
+                        onClick={() => setHighlightedType(highlightedType === tp ? null : tp)}
+                        className={`text-[11px] px-2 py-1 rounded-full border transition-colors capitalize ${
+                          highlightedType === tp
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {tp} <span className="opacity-60">({n})</span>
+                      </button>
+                    ))}
+                </div>
+              )}
               {/* Floating legend on map — clickable to toggle */}
               <div className="absolute top-3 right-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[200px]">
                 <div className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
@@ -681,10 +761,13 @@ interface DaySectionProps {
   dayIdx: number;
   color: string;
   itineraryId: string;
+  allDays: DayPlan[];
   onAddPlace: () => void;
   onRemovePlace: (placeId: string) => void;
   onReorder: (places: Place[]) => void;
   onRegenerate: () => void;
+  onMovePlace: (placeId: string, toDayIdx: number) => void;
+  onFocusPlace: (placeId: string) => void;
   regenerating: boolean;
   errorMessage?: string;
   onDismissError?: () => void;
@@ -693,11 +776,15 @@ interface DaySectionProps {
 
 function DaySection({
   day,
+  dayIdx,
   color,
+  allDays,
   onAddPlace,
   onRemovePlace,
   onReorder,
   onRegenerate,
+  onMovePlace,
+  onFocusPlace,
   regenerating,
   errorMessage,
   onDismissError,
@@ -798,15 +885,26 @@ function DaySection({
             {day.places.length === 0 && (
               <p className="text-xs text-muted-foreground italic pl-2">—</p>
             )}
-            {day.places.map((p, i) => (
-              <SortablePlace
-                key={p.id}
-                place={p}
-                index={i}
-                color={color}
-                onRemove={() => onRemovePlace(p.id)}
-              />
-            ))}
+            {day.places.map((p, i) => {
+              const otherDays = allDays
+                .map((d, idx) => ({ day: d.day, idx }))
+                .filter((d) => d.idx !== dayIdx);
+              return (
+                <SortablePlace
+                  key={p.id}
+                  place={p}
+                  index={i}
+                  color={color}
+                  onRemove={() => onRemovePlace(p.id)}
+                  onFocus={() => onFocusPlace(p.id)}
+                  otherDays={otherDays}
+                  onMove={(toDayIdx) => onMovePlace(p.id, toDayIdx)}
+                  moveLabel={t("moveToDay")}
+                  focusLabel={t("focusOnMap")}
+                  dayLabel={t("day")}
+                />
+              );
+            })}
           </div>
         </SortableContext>
       </DndContext>
@@ -819,11 +917,23 @@ function SortablePlace({
   index,
   color,
   onRemove,
+  onFocus,
+  otherDays,
+  onMove,
+  moveLabel,
+  focusLabel,
+  dayLabel,
 }: {
   place: Place;
   index: number;
   color: string;
   onRemove: () => void;
+  onFocus: () => void;
+  otherDays: { day: number; idx: number }[];
+  onMove: (toDayIdx: number) => void;
+  moveLabel: string;
+  focusLabel: string;
+  dayLabel: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: place.id,
@@ -878,13 +988,43 @@ function SortablePlace({
             {place.lat.toFixed(4)}, {place.lng.toFixed(4)}
           </p>
         </div>
-        <button
-          onClick={onRemove}
-          className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity print:hidden"
-          aria-label="Remove"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1 print:hidden">
+          <button
+            onClick={onFocus}
+            className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-primary transition-opacity p-1"
+            aria-label={focusLabel}
+            title={focusLabel}
+          >
+            <MapPin className="h-4 w-4" />
+          </button>
+          {otherDays.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity p-1 text-[10px] font-semibold"
+                  aria-label={moveLabel}
+                  title={moveLabel}
+                >
+                  →D
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {otherDays.map((d) => (
+                  <DropdownMenuItem key={d.idx} onClick={() => onMove(d.idx)}>
+                    {moveLabel} {d.day}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <button
+            onClick={onRemove}
+            className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity p-1"
+            aria-label="Remove"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </Card>
   );

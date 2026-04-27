@@ -1,11 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { buildPreferencesBlock } from "./preferences-prompt";
+import {
+  dedupePlacesAcrossDays,
+  filterDuplicatesAgainst,
+  type PlaceLite,
+} from "./dedupe";
 
 interface PlanDayInput {
   destination: string;
   dayNumber: number;
   totalDays: number;
   existingDaysSummary?: string;
+  existingPlaces?: PlaceLite[];
   interests?: string[];
   budget?: string;
   pace?: string;
@@ -36,11 +42,14 @@ export const planSingleDay = createServerFn({ method: "POST" })
       data.lang === "th"
         ? "ตอบเป็นภาษาไทย คำอธิบายเป็นภาษาไทย"
         : "Respond in English.";
-    const sys = `You are an expert travel planner. Generate ONE day of a trip with 3-5 places including accurate lat/lng. ${langInstr}`;
+    const sys = `You are an expert travel planner. Generate ONE day of a trip with 3-5 places including accurate lat/lng. Each place must be a UNIQUE location: distinct name AND coordinates more than ~200m apart from any other day's place. Never revisit places mentioned in other days. ${langInstr}`;
     const prefsBlock = buildPreferencesBlock(data);
+    const existingList = (data.existingPlaces || [])
+      .map((p) => `${p.name} (${p.lat.toFixed(4)},${p.lng.toFixed(4)})`)
+      .join("; ");
     const user = `Trip to ${data.destination}. Generate ONLY day ${data.dayNumber} of ${data.totalDays}.${
       data.existingDaysSummary ? ` Other days cover: ${data.existingDaysSummary}. Do NOT repeat those places; pick different ones.` : ""
-    }${prefsBlock}`;
+    }${existingList ? ` Forbidden places (already used in other days, do NOT include or pick anything within ~200m): ${existingList}.` : ""}${prefsBlock}`;
 
     const tool = {
       type: "function" as const,
@@ -96,7 +105,10 @@ export const planSingleDay = createServerFn({ method: "POST" })
       const call = json.choices?.[0]?.message?.tool_calls?.[0];
       if (!call?.function?.arguments) return { day: null, error: "NO_TOOL_CALL" };
       const parsed = JSON.parse(call.function.arguments) as AIDay;
-      return { day: parsed };
+      // Drop any places that duplicate other days' places by name or lat/lng
+      const existing: PlaceLite[] = data.existingPlaces || [];
+      const cleanedPlaces = filterDuplicatesAgainst(parsed.places || [], existing, 200);
+      return { day: { ...parsed, places: cleanedPlaces } };
     } catch (e) {
       console.error("planSingleDay failed", e);
       return { day: null, error: "EXCEPTION" };
@@ -160,7 +172,7 @@ export const planTrip = createServerFn({ method: "POST" })
         ? "ตอบเป็นภาษาไทย ใช้ชื่อสถานที่ภาษาท้องถิ่น/อังกฤษตามที่นิยม คำอธิบายเป็นภาษาไทย"
         : "Respond in English. Use commonly known place names. Descriptions in English.";
 
-    const sys = `You are an expert travel planner. Generate a realistic day-by-day itinerary with 3-5 places per day. Each place must include accurate latitude/longitude coordinates (decimal degrees). Group nearby places on the same day to minimize travel. ${langInstr}`;
+    const sys = `You are an expert travel planner. Generate a realistic day-by-day itinerary with 3-5 places per day. Each place must include accurate latitude/longitude coordinates (decimal degrees). Group nearby places on the same day to minimize travel. CRITICAL: every place across the whole trip must be UNIQUE — distinct names AND coordinates more than ~200m apart from any other place in the itinerary. Never repeat or revisit places. ${langInstr}`;
 
     const prefsBlock = buildPreferencesBlock(data);
     const user = `Plan a ${data.durationDays}-day trip${data.origin ? ` starting from ${data.origin}` : ""} to ${data.destination}. Provide a creative trip title.${prefsBlock}`;
@@ -249,10 +261,12 @@ export const planTrip = createServerFn({ method: "POST" })
         return { title: "", days: [], citiesCount: 0, error: "NO_TOOL_CALL" };
       }
       const parsed = JSON.parse(call.function.arguments) as AIPlanResult;
+      // Cross-day dedupe by lat/lng (≤150m) or normalized name match
+      const dedupedDays = dedupePlacesAcrossDays(parsed.days || [], 150);
       return {
         title: parsed.title || data.destination,
         citiesCount: parsed.citiesCount || 1,
-        days: parsed.days || [],
+        days: dedupedDays,
       };
     } catch (e) {
       console.error("planTrip failed", e);

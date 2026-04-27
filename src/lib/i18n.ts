@@ -119,6 +119,11 @@ export const dict = {
     warnOtherNeedsTooLong: "ความต้องการอื่นๆ เกิน 1000 ตัวอักษร",
     warnDestinationTooLong: "ชื่อปลายทางยาวเกินไป",
     issuesTitle: "ข้อควรระวัง",
+    moveToDay: "ย้ายไปยังวัน",
+    moveSuccess: "ย้ายไปยังวัน {n} แล้ว",
+    filterByType: "กรองตามประเภท",
+    allTypes: "ทุกประเภท",
+    focusOnMap: "โฟกัสบนแผนที่",
   },
   en: {
     appName: "Trip.Planner",
@@ -235,6 +240,11 @@ export const dict = {
     warnOtherNeedsTooLong: "Other needs exceeds 1000 characters",
     warnDestinationTooLong: "Destination name is too long",
     issuesTitle: "Heads up",
+    moveToDay: "Move to day",
+    moveSuccess: "Moved to day {n}",
+    filterByType: "Filter by type",
+    allTypes: "All types",
+    focusOnMap: "Focus on map",
   },
 } as const;
 
