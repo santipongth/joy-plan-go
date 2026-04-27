@@ -13,6 +13,7 @@ interface State {
   removePlace: (id: string, dayIndex: number, placeId: string) => void;
   reorderPlaces: (id: string, dayIndex: number, places: Place[]) => void;
   replaceDay: (id: string, dayIndex: number, day: DayPlan) => void;
+  movePlace: (id: string, fromDayIdx: number, toDayIdx: number, placeId: string) => void;
 }
 
 const touch = (it: Itinerary): Itinerary => ({ ...it, updatedAt: Date.now() });
