@@ -226,6 +226,15 @@ export const dict = {
     otherNeedsPlaceholder: "Enter more preferences here",
     clear: "Clear",
     confirm: "Confirm",
+    summaryTitle: "Your preferences",
+    summaryEmpty: "Pick options in Preferences to see a live summary here",
+    categoriesSelected: "{n}/{total} categories selected",
+    warnNoInterests: "Pick at least one interest for better results",
+    warnPaceLong: "Long trip + packed pace can be exhausting",
+    warnRhythmConflict: "Early starts and late nights conflict — AI will balance it",
+    warnOtherNeedsTooLong: "Other needs exceeds 1000 characters",
+    warnDestinationTooLong: "Destination name is too long",
+    issuesTitle: "Heads up",
   },
 } as const;
 
