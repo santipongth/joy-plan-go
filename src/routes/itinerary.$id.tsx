@@ -69,7 +69,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import DayMiniMap from "@/components/DayMiniMap";
-import { estimateDayTravel, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
+import { estimateDayTravel, estimateLegMinutes, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
 
 export const Route = createFileRoute("/itinerary/$id")({
@@ -684,8 +684,12 @@ function ItineraryDetail() {
                   onReorderByMode={() => {
                     const anchor = resolveAnchor(d.startPoint, d.places);
                     const newOrder = reorderPlacesFromAnchor(d.places, anchor, effectiveMode);
+                    const prev = d.places;
                     reorderPlaces(id, dayIdx, newOrder);
-                    toast.success(t("dayReordered").replace("{n}", String(d.day)));
+                    toast.success(t("dayReordered").replace("{n}", String(d.day)), {
+                      duration: 5000,
+                      action: { label: t("undo"), onClick: () => reorderPlaces(id, dayIdx, prev) },
+                    });
                   }}
                   regenerating={regenLoading === d.day}
                   errorMessage={regenErrors[d.day]}
@@ -854,7 +858,13 @@ function DaySection({
     const oldIdx = day.places.findIndex((p) => p.id === active.id);
     const newIdx = day.places.findIndex((p) => p.id === over.id);
     if (oldIdx < 0 || newIdx < 0) return;
-    onReorder(arrayMove(day.places, oldIdx, newIdx));
+    const prev = day.places;
+    const next = arrayMove(day.places, oldIdx, newIdx);
+    onReorder(next);
+    toast.success(t("reordered"), {
+      duration: 5000,
+      action: { label: t("undo"), onClick: () => onReorder(prev) },
+    });
   }
 
   return (
@@ -1273,9 +1283,26 @@ function DayRoutePanel({
           <PopoverContent className="p-0 w-[300px]" align="start">
             <Command shouldFilter={true}>
               <CommandInput
+                autoFocus
                 placeholder={t("searchStartPoint")}
                 value={startQuery}
                 onValueChange={setStartQuery}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.stopPropagation();
+                    setStartOpen(false);
+                    return;
+                  }
+                  if (e.key === "Enter" && startQuery.trim()) {
+                    // If cmdk has no selected item (no matches), use the typed text as a custom label.
+                    const root = (e.currentTarget.closest("[cmdk-root]") as HTMLElement) || null;
+                    const selected = root?.querySelector('[cmdk-item][data-selected="true"]');
+                    if (!selected) {
+                      e.preventDefault();
+                      chooseCustom();
+                    }
+                  }
+                }}
               />
               <CommandList>
                 <CommandEmpty>
@@ -1366,7 +1393,93 @@ function DayRoutePanel({
         anchor={anchorForMap}
         color={color}
         startLabel={startLabel}
+        styleLabels={{
+          streets: t("mapStyleStreets"),
+          satellite: t("mapStyleSatellite"),
+          minimal: t("mapStyleMinimal"),
+        }}
       />
+      <DayTimeline
+        places={day.places}
+        anchor={anchor}
+        anchorLabel={anchor ? startLabel : undefined}
+        color={color}
+        showMinutes={effectiveMode !== "any"}
+        legMinutes={
+          effectiveMode !== "any"
+            ? estimateLegMinutes(day.places, effectiveMode, anchor)
+            : []
+        }
+        legMinutesTpl={t("legMinutes")}
+        timelineLabel={t("timelineLabel")}
+      />
+    </div>
+  );
+}
+
+function DayTimeline({
+  places,
+  anchor,
+  anchorLabel,
+  color,
+  showMinutes,
+  legMinutes,
+  legMinutesTpl,
+  timelineLabel,
+}: {
+  places: Place[];
+  anchor: { lat: number; lng: number } | null;
+  anchorLabel?: string;
+  color: string;
+  showMinutes: boolean;
+  legMinutes: number[];
+  legMinutesTpl: string;
+  timelineLabel: string;
+}) {
+  if (places.length === 0 && !anchor) return null;
+  const truncate = (s: string, n = 18) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+  return (
+    <div className="pt-1">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+        {timelineLabel}
+      </div>
+      <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap pb-1">
+        {anchor && anchorLabel && (
+          <>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-background text-[11px] font-medium">
+              <span
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                style={{ background: "#0f172a", border: `1px solid ${color}` }}
+              >
+                S
+              </span>
+              {truncate(anchorLabel)}
+            </span>
+          </>
+        )}
+        {places.map((p, i) => {
+          const showLegFor = anchor ? i : i - 1;
+          const legMin = showMinutes && showLegFor >= 0 ? legMinutes[i] : null;
+          return (
+            <span key={p.id} className="inline-flex items-center gap-1">
+              {(anchor || i > 0) && (
+                <span className="text-muted-foreground text-[11px] tabular-nums px-1">
+                  →{legMin != null ? ` ${legMinutesTpl.replace("{n}", String(legMin))}` : ""}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-background text-[11px] font-medium">
+                <span
+                  className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                  style={{ background: color }}
+                >
+                  {i + 1}
+                </span>
+                {truncate(p.name)}
+              </span>
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }

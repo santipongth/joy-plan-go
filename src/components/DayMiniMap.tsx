@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
+import { Map as MapIcon, Satellite, Layers } from "lucide-react";
 import type { Place } from "@/lib/types";
+import { useMapStyleStore, TILES, type MapStyle } from "@/lib/map-style-store";
 
 interface Props {
   places: Place[];
@@ -7,6 +9,7 @@ interface Props {
   color: string;
   height?: string;
   startLabel?: string;
+  styleLabels?: { streets: string; satellite: string; minimal: string };
 }
 
 export default function DayMiniMap({
@@ -15,12 +18,16 @@ export default function DayMiniMap({
   color,
   height = "180px",
   startLabel = "Start",
+  styleLabels,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
+  const tileLayerRef = useRef<any>(null);
   const LRef = useRef<any>(null);
   const resizeObsRef = useRef<ResizeObserver | null>(null);
+  const mapStyle = useMapStyleStore((s) => s.style);
+  const setMapStyle = useMapStyleStore((s) => s.setStyle);
 
   // Initialize map once on mount; tear down completely on unmount.
   useEffect(() => {
@@ -42,13 +49,8 @@ export default function DayMiniMap({
           dragging: true,
           inertia: false,
         }).setView([0, 0], 2);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 19,
-        }).addTo(mapRef.current);
-        // Don't let scroll/touch gestures bubble out — keeps page scroll working
-        // but avoids the map hijacking it either.
+        applyTileLayer(mapStyle);
         L.DomEvent.disableScrollPropagation(containerRef.current);
-        // Keep viewport correct when the parent collapses/expands.
         if (typeof ResizeObserver !== "undefined") {
           resizeObsRef.current = new ResizeObserver(() => {
             queueMicrotask(() => mapRef.current?.invalidateSize());
@@ -74,11 +76,17 @@ export default function DayMiniMap({
         }
         mapRef.current = null;
       }
+      tileLayerRef.current = null;
       layerRef.current = null;
       LRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Swap tile layer when style changes (no map recreate).
+  useEffect(() => {
+    if (LRef.current && mapRef.current) applyTileLayer(mapStyle);
+  }, [mapStyle]);
 
   // Redraw when inputs change.
   useEffect(() => {
@@ -86,12 +94,29 @@ export default function DayMiniMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [places, anchor, color]);
 
+  function applyTileLayer(style: MapStyle) {
+    const L = LRef.current;
+    const map = mapRef.current;
+    if (!L || !map) return;
+    if (tileLayerRef.current) {
+      try {
+        map.removeLayer(tileLayerRef.current);
+      } catch {
+        /* ignore */
+      }
+      tileLayerRef.current = null;
+    }
+    const def = TILES[style];
+    const opts: any = { maxZoom: def.maxZoom };
+    if (def.subdomains) opts.subdomains = def.subdomains;
+    tileLayerRef.current = L.tileLayer(def.url, opts).addTo(map);
+  }
+
   function drawRoute() {
     const L = LRef.current;
     const map = mapRef.current;
     if (!L || !map) return;
 
-    // Defensive: clear previous overlay layer (and any stray markers/polylines).
     if (layerRef.current) {
       try {
         map.removeLayer(layerRef.current);
@@ -157,11 +182,44 @@ export default function DayMiniMap({
 
   if (places.length === 0 && !anchor) return null;
 
+  const labels = styleLabels ?? {
+    streets: "Streets",
+    satellite: "Satellite",
+    minimal: "Minimal",
+  };
+
+  const styleButtons: { key: MapStyle; label: string; Icon: typeof MapIcon }[] = [
+    { key: "streets", label: labels.streets, Icon: MapIcon },
+    { key: "satellite", label: labels.satellite, Icon: Satellite },
+    { key: "minimal", label: labels.minimal, Icon: Layers },
+  ];
+
   return (
-    <div
-      ref={containerRef}
-      className="w-full rounded-md overflow-hidden border bg-muted/30"
-      style={{ height, touchAction: "pan-y" }}
-    />
+    <div className="relative">
+      <div
+        ref={containerRef}
+        className="w-full rounded-md overflow-hidden border bg-muted/30"
+        style={{ height, touchAction: "pan-y" }}
+      />
+      <div className="absolute top-1.5 right-1.5 z-[400] flex gap-0.5 bg-background/90 backdrop-blur border rounded-md p-0.5 shadow-sm">
+        {styleButtons.map(({ key, label, Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setMapStyle(key)}
+            title={label}
+            aria-label={label}
+            aria-pressed={mapStyle === key}
+            className={`p-1 rounded transition-colors ${
+              mapStyle === key
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
