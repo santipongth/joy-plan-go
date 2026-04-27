@@ -790,12 +790,18 @@ interface DaySectionProps {
   color: string;
   itineraryId: string;
   allDays: DayPlan[];
+  tripOriginLabel?: string;
+  effectiveMode: TravelMode;
+  inheritedMode: TravelMode;
   onAddPlace: () => void;
   onRemovePlace: (placeId: string) => void;
   onReorder: (places: Place[]) => void;
   onRegenerate: () => void;
   onMovePlace: (placeId: string, toDayIdx: number) => void;
   onFocusPlace: (placeId: string) => void;
+  onSetDayMode: (mode: TravelMode | undefined) => void;
+  onSetDayStart: (sp: DayStartPoint | undefined) => void;
+  onReorderByMode: () => void;
   regenerating: boolean;
   errorMessage?: string;
   onDismissError?: () => void;
@@ -807,12 +813,18 @@ function DaySection({
   dayIdx,
   color,
   allDays,
+  tripOriginLabel,
+  effectiveMode,
+  inheritedMode,
   onAddPlace,
   onRemovePlace,
   onReorder,
   onRegenerate,
   onMovePlace,
   onFocusPlace,
+  onSetDayMode,
+  onSetDayStart,
+  onReorderByMode,
   regenerating,
   errorMessage,
   onDismissError,
