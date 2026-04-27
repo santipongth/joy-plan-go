@@ -1,11 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { buildPreferencesBlock } from "./preferences-prompt";
+import {
+  dedupePlacesAcrossDays,
+  filterDuplicatesAgainst,
+  type PlaceLite,
+} from "./dedupe";
 
 interface PlanDayInput {
   destination: string;
   dayNumber: number;
   totalDays: number;
   existingDaysSummary?: string;
+  existingPlaces?: PlaceLite[];
   interests?: string[];
   budget?: string;
   pace?: string;
