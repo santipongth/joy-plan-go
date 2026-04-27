@@ -705,6 +705,14 @@ function ItineraryDetail() {
                   regenerating={regenLoading === d.day}
                   errorMessage={regenErrors[d.day]}
                   onDismissError={() => clearRegenError(d.day)}
+                  onPushHistory={(prev) => pushHistory(id, dayIdx, prev)}
+                  onUndoReorder={() => {
+                    const prev = popHistory(id, dayIdx);
+                    if (!prev) return;
+                    reorderPlaces(id, dayIdx, prev);
+                    toast.success(t("undoApplied"));
+                  }}
+                  historyDepth={historyDepths[dayIdx] ?? 0}
                   t={t}
                 />
               );
