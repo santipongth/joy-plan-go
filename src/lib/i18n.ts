@@ -77,6 +77,9 @@ export const dict = {
     confirmRegenAll: "สร้างแผนทั้งทริปใหม่ทั้งหมด? ข้อมูลปัจจุบันจะถูกแทนที่",
     print: "พิมพ์",
     dismiss: "ปิด",
+    regeneratingDay: "กำลังสร้างวัน {n} จาก {total}...",
+    regenSuccess: "สร้างวัน {n} ใหม่สำเร็จ",
+    regenAllSuccess: "สร้างทริปใหม่สำเร็จ",
   },
   en: {
     appName: "Trip.Planner",
@@ -151,6 +154,9 @@ export const dict = {
     confirmRegenAll: "Regenerate the whole itinerary? Current plan will be replaced.",
     print: "Print",
     dismiss: "Dismiss",
+    regeneratingDay: "Generating day {n} of {total}...",
+    regenSuccess: "Day {n} regenerated successfully",
+    regenAllSuccess: "Trip regenerated successfully",
   },
 } as const;
 

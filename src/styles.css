@@ -185,15 +185,18 @@
   }
 
   .print-day {
-    margin-top: 16px;
-    page-break-inside: avoid;
-    break-inside: avoid;
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 16px;
+    page-break-inside: auto;
+    break-inside: auto;
   }
 
   .print-day + .print-day {
     page-break-before: always;
     break-before: page;
     margin-top: 0;
+    padding-top: 0;
   }
 
   .print-day-header {
@@ -205,9 +208,11 @@
     background: #f6f6f6;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    margin-bottom: 8px;
+    margin: 0 0 10px;
     page-break-after: avoid;
-    break-after: avoid;
+    break-after: avoid-page;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   .print-day-badge {
@@ -238,11 +243,22 @@
   .print-places {
     width: 100%;
     border-collapse: collapse;
+    border-spacing: 0;
+    box-sizing: border-box;
     font-size: 11px;
+    /* Outer frame — cells only paint right + bottom borders to avoid
+       doubled lines when a row sits at the top of a new page. */
+    border-top: 1px solid #d4d4d4;
+    border-left: 1px solid #d4d4d4;
+    margin-bottom: 0;
   }
 
   .print-places thead {
     display: table-header-group;
+  }
+
+  .print-places tfoot {
+    display: table-row-group;
   }
 
   .print-places tbody tr {
@@ -252,12 +268,14 @@
 
   .print-places th,
   .print-places td {
-    border: 1px solid #d4d4d4;
+    border-right: 1px solid #d4d4d4;
+    border-bottom: 1px solid #d4d4d4;
+    border-top: 0;
+    border-left: 0;
     padding: 6px 8px;
     text-align: left;
     vertical-align: top;
-    page-break-inside: avoid;
-    break-inside: avoid;
+    box-sizing: border-box;
   }
 
   .print-places th {
