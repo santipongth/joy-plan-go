@@ -345,7 +345,6 @@ function HomePage() {
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-1.5">{t("travelModeHint")}</p>
                   </div>
-                </CollapsibleContent>
                   <div>
                     <Label className="text-xs text-muted-foreground mb-2 block">{t("interests")}</Label>
                     <div className="flex flex-wrap gap-2">
