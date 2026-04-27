@@ -924,6 +924,20 @@ function DaySection({
           )}
         </h2>
         <div className="flex gap-1">
+          {historyDepth > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onUndoReorder}
+              title={t("undoTooltip").replace("{n}", String(historyDepth))}
+            >
+              <Undo2 className="h-4 w-4 mr-1" />
+              {t("undo")}
+              <span className="ml-1 text-[10px] text-muted-foreground tabular-nums">
+                {historyDepth}
+              </span>
+            </Button>
+          )}
           <Button
             size="sm"
             variant="ghost"
