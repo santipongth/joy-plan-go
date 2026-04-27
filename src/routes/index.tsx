@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { MapPin, Calendar, Heart, Sparkles, ChevronDown, Compass, Trash2 } from "lucide-react";
+import { MapPin, Calendar, Heart, Sparkles, ChevronDown, Compass, Trash2, AlertTriangle, ListChecks } from "lucide-react";
 import { useT, useLangStore, dict } from "@/lib/i18n";
 import { LangSwitch } from "@/components/LangSwitch";
 import { PlaceAutocomplete } from "@/components/PlaceAutocomplete";
