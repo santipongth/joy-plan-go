@@ -172,7 +172,7 @@ export const planTrip = createServerFn({ method: "POST" })
         ? "ตอบเป็นภาษาไทย ใช้ชื่อสถานที่ภาษาท้องถิ่น/อังกฤษตามที่นิยม คำอธิบายเป็นภาษาไทย"
         : "Respond in English. Use commonly known place names. Descriptions in English.";
 
-    const sys = `You are an expert travel planner. Generate a realistic day-by-day itinerary with 3-5 places per day. Each place must include accurate latitude/longitude coordinates (decimal degrees). Group nearby places on the same day to minimize travel. ${langInstr}`;
+    const sys = `You are an expert travel planner. Generate a realistic day-by-day itinerary with 3-5 places per day. Each place must include accurate latitude/longitude coordinates (decimal degrees). Group nearby places on the same day to minimize travel. CRITICAL: every place across the whole trip must be UNIQUE — distinct names AND coordinates more than ~200m apart from any other place in the itinerary. Never repeat or revisit places. ${langInstr}`;
 
     const prefsBlock = buildPreferencesBlock(data);
     const user = `Plan a ${data.durationDays}-day trip${data.origin ? ` starting from ${data.origin}` : ""} to ${data.destination}. Provide a creative trip title.${prefsBlock}`;
