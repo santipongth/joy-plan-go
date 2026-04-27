@@ -1470,49 +1470,102 @@ function DayTimeline({
   anchor,
   anchorLabel,
   color,
-  showMinutes,
-  legMinutes,
+  mode,
   legMinutesTpl,
   timelineLabel,
+  showLabel,
+  hideLabel,
 }: {
   places: Place[];
   anchor: { lat: number; lng: number } | null;
   anchorLabel?: string;
   color: string;
-  showMinutes: boolean;
-  legMinutes: number[];
+  mode: TravelMode;
   legMinutesTpl: string;
   timelineLabel: string;
+  showLabel: string;
+  hideLabel: string;
 }) {
+  const showMinutesPref = useTimelineSettingsStore((s) => s.showMinutes);
+  const setShowMinutes = useTimelineSettingsStore((s) => s.setShowMinutes);
+  const allowMinutes = mode !== "any";
+  const showMinutes = allowMinutes && showMinutesPref;
+
+  // Compute leg minutes between consecutive stops only.
+  // legs[i] is the minutes from the previous stop (anchor or place[i-1]) to place[i].
+  // null means the leg can't be computed (missing coords on either endpoint or no prior stop).
+  const legs = useMemo<(number | null)[]>(() => {
+    if (!allowMinutes) return places.map(() => null);
+    const profile = modeProfile(mode);
+    const out: (number | null)[] = [];
+    let prev: { lat: number; lng: number } | null = anchor ?? null;
+    for (const p of places) {
+      const hasP =
+        typeof p.lat === "number" &&
+        typeof p.lng === "number" &&
+        Number.isFinite(p.lat) &&
+        Number.isFinite(p.lng);
+      const hasPrev =
+        prev &&
+        Number.isFinite(prev.lat) &&
+        Number.isFinite(prev.lng);
+      if (!prev || !hasPrev || !hasP) {
+        out.push(null);
+      } else {
+        const km = haversineMeters(prev, p) / 1000;
+        out.push(Math.round((km / profile.kmh) * 60 + profile.overheadMin));
+      }
+      if (hasP) prev = p;
+    }
+    return out;
+  }, [places, anchor, mode, allowMinutes]);
+
   if (places.length === 0 && !anchor) return null;
   const truncate = (s: string, n = 18) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+
   return (
     <div className="pt-1">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-        {timelineLabel}
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          {timelineLabel}
+        </div>
+        {allowMinutes && (
+          <button
+            type="button"
+            onClick={() => setShowMinutes(!showMinutesPref)}
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-muted"
+            aria-pressed={showMinutesPref}
+          >
+            {showMinutesPref ? hideLabel : showLabel}
+          </button>
+        )}
       </div>
       <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap pb-1">
         {anchor && anchorLabel && (
-          <>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-background text-[11px] font-medium">
-              <span
-                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
-                style={{ background: "#0f172a", border: `1px solid ${color}` }}
-              >
-                S
-              </span>
-              {truncate(anchorLabel)}
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-background text-[11px] font-medium">
+            <span
+              className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
+              style={{ background: "#0f172a", border: `1px solid ${color}` }}
+            >
+              S
             </span>
-          </>
+            {truncate(anchorLabel)}
+          </span>
         )}
         {places.map((p, i) => {
-          const showLegFor = anchor ? i : i - 1;
-          const legMin = showMinutes && showLegFor >= 0 ? legMinutes[i] : null;
+          const hasPrior = !!anchor || i > 0;
+          const legMin = legs[i];
+          // Only render the connector when we actually have a previous stop AND a computable leg
+          // (or, when minutes are toggled off, still show the arrow as long as a prior stop exists).
+          const renderConnector =
+            hasPrior && (showMinutes ? legMin != null : true);
           return (
             <span key={p.id} className="inline-flex items-center gap-1">
-              {(anchor || i > 0) && (
+              {renderConnector && (
                 <span className="text-muted-foreground text-[11px] tabular-nums px-1">
-                  →{legMin != null ? ` ${legMinutesTpl.replace("{n}", String(legMin))}` : ""}
+                  {showMinutes && legMin != null
+                    ? `→ ${legMinutesTpl.replace("{n}", String(legMin))}`
+                    : "→"}
                 </span>
               )}
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-background text-[11px] font-medium">
