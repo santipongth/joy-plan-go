@@ -72,6 +72,11 @@ export const dict = {
     retry: "ลองอีกครั้ง",
     regenFailed: "สร้างวันนี้ใหม่ไม่สำเร็จ",
     clickToToggle: "คลิกเพื่อแสดง/ซ่อน",
+    regenerateAll: "สร้างทั้งทริปใหม่",
+    regeneratingAll: "กำลังสร้างทั้งทริปใหม่...",
+    confirmRegenAll: "สร้างแผนทั้งทริปใหม่ทั้งหมด? ข้อมูลปัจจุบันจะถูกแทนที่",
+    print: "พิมพ์",
+    dismiss: "ปิด",
   },
   en: {
     appName: "Trip.Planner",
@@ -141,6 +146,11 @@ export const dict = {
     retry: "Retry",
     regenFailed: "Failed to regenerate this day",
     clickToToggle: "Click to show/hide",
+    regenerateAll: "Regenerate full trip",
+    regeneratingAll: "Regenerating full trip...",
+    confirmRegenAll: "Regenerate the whole itinerary? Current plan will be replaced.",
+    print: "Print",
+    dismiss: "Dismiss",
   },
 } as const;
 
