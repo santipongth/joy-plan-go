@@ -71,7 +71,18 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import DayMiniMap from "@/components/DayMiniMap";
+import BudgetEstimate from "@/components/BudgetEstimate";
 import { estimateDayTravel, haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
 
