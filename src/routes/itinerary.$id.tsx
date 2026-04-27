@@ -201,16 +201,22 @@ function ItineraryDetail() {
     const target = itinerary.days[dayIdx];
     setRegenLoading(target.day);
     try {
-      const summary = itinerary.days
-        .filter((_, idx) => idx !== dayIdx)
+      const otherDays = itinerary.days.filter((_, idx) => idx !== dayIdx);
+      const summary = otherDays
         .map((d) => `Day ${d.day}: ${d.places.map((p) => p.name).join(", ")}`)
         .join("; ");
+      const existingPlaces = otherDays.flatMap((d) =>
+        d.places
+          .filter((p) => typeof p.lat === "number" && typeof p.lng === "number")
+          .map((p) => ({ name: p.name, lat: p.lat, lng: p.lng })),
+      );
       const res = await planSingleDay({
         data: {
           destination: itinerary.destination,
           dayNumber: target.day,
           totalDays: itinerary.durationDays,
           existingDaysSummary: summary,
+          existingPlaces,
           lang,
         },
       });
