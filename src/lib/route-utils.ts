@@ -29,7 +29,7 @@ export function travelCostMeters(
 }
 
 /** Speeds in km/h plus a per-leg overhead in minutes. */
-function modeProfile(mode: TravelMode): { kmh: number; overheadMin: number; label: string } {
+export function modeProfile(mode: TravelMode): { kmh: number; overheadMin: number; label: string } {
   switch (mode) {
     case "walking":
       return { kmh: 4.8, overheadMin: 0, label: "walking" };
@@ -40,6 +40,27 @@ function modeProfile(mode: TravelMode): { kmh: number; overheadMin: number; labe
     default:
       return { kmh: 30, overheadMin: 0, label: "any" };
   }
+}
+
+/** Per-leg minutes from anchor → place1 → place2 …  legs[i] = minutes to reach places[i]. */
+export function estimateLegMinutes(
+  places: Place[],
+  mode: TravelMode,
+  anchor?: { lat: number; lng: number } | null,
+): number[] {
+  const profile = modeProfile(mode);
+  const out: number[] = [];
+  let prev: { lat: number; lng: number } | null = anchor ?? null;
+  for (const p of places) {
+    if (!prev) {
+      out.push(0);
+    } else {
+      const km = haversineMeters(prev, p) / 1000;
+      out.push(Math.round((km / profile.kmh) * 60 + profile.overheadMin));
+    }
+    prev = p;
+  }
+  return out;
 }
 
 /**

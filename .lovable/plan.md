@@ -1,70 +1,57 @@
 ## Goals
 
-1. Make sure the selected start point — including its `lat`, `lng`, and `placeId` — survives both AI regeneration and a browser refresh.
-2. Make the per-day mini map well-behaved: gestures don't hijack page scroll, and Leaflet instances are torn down properly when routes change.
-3. Make the start-point dropdown feel instant by memoizing/caching the per-day route stats and the dropdown's option list.
+1. Mini-map style toggle (streets / satellite / simplified).
+2. Compact ordered-stops timeline under the mini map with per-leg minutes.
+3. Full keyboard support for the start-point dropdown.
+4. Toast-based "Undo" for place reorders within a few seconds.
 
 ---
 
-## 1. Robust start-point persistence
+## 1. Map style toggle (`src/components/DayMiniMap.tsx`)
 
-Today the store persists `startPoint`, but two gaps remain:
+- Add a new prop-less internal state `mapStyle: "streets" | "satellite" | "minimal"`, persisted globally via a tiny zustand store at `src/lib/map-style-store.ts` so the choice sticks across days/refresh.
+- Define a `TILES` map:
+  - `streets` → OSM `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`.
+  - `satellite` → Esri World Imagery `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}`.
+  - `minimal` → CartoDB Positron `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`.
+- Replace the single `L.tileLayer(...).addTo(map)` with a `tileLayerRef` that we swap when `mapStyle` changes (remove old, add new). No need to recreate the map.
+- Add a small floating control inside the map container (top-right, absolute, z-[400]) with three icon buttons (Map / Satellite / Layers icons from lucide). Style with existing tokens — `bg-background/90 backdrop-blur border rounded-md`. Each button tooltip = i18n label.
 
-- **AI regeneration replaces a day's `places` with brand-new IDs.** If the user chose a start point that points to a place via `placeId`, the ID becomes stale on regen and `resolveAnchor` falls through to the stored `lat`/`lng` (works), but if no lat/lng was stored, the anchor silently breaks.
-- **Old persisted data from before per-day start points** may have `startPoint` shapes without lat/lng.
+## 2. Compact stops timeline (under the mini map)
 
-Fixes in `src/lib/store.ts`:
+- Add `estimateLegMinutes(places, mode, anchor)` to `src/lib/route-utils.ts` (returns `number[]` where `legs[i]` is minutes to reach `places[i]`; `0` for the first when no anchor). Also export `modeProfile` so the component can reuse it.
+- Render a new horizontally-scrolling row inside `DayRoutePanel` (after `DayMiniMap`):
+  - Optional "S" chip when an anchor exists (start label, truncated).
+  - For each place: a colored numbered chip with the place name (truncated to ~14 chars), separated by a `→` arrow that carries the leg's minutes (e.g. `↦ 12 min`).
+  - When `effectiveMode === "any"`, show just the order without minutes.
+- Use existing `color` prop. Use `overflow-x-auto whitespace-nowrap` so it never breaks layout.
 
-- In `replaceDay`, when the AI returns a new day:
-  - If the new day has its own `startPoint`, keep it.
-  - Otherwise, take the previous `startPoint` and try to **remap `placeId`** to the new place list by matching on place `name`. If matched, write the new `placeId` plus its `lat`/`lng` and the original label.
-  - If no match, fall back to the previously stored `lat`/`lng` (drop the stale `placeId`) so the anchor still works.
-  - As a last resort, keep just the `label` (still a useful display anchor).
-- Bump persist `version: 3` with a migrate that, for any `startPoint` having a `placeId`, fills in `lat`/`lng` from the matching place in that day if currently missing.
+## 3. Keyboard support for the start-point dropdown
 
-In `src/routes/itinerary.$id.tsx` (the start picker `choosePlace`), the option already writes `{ label, lat, lng, placeId }` — verify this stays the case for places picked from *other* days too (it currently does, since we pass the same `Place` object).
+cmdk's `Command` already handles ↑/↓/Enter when the `CommandInput` has focus. The current Popover loses input focus when items are clicked but doesn't fully wire the keyboard path:
 
-## 2. Mini map gesture + lifecycle hardening
+- Set `<PopoverContent ... onOpenAutoFocus={(e) => { /* let cmdk auto-focus its input */ }}>` and ensure `<CommandInput autoFocus />`.
+- Ensure each `<CommandItem>` uses `onSelect` (already true — keep). Items will then be Enter-selectable.
+- Esc: Popover closes on Esc by default via Radix, but currently the input swallows it. Add `onKeyDown` on `CommandInput`: if `e.key === "Escape"`, call `setStartOpen(false)` and `e.stopPropagation()` so the Popover closes immediately even when the query is non-empty.
+- Add a "use custom label" Enter shortcut: when the input has text and Enter is pressed but no item matched (CommandEmpty branch), trigger `chooseCustom`. Implement via `onKeyDown` on `CommandInput`: when `e.key === "Enter"` and the visible cmdk list has no selectable item, call `chooseCustom()`. Detect "no matches" via a small `onValueChange`-driven count (read from filtered groups manually) — simpler: check `commandRef.current?.querySelector('[cmdk-item][data-selected="true"]')`; if none, run `chooseCustom()`.
 
-In `src/components/DayMiniMap.tsx`:
+## 4. Undo for drag-and-drop reordering
 
-- Map options:
-  - `scrollWheelZoom: false` (already set).
-  - Add `touchZoom: false` and `doubleClickZoom: false` so two-finger gestures and double-tap zoom don't fight scroll on mobile.
-  - Keep `dragging: true` but set `inertia: false` and `keyboard: false` to avoid the map stealing keyboard focus.
-  - Stop wheel events from bubbling so scrolling over the map continues to scroll the page (delegate via `L.DomEvent.disableScrollPropagation` on the container, NOT `disableClickPropagation`, so clicks still work).
-- Lifecycle cleanup:
-  - In the unmount cleanup function, call `mapRef.current?.remove()` and null out `mapRef`, `layerRef`, `LRef`. Today the map is never destroyed — switching itineraries leaks DOM listeners and Leaflet instances and can cause "Map container is already initialized" on re-mount.
-  - Also remove the previous `featureGroup` before adding a new one (already done) but use `map.eachLayer` as a defensive reset if the cached `layerRef` ever gets out of sync.
-- Resize: when the parent container changes size (e.g. opening/closing collapsibles), call `map.invalidateSize()` after a microtask. Use a `ResizeObserver` on the container so the map keeps the right viewport.
-
-## 3. Memoize/cache the heavy per-day work
-
-In `src/routes/itinerary.$id.tsx` `DayRoutePanel`:
-
-- Wrap `resolveAnchor(day.startPoint, day.places)` and `estimateDayTravel(day.places, effectiveMode, anchor)` in `useMemo` keyed by `[day.places, day.startPoint, effectiveMode]`.
-- Wrap `otherDayPlaces` in `useMemo` keyed by `[allDays, dayIdx]`.
-- Compute `startLabel` and `reasoning` from the memoized values so they don't recompute on every parent re-render (e.g., regen toasts).
-
-In `src/lib/route-utils.ts`:
-
-- Add a small **module-level WeakMap cache** keyed by the `places` array reference for `estimateDayTravel`. Cache value is `Map<modeKey + anchorKey, DayTravelEstimate>`. This means as long as the user only flips travel mode or start point, no re-walks happen on subsequent renders for the same place list.
-- Same idea for `reorderPlacesFromAnchor` — cache by `[places ref, mode, anchorKey]` so repeatedly clicking "update day order" with no changes is a no-op.
-
-Debouncing:
-
-- The dropdown itself doesn't run heavy work, but selecting a start point triggers an immediate store write + re-render of all days. Add a 120ms debounce around `setDayStart` writes inside `DayRoutePanel` so rapid keyboard navigation through cmdk options doesn't thrash the store. Use a small `useDebouncedCallback` helper inline (no new dep) — `useRef<NodeJS.Timeout>` + `useEffect` cleanup.
+- In `DaySection.handleDragEnd` (`src/routes/itinerary.$id.tsx`):
+  - Snapshot `prev = day.places` before applying the new order.
+  - Call `onReorder(arrayMove(...))` as today.
+  - Show `toast.success(t("reordered"), { duration: 5000, action: { label: t("undo"), onClick: () => onReorder(prev) } })`.
+- Apply the same undo pattern to the per-day "Update this day's order" button (snapshot before, undo on toast action) so the user can revert auto-optimised orders too.
+- Add i18n keys: `reordered`, `undo`, `mapStyleStreets`, `mapStyleSatellite`, `mapStyleMinimal`, `mapStyleLabel`, `legMinutes`.
 
 ---
 
-## Technical summary
+## Files
 
-- **Files edited**: `src/lib/store.ts`, `src/lib/route-utils.ts`, `src/routes/itinerary.$id.tsx`, `src/components/DayMiniMap.tsx`.
-- **No new packages**, no DB changes.
-- **Persist version**: bump to `3` with a migrate that backfills `lat`/`lng` on `startPoint`s referencing a placeId.
-- **Risk**: WeakMap cache keys on the `places` array reference — Zustand returns new arrays on every update, so cache entries naturally GC. No stale data risk.
+- **Edited**: `src/components/DayMiniMap.tsx`, `src/lib/route-utils.ts`, `src/lib/i18n.ts`, `src/routes/itinerary.$id.tsx`.
+- **Created**: `src/lib/map-style-store.ts` (small zustand persist store for the chosen tile style).
 
 ## Out of scope
 
-- Real routing API (still straight-line polylines).
-- Server-side persistence of itineraries (still localStorage only).
+- Real per-leg routing (still haversine + mode profile).
+- An undo stack — only the last reorder, via the toast action button (5 s window).
