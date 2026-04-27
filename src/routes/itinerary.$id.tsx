@@ -270,7 +270,8 @@ function ItineraryDetail() {
     if (!itinerary) return;
     if (!confirm(t("confirmRegenAll"))) return;
     const total = itinerary.durationDays;
-    setRegenAllProgress({ current: 0, total });
+    const startedAt = Date.now();
+    setRegenAllProgress({ current: 0, total, startedAt, etaSec: null });
     try {
       // First: get fresh trip skeleton (title + day count)
       const res = await planTripFn({
@@ -316,10 +317,18 @@ function ItineraryDetail() {
 
       // Then: stream per-day refinement so user sees progress per day
       const realTotal = skeleton.length;
-      setRegenAllProgress({ current: 0, total: realTotal });
+      const refineStartedAt = Date.now();
+      setRegenAllProgress({ current: 0, total: realTotal, startedAt: refineStartedAt, etaSec: null });
+      let successCount = 0;
+      const failedDays: number[] = [];
       for (let i = 0; i < skeleton.length; i++) {
         const target = skeleton[i];
-        setRegenAllProgress({ current: i + 1, total: realTotal });
+        setRegenAllProgress((prev) => ({
+          current: i + 1,
+          total: realTotal,
+          startedAt: refineStartedAt,
+          etaSec: prev?.etaSec ?? null,
+        }));
         const summary = skeleton
           .filter((_, idx) => idx !== i)
           .map((d) => `Day ${d.day}: ${d.places.map((p) => p.name).join(", ")}`)
@@ -336,12 +345,16 @@ function ItineraryDetail() {
         if (dayRes.error || !dayRes.day) {
           const code = dayRes.error || "AI_ERROR";
           const msg = errorMessage(code);
-          toast.error(`${t("regenFailed")} — ${t("day")} ${target.day}`, {
-            description: msg,
-            duration: 10000,
-            action: { label: t("retry"), onClick: () => regenerateAll() },
-          });
-          return;
+          setRegenErrors((prev) => ({ ...prev, [target.day]: msg }));
+          failedDays.push(target.day);
+          toast.error(`${t("day")} ${target.day}: ${msg}`, { duration: 6000 });
+          // Still update ETA so the bar keeps moving
+          const elapsed = (Date.now() - refineStartedAt) / 1000;
+          const completedSteps = i + 1;
+          const avg = elapsed / completedSteps;
+          const etaSec = Math.max(0, Math.round(avg * (realTotal - completedSteps)));
+          setRegenAllProgress({ current: i + 1, total: realTotal, startedAt: refineStartedAt, etaSec });
+          continue;
         }
         const newDay: DayPlan = {
           day: target.day,
@@ -357,10 +370,20 @@ function ItineraryDetail() {
           })),
         };
         replaceDay(id, i, newDay);
-        // update local skeleton so subsequent summaries reflect committed places
         skeleton[i] = newDay;
+        successCount++;
+        // Compute ETA from successful completions only
+        const elapsed = (Date.now() - refineStartedAt) / 1000;
+        const avg = elapsed / successCount;
+        const remaining = realTotal - (i + 1);
+        const etaSec = Math.max(0, Math.round(avg * remaining));
+        setRegenAllProgress({ current: i + 1, total: realTotal, startedAt: refineStartedAt, etaSec });
       }
-      toast.success(t("regenAllSuccess"));
+      if (failedDays.length > 0) {
+        toast.error(t("regenSomeFailed"), { duration: 8000 });
+      } else {
+        toast.success(t("regenAllSuccess"));
+      }
     } catch {
       toast.error(t("aiError"), {
         action: { label: t("retry"), onClick: () => regenerateAll() },
@@ -368,6 +391,7 @@ function ItineraryDetail() {
     } finally {
       setRegenAllProgress(null);
     }
+  }
   }
 
   function exportPdf() {
