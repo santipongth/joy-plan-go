@@ -1165,8 +1165,14 @@ function DayRoutePanel({
   onReorderByMode: () => void;
   t: (k: any) => string;
 }) {
-  const anchor = resolveAnchor(day.startPoint, day.places);
-  const est = estimateDayTravel(day.places, effectiveMode, anchor);
+  const anchor = useMemo(
+    () => resolveAnchor(day.startPoint, day.places),
+    [day.startPoint, day.places],
+  );
+  const est = useMemo(
+    () => estimateDayTravel(day.places, effectiveMode, anchor),
+    [day.places, effectiveMode, anchor],
+  );
   const km = (est.totalMeters / 1000).toFixed(1);
   const longestKm = (est.longestLegMeters / 1000).toFixed(1);
   const startLabel =
@@ -1187,35 +1193,52 @@ function DayRoutePanel({
   const [startOpen, setStartOpen] = useState(false);
   const [startQuery, setStartQuery] = useState("");
 
-  const otherDayPlaces = allDays
-    .map((d, idx) => ({ d, idx }))
-    .filter(({ idx }) => idx !== dayIdx)
-    .flatMap(({ d }) => d.places.map((p) => ({ p, dayNum: d.day })));
+  const otherDayPlaces = useMemo(
+    () =>
+      allDays
+        .map((d, idx) => ({ d, idx }))
+        .filter(({ idx }) => idx !== dayIdx)
+        .flatMap(({ d }) => d.places.map((p) => ({ p, dayNum: d.day }))),
+    [allDays, dayIdx],
+  );
+
+  // Debounce store writes so rapid keyboard navigation doesn't thrash persisted state.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+  const debouncedSetStart = (sp: DayStartPoint | undefined) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onSetDayStart(sp), 120);
+  };
 
   function chooseInherit() {
-    onSetDayStart(undefined);
+    debouncedSetStart(undefined);
     setStartOpen(false);
   }
   function chooseTripOrigin() {
-    if (tripOriginLabel) onSetDayStart({ label: tripOriginLabel });
-    else onSetDayStart(undefined);
+    if (tripOriginLabel) debouncedSetStart({ label: tripOriginLabel });
+    else debouncedSetStart(undefined);
     setStartOpen(false);
   }
   function choosePlace(p: Place) {
-    onSetDayStart({ label: p.name, lat: p.lat, lng: p.lng, placeId: p.id });
+    debouncedSetStart({ label: p.name, lat: p.lat, lng: p.lng, placeId: p.id });
     setStartOpen(false);
   }
   function chooseCustom() {
     const label = startQuery.trim();
     if (!label) return;
-    onSetDayStart({ label });
+    debouncedSetStart({ label });
     setStartOpen(false);
     setStartQuery("");
   }
 
-  const anchorForMap = anchor
-    ? { lat: anchor.lat, lng: anchor.lng, label: startLabel }
-    : null;
+  const anchorForMap = useMemo(
+    () => (anchor ? { lat: anchor.lat, lng: anchor.lng, label: startLabel } : null),
+    [anchor, startLabel],
+  );
 
   return (
     <div className="mb-3 rounded-lg border bg-muted/30 p-3 text-xs space-y-2">
