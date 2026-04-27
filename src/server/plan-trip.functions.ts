@@ -261,10 +261,12 @@ export const planTrip = createServerFn({ method: "POST" })
         return { title: "", days: [], citiesCount: 0, error: "NO_TOOL_CALL" };
       }
       const parsed = JSON.parse(call.function.arguments) as AIPlanResult;
+      // Cross-day dedupe by lat/lng (≤150m) or normalized name match
+      const dedupedDays = dedupePlacesAcrossDays(parsed.days || [], 150);
       return {
         title: parsed.title || data.destination,
         citiesCount: parsed.citiesCount || 1,
-        days: parsed.days || [],
+        days: dedupedDays,
       };
     } catch (e) {
       console.error("planTrip failed", e);
