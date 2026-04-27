@@ -187,6 +187,13 @@
   .print-day {
     margin-top: 16px;
     page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .print-day + .print-day {
+    page-break-before: always;
+    break-before: page;
+    margin-top: 0;
   }
 
   .print-day-header {
@@ -199,6 +206,8 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     margin-bottom: 8px;
+    page-break-after: avoid;
+    break-after: avoid;
   }
 
   .print-day-badge {
@@ -232,12 +241,23 @@
     font-size: 11px;
   }
 
+  .print-places thead {
+    display: table-header-group;
+  }
+
+  .print-places tbody tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
   .print-places th,
   .print-places td {
     border: 1px solid #d4d4d4;
     padding: 6px 8px;
     text-align: left;
     vertical-align: top;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   .print-places th {
