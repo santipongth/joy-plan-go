@@ -111,6 +111,16 @@ function ItineraryDetail() {
   const applyModeToAllDays = useItineraryStore((s) => s.applyModeToAllDays);
   const pushHistory = useReorderHistoryStore((s) => s.push);
   const popHistory = useReorderHistoryStore((s) => s.pop);
+  const historyStacks = useReorderHistoryStore((s) => s.stacks);
+  const historyDepths = useMemo(() => {
+    const out: Record<number, number> = {};
+    Object.keys(historyStacks).forEach((key) => {
+      const [iid, idxStr] = key.split(":");
+      if (iid !== id) return;
+      out[Number(idxStr)] = historyStacks[key].length;
+    });
+    return out;
+  }, [historyStacks, id]);
 
   const [highlightedType, setHighlightedType] = useState<string | null>(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
