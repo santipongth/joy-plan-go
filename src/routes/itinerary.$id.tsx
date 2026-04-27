@@ -917,11 +917,23 @@ function SortablePlace({
   index,
   color,
   onRemove,
+  onFocus,
+  otherDays,
+  onMove,
+  moveLabel,
+  focusLabel,
+  dayLabel,
 }: {
   place: Place;
   index: number;
   color: string;
   onRemove: () => void;
+  onFocus: () => void;
+  otherDays: { day: number; idx: number }[];
+  onMove: (toDayIdx: number) => void;
+  moveLabel: string;
+  focusLabel: string;
+  dayLabel: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: place.id,
