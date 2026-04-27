@@ -316,6 +316,116 @@ function HomePage() {
                       </div>
                     </div>
                   </div>
+
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">{t("companions")}</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {COMPANIONS.map((c) => (
+                        <Button
+                          key={c.key}
+                          type="button"
+                          size="sm"
+                          variant={companions === c.key ? "default" : "outline"}
+                          onClick={() => setCompanions(companions === c.key ? "" : c.key)}
+                        >
+                          <span className="mr-1">{c.emoji}</span>
+                          {t(c.key as keyof typeof dict.en)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">{t("travelStyle")}</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {STYLES.map((s) => (
+                        <Button
+                          key={s.key}
+                          type="button"
+                          size="sm"
+                          variant={travelStyle.includes(s.key) ? "default" : "outline"}
+                          onClick={() => toggleInList(s.key, travelStyle, setTravelStyle)}
+                        >
+                          <span className="mr-1">{s.emoji}</span>
+                          {t(s.key as keyof typeof dict.en)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">{t("pace")}</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {PACES.map((p) => (
+                        <Button
+                          key={p.key}
+                          type="button"
+                          size="sm"
+                          variant={pace === p.key ? "default" : "outline"}
+                          onClick={() => setPace(p.key)}
+                        >
+                          {p.emoji && <span className="mr-1">{p.emoji}</span>}
+                          {t(p.key as keyof typeof dict.en)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">{t("accommodation")}</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {ACCOMMODATIONS.map((a) => (
+                        <Button
+                          key={a}
+                          type="button"
+                          size="sm"
+                          variant={accommodation === a ? "default" : "outline"}
+                          onClick={() => setAccommodation(accommodation === a ? "" : a)}
+                        >
+                          {t(a as keyof typeof dict.en)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">{t("rhythm")}</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {RHYTHMS.map((r) => (
+                        <Button
+                          key={r.key}
+                          type="button"
+                          size="sm"
+                          variant={rhythm.includes(r.key) ? "default" : "outline"}
+                          onClick={() => toggleInList(r.key, rhythm, setRhythm)}
+                        >
+                          {t(r.key as keyof typeof dict.en)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">{t("otherNeeds")}</Label>
+                    <Textarea
+                      value={otherNeeds}
+                      onChange={(e) => setOtherNeeds(e.target.value.slice(0, 1000))}
+                      placeholder={t("otherNeedsPlaceholder")}
+                      className="min-h-[80px] resize-none"
+                    />
+                    <div className="text-right text-xs text-muted-foreground mt-1">
+                      {otherNeeds.length}/1000
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <Button type="button" variant="link" size="sm" onClick={clearPrefs} className="px-0">
+                      {t("clear")}
+                    </Button>
+                    <Button type="button" size="sm" onClick={() => setPrefsOpen(false)}>
+                      {t("confirm")}
+                    </Button>
+                  </div>
                 </CollapsibleContent>
               </Collapsible>
 
