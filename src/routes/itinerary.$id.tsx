@@ -926,6 +926,16 @@ function DaySection({
           {day.title && (
             <span className="text-muted-foreground font-normal text-sm">— {day.title}</span>
           )}
+          {historyDepth > 0 && (
+            <span
+              className="ml-1 inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground tabular-nums"
+              title={t("undoTooltip").replace("{n}", String(historyDepth))}
+              aria-label={t("undoTooltip").replace("{n}", String(historyDepth))}
+            >
+              <Undo2 className="h-3 w-3" />
+              {t("undo")} ({historyDepth})
+            </span>
+          )}
         </h2>
         <div className="flex gap-1">
           {historyDepth > 0 && (
