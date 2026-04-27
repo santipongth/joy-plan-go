@@ -90,6 +90,10 @@ function ItineraryDetail() {
   const addPlace = useItineraryStore((s) => s.addPlace);
   const reorderPlaces = useItineraryStore((s) => s.reorderPlaces);
   const replaceDay = useItineraryStore((s) => s.replaceDay);
+  const movePlace = useItineraryStore((s) => s.movePlace);
+
+  const [highlightedType, setHighlightedType] = useState<string | null>(null);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(itinerary?.title ?? "");
