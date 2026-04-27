@@ -150,7 +150,35 @@
 @media print {
   @page {
     size: A4;
-    margin: 18mm;
+    margin: 22mm 18mm 20mm 18mm;
+    @top-left {
+      content: string(trip-title);
+      font: 10px ui-sans-serif, system-ui, sans-serif;
+      color: #555;
+    }
+    @top-right {
+      content: string(trip-meta);
+      font: 10px ui-sans-serif, system-ui, sans-serif;
+      color: #555;
+    }
+    @bottom-right {
+      content: "Page " counter(page) " / " counter(pages);
+      font: 10px ui-sans-serif, system-ui, sans-serif;
+      color: #555;
+    }
+    @bottom-left {
+      content: string(trip-title);
+      font: 10px ui-sans-serif, system-ui, sans-serif;
+      color: #999;
+    }
+  }
+
+  .print-cover h1 {
+    string-set: trip-title content();
+  }
+
+  .print-cover .print-meta-running {
+    string-set: trip-meta content();
   }
 
   html,

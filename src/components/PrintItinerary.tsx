@@ -11,14 +11,16 @@ export default function PrintItinerary({ itinerary, t }: Props) {
     <div className="print-doc">
       <header className="print-cover">
         <h1>{itinerary.title}</h1>
-        <p className="print-meta">
+        <p className="print-meta print-meta-running">
           {itinerary.destination}
-          {itinerary.origin ? ` · ${t("startingFrom")} ${itinerary.origin}` : ""}
-        </p>
-        <p className="print-meta">
-          {itinerary.durationDays} {t("days")}
           {itinerary.startDate ? ` · ${itinerary.startDate}` : ""}
+          {` · ${itinerary.durationDays} ${t("days")}`}
         </p>
+        {itinerary.origin && (
+          <p className="print-meta">
+            {t("startingFrom")} {itinerary.origin}
+          </p>
+        )}
       </header>
 
       {itinerary.days.map((d) => {

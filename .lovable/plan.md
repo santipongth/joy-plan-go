@@ -1,61 +1,75 @@
-## Refinements: Regen Progress, Print Polish, Error UX
+## Inline Day Errors, Print Headers/Footers, Regen ETA
 
-Three focused improvements to the itinerary view.
+### 1. Per-day inline error during full-trip regeneration
 
-### 1. Full-trip regenerate: progress indicator with current day
+The inline `Alert` with day-specific Retry already exists in `DaySection` (driven by `regenErrors[day]`). Currently `regenerateAll` aborts the loop on the first failure. Change it so a per-day failure is recorded into `regenErrors` and the loop continues — so the user sees a red banner exactly on the failed day with a Retry button that only re-runs that day via the existing `regenerateDay(dayIdx)`.
 
-The current `regenerateAll` only shows a spinner with no per-day feedback. We'll switch from one batch `planTrip` call to a sequential per-day loop using the existing `planSingleDay` server function so we can surface progress.
+**`src/routes/itinerary.$id.tsx` → inside `regenerateAll()` per-day loop:**
+- On `dayRes.error || !dayRes.day`:
+  - `setRegenErrors(prev => ({ ...prev, [target.day]: msg }))`
+  - Show a small toast `"Day {n}: {msg}"` (no global "regenFailed" abort).
+  - `continue;` — do NOT `return`.
+- After the loop, if any errors remain, show one summary toast: `"Some days failed — retry from each day"`. Otherwise the existing `regenAllSuccess` toast.
+- The existing inline `Alert` already calls `onRegenerate={() => regenerateDay(dayIdx)}` which only regenerates that single day — no change needed in `DaySection`.
 
-**`src/routes/itinerary.$id.tsx`**
-- Replace `regenAllLoading: boolean` with state `regenAllProgress: { current: number; total: number } | null`.
-- In `regenerateAll()`:
-  - First call `planTripFn` (kept) to get the trip title + day count + initial structure (so we still get a coherent title).
-  - Then iterate `for (let i = 0; i < res.days.length; i++)` calling `planSingleDay` per day (passing the running summary), updating `regenAllProgress = { current: i+1, total }` before each call, and committing each day via `replaceDay` as it arrives. This produces a streaming "Day X of N" feel.
-  - Reset visibility to all days at the end (already done).
-  - On any single-day failure: stop, surface a toast with retry, leave already-completed days in place.
-- In the header button, show:
-  - Idle: `Wand2` + "Regenerate full trip"
-  - In progress: `Loader2 spin` + `"Regenerating day {current} / {total}..."`
-- Add a thin progress bar under the header (a simple `<div>` with width `(current/total)*100%`) visible only while `regenAllProgress` is set.
+### 2. Estimated time remaining during full-trip regeneration
 
-**`src/lib/i18n.ts`** — add keys:
-- `regeneratingDay` — `"กำลังสร้างวัน {n} จาก {total}..."` / `"Generating day {n} of {total}..."` (we'll do a tiny inline replace in the component).
+Track wall-clock elapsed time and project the remainder from average per-day time.
 
-### 2. Print layout: consistent spacing, no border overlap across pages
+**`src/routes/itinerary.$id.tsx`:**
+- Extend progress state: `regenAllProgress: { current: number; total: number; startedAt: number; etaSec: number | null } | null`.
+- Set `startedAt = Date.now()` when starting; `etaSec = null` initially.
+- After each successful `replaceDay` in the loop:
+  - `const elapsed = (Date.now() - startedAt) / 1000;`
+  - `const avg = elapsed / current;`
+  - `const etaSec = Math.max(0, Math.round(avg * (total - current)));`
+  - `setRegenAllProgress({ current, total, startedAt, etaSec });`
+- In the header progress bar UI, show ETA next to the percent: `"Day 2 / 5  ·  ~14s left  ·  40%"`. Hide ETA until at least one day has finished (when `etaSec !== null`).
+- New i18n keys: `timeLeft` (`"เหลือประมาณ"` / `"~"`), `seconds` (`"วิ"` / `"s left"`).
 
-Current CSS forces `page-break-before: always` between every day, which works but tables can still bleed. Tighten the rules.
+### 3. Repeating print headers and footers
 
-**`src/styles.css`** (`@media print` block)
-- Add `border-spacing: 0` and `box-sizing: border-box` to `.print-places`.
-- Change `.print-day + .print-day` to keep the forced `break-before: page` but standardize top spacing: set `padding-top: 0` and `margin-top: 0` consistently; first day gets `margin-top: 0` too.
-- Add `.print-day { padding-bottom: 12px; }` so the last row's bottom border doesn't kiss the page edge.
-- Replace the `border: 1px solid` strategy on `td/th` with a half-border approach to prevent doubled borders at page-break rows: keep `border-bottom` and `border-right` only on cells, plus a wrapping `border-top` and `border-left` on the table itself. This eliminates the visual "double line" when a row sits at the top of a new page.
-- Add `.print-places tbody tr { break-inside: avoid; page-break-inside: avoid; }` (already present) and additionally `.print-places tr + tr td { border-top: 0; }` — guard against accidental top borders.
-- Add `.print-day-header { break-after: avoid-page; }` so the day header never gets orphaned at the bottom of a page above its table.
+Add running headers (trip title + dates) and footers (page number) on every printed page using CSS `@page` margin boxes and `string-set`. Browsers that don't support margin boxes (Firefox) gracefully print without them — no broken layout.
 
-**`src/components/PrintItinerary.tsx`** — no structural changes; the CSS does the work.
+**`src/styles.css` (`@media print`):**
+- Define page margin boxes:
+  ```css
+  @page {
+    size: A4;
+    margin: 22mm 18mm 20mm 18mm;
+    @top-left   { content: string(trip-title); font: 10px ui-sans-serif; color: #555; }
+    @top-right  { content: string(trip-meta);  font: 10px ui-sans-serif; color: #555; }
+    @bottom-right { content: "Page " counter(page) " / " counter(pages); font: 10px ui-sans-serif; color: #555; }
+    @bottom-left  { content: string(trip-title); font: 10px ui-sans-serif; color: #999; }
+  }
+  ```
+- Make the cover set the running strings:
+  ```css
+  .print-cover h1 { string-set: trip-title content(); }
+  .print-cover .print-meta-running { string-set: trip-meta content(); }
+  ```
+- Add a hidden-on-screen, top-of-page running line so non-supporting browsers still get inline context (e.g. show as a small repeated header above each `.print-day` via a `position: fixed; top: 0;` strip is unreliable across browsers, so we rely on `@page` margin boxes for the repeat — fallback is just the per-day section header which remains).
 
-### 3. Day error: only clear on successful retry, with confirmation toast
-
-Today, `regenerateDay` shows a generic `toast.success("✓")` and clears the error inside `replaceDay` flow. We'll make the success path explicit and only clear the inline `Alert` after the regenerate truly succeeded.
-
-**`src/routes/itinerary.$id.tsx` → `regenerateDay()`**
-- Remove the existing optimistic clear behavior (currently it does happen only on success, which is correct — but the dismiss button also clears it manually; we'll keep that behavior intact).
-- After a successful `replaceDay`, replace `toast.success("✓")` with a descriptive confirmation toast using new i18n key `regenSuccess`: `"สร้างวัน {n} ใหม่สำเร็จ"` / `"Day {n} regenerated successfully"`.
-- On failure path: do NOT touch `regenErrors` for that day (leave the previous error visible if there was one) — currently we only set, which is fine. Just confirm we never clear on click.
-- Ensure the inline `Alert`'s "Retry" button calls `regenerateDay(dayIdx)` and the alert remains until that call resolves successfully (driven by `regenErrors` state already).
-
-**`src/lib/i18n.ts`** — add keys:
-- `regenSuccess` — `"สร้างวัน {n} ใหม่สำเร็จ"` / `"Day {n} regenerated successfully"`.
-
-### Technical notes
-
-- Inline string interpolation: since `useT()` returns plain strings, do `t("regeneratingDay").replace("{n}", String(current)).replace("{total}", String(total))` at the call site — keeps the i18n module unchanged in shape.
-- Sequential `planSingleDay` calls in `regenerateAll` increase total wall time but give visible progress, which is the goal. Each call uses the running summary of already-completed days to avoid duplicates.
-- Print border fix uses the standard "collapsed-borders via per-side strategy" pattern; no new dependencies.
+**`src/components/PrintItinerary.tsx`:**
+- Add a single concise meta line on the cover used for `string-set: trip-meta`:
+  ```tsx
+  <p className="print-meta print-meta-running">
+    {itinerary.destination}
+    {itinerary.startDate ? ` · ${itinerary.startDate}` : ""}
+    {` · ${itinerary.durationDays} ${t("days")}`}
+  </p>
+  ```
+- No structural changes; the cover heading already sets the title via `string-set`.
 
 ### Files touched
 
-- `src/routes/itinerary.$id.tsx` — progress state, sequential regen loop, progress bar, success toast wording
-- `src/lib/i18n.ts` — `regeneratingDay`, `regenSuccess`
-- `src/styles.css` — refined `@media print` rules for spacing and borders
+- `src/routes/itinerary.$id.tsx` — continue-on-error loop, ETA state and display
+- `src/lib/i18n.ts` — `timeLeft`, `seconds`, `page` keys
+- `src/styles.css` — `@page` margin boxes with `string-set` and page counters
+- `src/components/PrintItinerary.tsx` — class on cover meta line for `string-set`
+
+### Technical notes
+
+- ETA is recomputed after each successful day, so it self-corrects if early days are faster/slower. Skipped (failed) days don't contribute to the average — we only divide by *successful* completions to keep estimates honest.
+- `@page` margin boxes are widely supported in Chrome/Edge/Safari for print. Firefox ignores them; printout still works, just without the running header/footer. No JS polyfill needed.
+- `string-set` on `.print-cover h1` captures the trip title once; `counter(page)/counter(pages)` is automatic.
