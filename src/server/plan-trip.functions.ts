@@ -212,15 +212,8 @@ export const planTrip = createServerFn({ method: "POST" })
 
     const sys = `You are an expert travel planner. Generate a realistic day-by-day itinerary with 3-5 places per day. Each place must include accurate latitude/longitude coordinates (decimal degrees). Group nearby places on the same day to minimize travel. ${langInstr}`;
 
-    const user = `Plan a ${data.durationDays}-day trip${data.origin ? ` starting from ${data.origin}` : ""} to ${data.destination}.${
-      data.interests?.length ? ` Interests: ${data.interests.join(", ")}.` : ""
-    }${data.budget ? ` Budget: ${data.budget}.` : ""}${data.pace ? ` Pace: ${data.pace}.` : ""}${
-      data.companions ? ` Travel companions: ${data.companions}.` : ""
-    }${data.travelStyle?.length ? ` Travel style: ${data.travelStyle.join(", ")}.` : ""}${
-      data.accommodation ? ` Accommodation level: ${data.accommodation}.` : ""
-    }${data.rhythm?.length ? ` Day rhythm: ${data.rhythm.join(", ")}.` : ""}${
-      data.otherNeeds ? ` Other needs: ${data.otherNeeds}.` : ""
-    } Provide a creative trip title.`;
+    const prefsBlock = buildPreferencesBlock(data);
+    const user = `Plan a ${data.durationDays}-day trip${data.origin ? ` starting from ${data.origin}` : ""} to ${data.destination}. Provide a creative trip title.${prefsBlock}`;
 
     const tool = {
       type: "function" as const,
