@@ -159,6 +159,7 @@ interface PlanInput {
   accommodation?: string;
   rhythm?: string[];
   otherNeeds?: string;
+  travelMode?: TravelMode;
   lang: "th" | "en";
 }
 
@@ -184,7 +185,11 @@ export const planTrip = createServerFn({ method: "POST" })
     const sys = `You are an expert travel planner. Generate a realistic day-by-day itinerary with 3-5 places per day. Each place must include accurate latitude/longitude coordinates (decimal degrees). Group nearby places on the same day to minimize travel. CRITICAL: every place across the whole trip must be UNIQUE — distinct names AND coordinates more than ~200m apart from any other place in the itinerary. Never repeat or revisit places. ${langInstr}`;
 
     const prefsBlock = buildPreferencesBlock(data);
-    const user = `Plan a ${data.durationDays}-day trip${data.origin ? ` starting from ${data.origin}` : ""} to ${data.destination}. Provide a creative trip title.${prefsBlock}`;
+    const modeInstr =
+      data.travelMode && data.travelMode !== "any"
+        ? ` The traveler will move between places by ${data.travelMode === "walking" ? "walking" : data.travelMode === "transit" ? "public transit" : "a mix of walking and public transit"}. Within each day, ORDER the places along an efficient route (nearest-neighbour from the day's starting point) to minimise total travel distance/time, not just by opening hours.`
+        : "";
+    const user = `Plan a ${data.durationDays}-day trip${data.origin ? ` starting from ${data.origin}` : ""} to ${data.destination}. Provide a creative trip title.${modeInstr}${prefsBlock}`;
 
     const tool = {
       type: "function" as const,
