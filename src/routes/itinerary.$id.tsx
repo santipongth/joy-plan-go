@@ -679,6 +679,12 @@ function ItineraryDetail() {
             </p>
           </div>
 
+          <BudgetEstimate
+            itinerary={itinerary}
+            onTravelersChange={(n) => update(id, { travelers: n })}
+            onTierChange={(b) => update(id, { budget: b })}
+          />
+
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
             <div className="flex items-center justify-between mb-2">
