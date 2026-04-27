@@ -483,6 +483,7 @@ function ItineraryDetail() {
                   onRegenerate={() => regenerateDay(dayIdx)}
                   regenerating={regenLoading === d.day}
                   errorMessage={regenErrors[d.day]}
+                  onDismissError={() => clearRegenError(d.day)}
                   t={t}
                 />
               );
