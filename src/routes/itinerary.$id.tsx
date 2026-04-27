@@ -107,6 +107,8 @@ function ItineraryDetail() {
   const setDayMode = useItineraryStore((s) => s.setDayMode);
   const setDayStart = useItineraryStore((s) => s.setDayStart);
   const applyModeToAllDays = useItineraryStore((s) => s.applyModeToAllDays);
+  const pushHistory = useReorderHistoryStore((s) => s.push);
+  const popHistory = useReorderHistoryStore((s) => s.pop);
 
   const [highlightedType, setHighlightedType] = useState<string | null>(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
