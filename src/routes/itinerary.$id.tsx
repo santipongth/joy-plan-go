@@ -69,7 +69,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import DayMiniMap from "@/components/DayMiniMap";
-import { estimateDayTravel, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
+import { estimateDayTravel, estimateLegMinutes, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
 
 export const Route = createFileRoute("/itinerary/$id")({
