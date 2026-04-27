@@ -26,6 +26,9 @@ import {
   FileDown,
   AlertTriangle,
   RefreshCw,
+  X,
+  Printer,
+  Wand2,
 } from "lucide-react";
 import MapView, { dayColor } from "@/components/MapView";
 import PrintItinerary from "@/components/PrintItinerary";
@@ -48,7 +51,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Place, DayPlan } from "@/lib/types";
-import { planSingleDay } from "@/server/plan-trip.functions";
+import { planSingleDay, planTrip } from "@/server/plan-trip.functions";
+import { useServerFn } from "@tanstack/react-start";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,14 +98,29 @@ function ItineraryDetail() {
   const toggleVisible = useVisibilityStore((s) => s.toggle);
   const [regenLoading, setRegenLoading] = useState<number | null>(null);
   const [regenErrors, setRegenErrors] = useState<Record<number, string>>({});
+  const [regenAllLoading, setRegenAllLoading] = useState(false);
+  const planTripFn = useServerFn(planTrip);
 
-  // initialize visible days when itinerary loads (default = all)
+  // initialize / sync visible days when itinerary loads or day numbers change
+  const dayNumbersKey = itinerary?.days.map((d) => d.day).join(",") ?? "";
   useEffect(() => {
-    if (itinerary && visibleArr === undefined) {
-      setVisible(id, itinerary.days.map((d) => d.day));
+    if (!itinerary) return;
+    const allDays = itinerary.days.map((d) => d.day);
+    if (visibleArr === undefined) {
+      setVisible(id, allDays);
+      return;
+    }
+    // If saved set is out of sync with current day numbers, reset to all visible
+    const allSet = new Set(allDays);
+    const savedSet = new Set(visibleArr);
+    const sameSize = allSet.size === savedSet.size;
+    const sameItems = sameSize && [...allSet].every((d) => savedSet.has(d));
+    const hasStale = visibleArr.some((d) => !allSet.has(d));
+    if (hasStale || (!sameItems && allSet.size !== savedSet.size)) {
+      setVisible(id, allDays);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itinerary?.id, visibleArr === undefined]);
+  }, [itinerary?.id, dayNumbersKey, visibleArr === undefined]);
 
   const visibleDays = useMemo(
     () => new Set(visibleArr ?? itinerary?.days.map((d) => d.day) ?? []),
@@ -233,6 +252,70 @@ function ItineraryDetail() {
     }
   }
 
+  function clearRegenError(day: number) {
+    setRegenErrors((prev) => {
+      if (!(day in prev)) return prev;
+      const next = { ...prev };
+      delete next[day];
+      return next;
+    });
+  }
+
+  async function regenerateAll() {
+    if (!itinerary) return;
+    if (!confirm(t("confirmRegenAll"))) return;
+    setRegenAllLoading(true);
+    try {
+      const res = await planTripFn({
+        data: {
+          origin: itinerary.origin,
+          destination: itinerary.destination,
+          durationDays: itinerary.durationDays,
+          startDate: itinerary.startDate,
+          lang,
+        },
+      });
+      if (res.error || !res.days?.length) {
+        const code = res.error || "AI_ERROR";
+        const msg = errorMessage(code);
+        toast.error(t("regenFailed"), {
+          description: msg,
+          duration: 10000,
+          action: { label: t("retry"), onClick: () => regenerateAll() },
+        });
+        return;
+      }
+      const newDays: DayPlan[] = res.days.map((d) => ({
+        day: d.day,
+        title: d.title,
+        places: d.places.map((p) => ({
+          id: makeId(),
+          name: p.name,
+          description: p.description,
+          type: p.type,
+          time: p.time,
+          lat: p.lat,
+          lng: p.lng,
+        })),
+      }));
+      update(id, {
+        title: res.title || itinerary.title,
+        citiesCount: res.citiesCount || itinerary.citiesCount,
+        days: newDays,
+      });
+      // Reset visibility to all days (and persist)
+      setVisible(id, newDays.map((d) => d.day));
+      setRegenErrors({});
+      toast.success("✓");
+    } catch {
+      toast.error(t("aiError"), {
+        action: { label: t("retry"), onClick: () => regenerateAll() },
+      });
+    } finally {
+      setRegenAllLoading(false);
+    }
+  }
+
   function exportPdf() {
     // Print-friendly: open print dialog (user can save as PDF)
     window.print();
@@ -266,11 +349,31 @@ function ItineraryDetail() {
               {t("back")}
             </Button>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={regenerateAll}
+                disabled={regenAllLoading}
+                title={t("regenerateAll")}
+              >
+                {regenAllLoading ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4 mr-1" />
+                )}
+                <span className="hidden sm:inline">
+                  {regenAllLoading ? t("regeneratingAll") : t("regenerateAll")}
+                </span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportPdf} title={t("print")}>
+                <Printer className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">{t("print")}</span>
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Download className="h-4 w-4 mr-1" />
-                    {t("export")}
+                    <span className="hidden sm:inline">{t("export")}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -380,6 +483,7 @@ function ItineraryDetail() {
                   onRegenerate={() => regenerateDay(dayIdx)}
                   regenerating={regenLoading === d.day}
                   errorMessage={regenErrors[d.day]}
+                  onDismissError={() => clearRegenError(d.day)}
                   t={t}
                 />
               );
@@ -465,6 +569,7 @@ interface DaySectionProps {
   onRegenerate: () => void;
   regenerating: boolean;
   errorMessage?: string;
+  onDismissError?: () => void;
   t: (k: any) => string;
 }
 
@@ -477,6 +582,7 @@ function DaySection({
   onRegenerate,
   regenerating,
   errorMessage,
+  onDismissError,
   t,
 }: DaySectionProps) {
   const sensors = useSensors(
@@ -540,15 +646,27 @@ function DaySection({
             <span className="flex-1">
               <strong>{t("regenFailed")}:</strong> {errorMessage}
             </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onRegenerate}
-              disabled={regenerating}
-            >
-              <RefreshCw className={`h-3 w-3 mr-1 ${regenerating ? "animate-spin" : ""}`} />
-              {t("retry")}
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onRegenerate}
+                disabled={regenerating}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${regenerating ? "animate-spin" : ""}`} />
+                {t("retry")}
+              </Button>
+              {onDismissError && (
+                <button
+                  onClick={onDismissError}
+                  aria-label={t("dismiss")}
+                  title={t("dismiss")}
+                  className="p-1 rounded hover:bg-destructive/10 text-destructive transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
       )}
