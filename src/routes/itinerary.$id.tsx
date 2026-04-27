@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useItineraryStore, makeId } from "@/lib/store";
 import { useVisibilityStore } from "@/lib/visibility-store";
 import { useT, useLangStore } from "@/lib/i18n";
