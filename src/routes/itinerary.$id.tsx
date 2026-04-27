@@ -464,6 +464,7 @@ interface DaySectionProps {
   onReorder: (places: Place[]) => void;
   onRegenerate: () => void;
   regenerating: boolean;
+  errorMessage?: string;
   t: (k: any) => string;
 }
 
@@ -475,6 +476,7 @@ function DaySection({
   onReorder,
   onRegenerate,
   regenerating,
+  errorMessage,
   t,
 }: DaySectionProps) {
   const sensors = useSensors(
@@ -509,7 +511,7 @@ function DaySection({
             <span className="text-muted-foreground font-normal text-sm">— {day.title}</span>
           )}
         </h2>
-        <div className="flex gap-1 print:hidden">
+        <div className="flex gap-1">
           <Button
             size="sm"
             variant="ghost"
@@ -530,6 +532,26 @@ function DaySection({
           </Button>
         </div>
       </div>
+
+      {errorMessage && (
+        <Alert variant="destructive" className="mb-3">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between gap-2">
+            <span className="flex-1">
+              <strong>{t("regenFailed")}:</strong> {errorMessage}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onRegenerate}
+              disabled={regenerating}
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${regenerating ? "animate-spin" : ""}`} />
+              {t("retry")}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext
