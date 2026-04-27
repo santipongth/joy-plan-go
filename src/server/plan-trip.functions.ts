@@ -3,7 +3,10 @@ import { buildPreferencesBlock } from "./preferences-prompt";
 import {
   dedupePlacesAcrossDays,
   filterDuplicatesAgainst,
+  reorderDaysByDistance,
+  reorderPlacesByDistance,
   type PlaceLite,
+  type TravelMode,
 } from "./dedupe";
 
 interface PlanDayInput {
@@ -20,6 +23,7 @@ interface PlanDayInput {
   accommodation?: string;
   rhythm?: string[];
   otherNeeds?: string;
+  travelMode?: TravelMode;
   lang: "th" | "en";
 }
 
