@@ -646,15 +646,27 @@ function DaySection({
             <span className="flex-1">
               <strong>{t("regenFailed")}:</strong> {errorMessage}
             </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onRegenerate}
-              disabled={regenerating}
-            >
-              <RefreshCw className={`h-3 w-3 mr-1 ${regenerating ? "animate-spin" : ""}`} />
-              {t("retry")}
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onRegenerate}
+                disabled={regenerating}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${regenerating ? "animate-spin" : ""}`} />
+                {t("retry")}
+              </Button>
+              {onDismissError && (
+                <button
+                  onClick={onDismissError}
+                  aria-label={t("dismiss")}
+                  title={t("dismiss")}
+                  className="p-1 rounded hover:bg-destructive/10 text-destructive transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
       )}
