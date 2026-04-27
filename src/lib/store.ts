@@ -72,11 +72,37 @@ export const useItineraryStore = create<State>()(
             if (i.id !== id) return i;
             const days = i.days.map((d, idx) => {
               if (idx !== dayIndex) return d;
-              // Preserve user-chosen travelMode and startPoint across AI regeneration
+              // Preserve user-chosen travelMode and startPoint across AI regeneration.
+              // If previous startPoint referenced a placeId from old places, remap it
+              // to the new places by name match; otherwise keep stored lat/lng so
+              // resolveAnchor still works.
+              const prevSP = d.startPoint;
+              let nextSP: DayStartPoint | undefined = day.startPoint ?? prevSP;
+              if (!day.startPoint && prevSP?.placeId && Array.isArray(day.places)) {
+                const oldPlace = d.places.find((p) => p.id === prevSP.placeId);
+                const matched = oldPlace
+                  ? day.places.find((p) => p.name === oldPlace.name)
+                  : undefined;
+                if (matched) {
+                  nextSP = {
+                    label: prevSP.label,
+                    placeId: matched.id,
+                    lat: matched.lat,
+                    lng: matched.lng,
+                  };
+                } else if (
+                  typeof prevSP.lat === "number" &&
+                  typeof prevSP.lng === "number"
+                ) {
+                  nextSP = { label: prevSP.label, lat: prevSP.lat, lng: prevSP.lng };
+                } else {
+                  nextSP = { label: prevSP.label };
+                }
+              }
               return {
                 ...day,
                 travelMode: day.travelMode ?? d.travelMode,
-                startPoint: day.startPoint ?? d.startPoint,
+                startPoint: nextSP,
               };
             });
             return touch({ ...i, days });
