@@ -1080,3 +1080,161 @@ function SortablePlace({
     </Card>
   );
 }
+
+const MODE_KEYS: TravelMode[] = ["any", "walking", "transit", "mixed"];
+
+function modeLabel(t: (k: keyof typeof dict.en) => string, m: TravelMode): string {
+  return t(("mode" + m.charAt(0).toUpperCase() + m.slice(1)) as keyof typeof dict.en);
+}
+
+function TripModeBar({
+  mode,
+  onChange,
+  onApplyAll,
+  t,
+}: {
+  mode: TravelMode;
+  onChange: (m: TravelMode) => void;
+  onApplyAll: () => void;
+  t: (k: any) => string;
+}) {
+  return (
+    <div className="mb-6 p-3 rounded-lg bg-card/60 border flex flex-wrap items-center gap-2">
+      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-2">
+        {t("tripMode")}
+      </span>
+      <div className="flex flex-wrap gap-1">
+        {MODE_KEYS.map((m) => (
+          <Button
+            key={m}
+            type="button"
+            size="sm"
+            variant={mode === m ? "default" : "outline"}
+            onClick={() => onChange(m)}
+          >
+            {modeLabel(t, m)}
+          </Button>
+        ))}
+      </div>
+      <Button type="button" size="sm" variant="ghost" onClick={onApplyAll} className="ml-auto">
+        {t("applyToAll")}
+      </Button>
+    </div>
+  );
+}
+
+function DayRoutePanel({
+  day,
+  effectiveMode,
+  inheritedMode,
+  tripOriginLabel,
+  onSetDayMode,
+  onSetDayStart,
+  onReorderByMode,
+  t,
+}: {
+  day: DayPlan;
+  effectiveMode: TravelMode;
+  inheritedMode: TravelMode;
+  tripOriginLabel?: string;
+  onSetDayMode: (m: TravelMode | undefined) => void;
+  onSetDayStart: (sp: DayStartPoint | undefined) => void;
+  onReorderByMode: () => void;
+  t: (k: any) => string;
+}) {
+  const anchor = resolveAnchor(day.startPoint, day.places);
+  const est = estimateDayTravel(day.places, effectiveMode, anchor);
+  const km = (est.totalMeters / 1000).toFixed(1);
+  const longestKm = (est.longestLegMeters / 1000).toFixed(1);
+  const startLabel =
+    day.startPoint?.label ||
+    (anchor ? t("startPoint") : tripOriginLabel || t("tripOrigin"));
+
+  let reasoning: string;
+  if (effectiveMode === "any") {
+    reasoning = t("reasonNoMode");
+  } else if (day.startPoint?.label) {
+    reasoning = t("reasonNearestFrom")
+      .replace("{start}", day.startPoint.label)
+      .replace("{km}", longestKm);
+  } else {
+    reasoning = t("reasonNearestNoStart").replace("{km}", longestKm);
+  }
+
+  function pickCustomStart() {
+    const label = window.prompt(t("customStartPrompt"));
+    if (!label) return;
+    onSetDayStart({ label });
+  }
+
+  return (
+    <div className="mb-3 rounded-lg border bg-muted/30 p-3 text-xs space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold text-muted-foreground uppercase tracking-wide">
+          {t("routePanel")}
+        </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="h-7 text-xs">
+              {t("travelMode")}: {day.travelMode ? modeLabel(t, day.travelMode) : `${t("inherit")} (${modeLabel(t, inheritedMode)})`}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => onSetDayMode(undefined)}>
+              {t("inherit")} ({modeLabel(t, inheritedMode)})
+            </DropdownMenuItem>
+            {MODE_KEYS.map((m) => (
+              <DropdownMenuItem key={m} onClick={() => onSetDayMode(m)}>
+                {modeLabel(t, m)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="h-7 text-xs">
+              {t("startPoint")}: {startLabel}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="max-w-[260px]">
+            <DropdownMenuItem onClick={() => onSetDayStart(undefined)}>
+              {tripOriginLabel ? `${t("tripOrigin")} (${tripOriginLabel})` : t("inherit")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={pickCustomStart}>{t("customStart")}</DropdownMenuItem>
+            {day.places.length > 0 && (
+              <div className="px-2 py-1 text-[10px] uppercase text-muted-foreground">
+                {t("pickFromDay")}
+              </div>
+            )}
+            {day.places.map((p) => (
+              <DropdownMenuItem
+                key={p.id}
+                onClick={() => onSetDayStart({ label: p.name, lat: p.lat, lng: p.lng, placeId: p.id })}
+              >
+                {p.name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          size="sm"
+          variant="default"
+          className="h-7 text-xs ml-auto"
+          onClick={onReorderByMode}
+          disabled={effectiveMode === "any" || day.places.length < 2}
+          title={effectiveMode === "any" ? t("reasonNoMode") : t("updateDayOrder")}
+        >
+          <RefreshCw className="h-3 w-3 mr-1" />
+          {t("updateDayOrder")}
+        </Button>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 text-muted-foreground">
+        <span className="tabular-nums">
+          ~{km} km · ~{est.totalMinutes} min · {modeLabel(t, effectiveMode)}
+        </span>
+        <span className="text-foreground/80">{reasoning}</span>
+      </div>
+    </div>
+  );
+}
+
