@@ -1,73 +1,63 @@
 ## Goals
 
-1. Travel mode can be set globally (whole trip) **or** overridden per day, with a "Re-order this day" button per day.
-2. Each day shows a short "why this order" explanation.
-3. Each day shows estimated total walking/transit time + distance.
-4. Each day can have a custom **start point** (hotel / district / one of the day's places) that anchors the reorder.
+1. Make sure each day's `travelMode` and `startPoint` survive a page refresh.
+2. Replace the `window.prompt` "custom start" picker with a searchable dropdown of candidate start points.
+3. Add a per-day mini map that draws the day's ordered route as a polyline starting from the selected start point.
 
-## What you'll see
+---
 
-On `/itinerary/:id`, a new **Travel mode bar** at the top of the day list:
-- Mode selector: Any / Walking / Transit / Mixed (applies to all days by default)
-- "Apply to all days" button
+## 1. Persist per-day travel settings
 
-On every day card, a new compact **Route panel** above the place list:
-- Mode override (Inherit / Walking / Transit / Mixed)
-- Start point selector (Trip origin / Custom text / Pick a place from this day)
-- Estimated total: e.g. `~4.2 km · ~52 min walking`
-- One-line reasoning: e.g. *"Ordered by nearest-neighbour from Hotel Sukhumvit; minimises backtracking, longest leg 1.1 km."*
-- **"Update this day's order"** button → re-runs the local nearest-neighbour reorder using that day's mode + start point (no AI call, instant)
+The Zustand store already uses `persist({ name: "trip-planner-itineraries" })` and `setDayMode` / `setDayStart` mutate `day.travelMode` / `day.startPoint` inside the persisted `itineraries` array, so values *are* written to localStorage. What's missing is guaranteeing they round-trip cleanly:
 
-```text
-┌─ Day 1: Old Town ───────────────────────────────┐
-│ Mode: [Inherit ▾]   Start: [Hotel Riva ▾]       │
-│ ~3.8 km · ~46 min walking                       │
-│ Closest-first from Hotel Riva, longest leg 0.9km│
-│ [Update this day's order]                       │
-│  1. Wat Pho   09:00                             │
-│  2. ...                                         │
-└─────────────────────────────────────────────────┘
-```
+- Add `travelMode?: TravelMode` and `startPoint?: DayStartPoint` to the `DayPlan` shape returned by `planSingleDay` / `planTrip` server functions in `src/server/plan-trip.functions.ts` so newly generated days don't strip them when the AI re-renders a day.
+- In `src/lib/store.ts`, bump the persist config with `version: 2` and a tiny `migrate` that ensures `days[i].travelMode` / `days[i].startPoint` exist (default `undefined`). This protects users who already have data from the previous version and avoids hydration warnings.
+- In `replaceDay` (used after AI regeneration of a single day), preserve the previous day's `travelMode` and `startPoint` unless the new `DayPlan` explicitly provides them — otherwise the AI re-gen will silently wipe the user's chosen start.
 
-## Technical details
+## 2. Searchable start-point dropdown
 
-**Types (`src/lib/types.ts`)**
-- Add `travelMode?: TravelMode` to `Itinerary` (global default).
-- Add `travelMode?: TravelMode` and `startPoint?: { label: string; lat?: number; lng?: number; placeId?: string }` to `DayPlan`.
+Replace the `window.prompt` flow inside `DayRoutePanel` (`src/routes/itinerary.$id.tsx`, ~line 1168) with a shadcn `Command` (cmdk) popover.
 
-**Store (`src/lib/store.ts`)**
-- Add `setItineraryMode(id, mode)`, `setDayMode(id, dayIdx, mode)`, `setDayStart(id, dayIdx, sp)`, `applyModeToAllDays(id, mode)`. All `touch()` updatedAt.
+Source list (in order):
+1. "Inherit from trip" → clears `startPoint` (uses trip origin).
+2. Trip origin (`itinerary.origin`) as a pickable item.
+3. Each place from the **current day** (label = place name, sets `placeId` + coords).
+4. Each place from **other days** (grouped under "Other days") so users can anchor to their hotel even if it lives on day 1.
+5. A free-text input at the bottom of the popover ("Use custom label…") that creates a `{ label }`-only `DayStartPoint` when submitted — same behavior as the old prompt but inline.
 
-**Server geo helpers (`src/server/dedupe.ts`)** — already has `reorderPlacesByDistance` + `travelCostMeters`. Add a small client-safe twin **`src/lib/route-utils.ts`** so the itinerary page can reorder without an AI call:
-- Re-export pure functions: `haversineMeters`, `travelCostMeters`, `reorderPlacesFromAnchor(places, anchor, mode)`.
-- `estimateDayTravel(places, mode, anchor?)` → `{ totalMeters, totalMinutes, longestLegMeters, legs }`.
-  - Walking speed: 4.8 km/h. Transit average: 18 km/h with 4 min wait per leg. Mixed: 8 km/h.
-- `routeReasoning(mode, anchorLabel?, longestLegMeters)` → localized one-liner.
+Implementation notes:
+- Use existing `@/components/ui/command` + `@/components/ui/popover` (already part of shadcn setup; verify with `code--list_dir src/components/ui` and add via `bun add cmdk` if missing).
+- Keep the trigger button styling identical to the current `Button` so layout is unchanged.
+- Add i18n keys: `searchStartPoint`, `useCustomLabel`, `otherDays`.
 
-**Itinerary page (`src/routes/itinerary.$id.tsx`)**
-- New top "Travel mode" toolbar (uses store `itinerary.travelMode`).
-- For each day, render a `<DayRoutePanel>`:
-  - Mode = `day.travelMode ?? itinerary.travelMode ?? "any"`.
-  - Anchor resolution: `day.startPoint` → if `placeId`, use that place's lat/lng; if has lat/lng, use those; else use itinerary `origin` (geocoded fallback: just label, anchor = first place); else first place in the day.
-  - Show stats from `estimateDayTravel`.
-  - Buttons:
-    - **Update this day's order**: call `reorderPlacesFromAnchor`, push via `reorderPlaces(id, dayIdx, newOrder)`. Toast "Day N reordered".
-    - Mode dropdown sets `day.travelMode`.
-    - Start point dropdown lists: `Inherit (trip origin)`, places in this day, `Custom…` (prompt for label) — saved to `day.startPoint`.
+## 3. Per-day mini map with ordered polyline
 
-**Server prompt (`src/server/plan-trip.functions.ts`)**
-- When generating, pass `day.startPoint?.label` (if present) into `planSingleDay` so AI orders from that anchor. New optional `startLabel` field on `PlanDayInput`. Used in user prompt: `Start the day at: ${startLabel}.`
+Create a small reusable component `src/components/DayMiniMap.tsx`:
+- Lazy-loads `leaflet` (mirrors the pattern in `src/components/MapView.tsx`).
+- Props: `places: Place[]`, `anchor: { lat: number; lng: number } | null`, `color: string`, `height?: string` (default `160px`).
+- Draws:
+  - A start marker (distinctive icon — small "S" pin) at `anchor` if present.
+  - Numbered circle markers for each place in current order using `color`.
+  - A `L.polyline` connecting `anchor → place1 → place2 → …` in order.
+  - `fitBounds` over all points with a small padding.
+- Re-renders when the places array reference changes (after reorder).
 
-**i18n (`src/lib/i18n.ts`)**
-- Add: `applyToAll`, `inherit`, `startPoint`, `customStart`, `pickFromDay`, `updateDayOrder`, `dayReordered`, `routeStats` (`"~{km} km · ~{min} min {mode}"`), `reasonNearestFrom` (`"Closest-first from {start}; longest leg {km} km"`), `reasonNoMode` (`"AI default order — pick a mode to optimise"`).
+Embed it inside `DayRoutePanel` (or directly in `DaySection`, after `DayRoutePanel` and before the place list) so it sits between the route stats and the draggable place list. Use the day's `color` so it visually matches the day's legend dot.
 
-## Files
+If the day has fewer than 1 place and no anchor, render nothing.
 
-- edit `src/lib/types.ts`
-- edit `src/lib/store.ts`
-- new `src/lib/route-utils.ts`
-- edit `src/routes/itinerary.$id.tsx` (toolbar + DayRoutePanel)
-- edit `src/server/plan-trip.functions.ts` (accept `startLabel`)
-- edit `src/lib/i18n.ts`
+---
 
-No new dependencies. All reordering on the itinerary page is instant/client-side; AI is only used when you explicitly regenerate a day.
+## Technical summary (for engineers)
+
+- **Files edited**: `src/lib/store.ts`, `src/lib/types.ts` (no shape change, just doc), `src/lib/i18n.ts`, `src/routes/itinerary.$id.tsx`, `src/server/plan-trip.functions.ts`.
+- **Files created**: `src/components/DayMiniMap.tsx`, possibly `src/components/StartPointPicker.tsx` for the cmdk popover.
+- **No DB / server changes** beyond echoing optional fields through server functions.
+- **Risk**: persist version bump — keep `migrate` permissive (return state untouched if shape is fine) so existing trips load.
+
+---
+
+## Out of scope
+
+- Real walking/transit routing via an external API (current estimate is haversine-based; mini map polyline will be straight lines, not snapped to streets).
+- Persisting per-day settings to a remote DB.
