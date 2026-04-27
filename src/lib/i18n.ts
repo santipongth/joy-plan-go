@@ -69,6 +69,9 @@ export const dict = {
     linkCopied: "คัดลอกลิงก์แล้ว",
     dragToReorder: "ลากเพื่อจัดเรียง",
     daysLegend: "สีแต่ละวัน",
+    retry: "ลองอีกครั้ง",
+    regenFailed: "สร้างวันนี้ใหม่ไม่สำเร็จ",
+    clickToToggle: "คลิกเพื่อแสดง/ซ่อน",
   },
   en: {
     appName: "Trip.Planner",
@@ -135,6 +138,9 @@ export const dict = {
     linkCopied: "Link copied",
     dragToReorder: "Drag to reorder",
     daysLegend: "Day colors",
+    retry: "Retry",
+    regenFailed: "Failed to regenerate this day",
+    clickToToggle: "Click to show/hide",
   },
 } as const;
 

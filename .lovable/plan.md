@@ -1,82 +1,72 @@
-# Travel Planner (คล้าย Trip.com TripPlanner)
+# Itinerary Enhancements Plan
 
-เว็บแอปวางแผนการเดินทางแบบ MVP เต็มฟีเจอร์ — กรอกจุดหมาย, ให้ AI สร้างแผนเดินทางรายวัน, ดูสถานที่บนแผนที่, และบันทึกแผนของคุณไว้ใช้ภายหลัง รองรับภาษาไทย/อังกฤษ
+Several requested items are already implemented (DnD reordering, day color legends in header + map, show/hide toggle filtering markers + polylines). This plan focuses on the genuinely new work.
 
-## Layout หลัก (หน้าเดียว split-view)
+## 1. Persist day show/hide toggles in localStorage
 
-```text
-┌──────────────────────────────┬──────────────────────────────┐
-│  Logo  Trip.Planner    [TH/EN]│                              │
-│                              │                              │
-│  ┌── Planner Card ─────────┐ │                              │
-│  │ Starting from: [____]   │ │                              │
-│  │ Heading to:    [____]   │ │        แผนที่ Leaflet         │
-│  │ Date / Duration: [___]  │ │      (OpenStreetMap)         │
-│  │ ♡ Preferences ▾          │ │                              │
-│  │ [Create Myself][✨ AI]  │ │     หมุดสถานที่ + เส้นทาง    │
-│  └─────────────────────────┘ │                              │
-│                              │                              │
-│  My Itineraries              │                              │
-│  ┌──────┐ ┌──────┐ ┌──────┐  │                              │
-│  │ card │ │ card │ │ card │  │                              │
-│  └──────┘ └──────┘ └──────┘  │                              │
-└──────────────────────────────┴──────────────────────────────┘
-```
+In `src/lib/store.ts`, add a new persisted slice for per-itinerary visible-day sets:
+- New state shape: `visibleDaysByItinerary: Record<string, number[]>`
+- Actions: `setVisibleDays(itineraryId, days[])`, `toggleVisibleDay(itineraryId, day)`
+- Use a separate `persist` store (`trip-planner-visibility`) so it doesn't bloat the itineraries store
 
-มือถือ: แผนที่ย้ายไปอยู่ใต้ฟอร์ม / มี tab สลับ List ↔ Map
+In `src/routes/itinerary.$id.tsx`:
+- Replace local `useState<Set<number>>` with the persisted store
+- On first load for an itinerary with no saved entry → default to all days visible
+- All `toggleDay` / `showAllDays` calls write through the store
 
-## ฟีเจอร์
+## 2. Click day legend item on the map to toggle that day
 
-**1. ฟอร์มวางแผน**
-- ช่อง "Starting from" และ "Heading to" — autocomplete จาก OpenStreetMap Nominatim (ฟรี ไม่ต้องมี key)
-- เลือกช่วงวัน + จำนวนวัน (1–14 วัน)
-- Preferences (collapsible): ประเภททริป (วัฒนธรรม / ธรรมชาติ / อาหาร / ช้อปปิ้ง / ครอบครัว), งบประมาณ, ความเร็ว (สบายๆ/ปกติ/อัดแน่น)
-- 2 ปุ่ม: "Create It Myself" (สร้างทริปเปล่า) / "Plan a Trip with AI" (เรียก AI)
+The header legend already toggles. Update the floating map legend in `itinerary.$id.tsx` (lines ~369-389):
+- Show ALL days (not just visible ones) so users can re-enable hidden ones
+- Make each row a `<button>` calling `toggleDay(d.day)`
+- Apply opacity/strikethrough styling for hidden days, matching header chips
+- Add a small Eye/EyeOff icon for clarity
 
-**2. AI สร้าง itinerary**
-- ใช้ Lovable AI (google/gemini-3-flash-preview) ผ่าน server function
-- ส่ง origin/destination/วัน/preferences → AI คืนเป็น structured JSON: รายวัน, แต่ละวันมีสถานที่ (ชื่อ, คำอธิบายสั้น, ช่วงเวลา, ประเภท, lat/lng)
-- มี loading state + จัดการ 429/402 error พร้อม toast
+## 3. Detailed regenerate-day error messages with retry
 
-**3. หน้า Itinerary Detail**
-- เปิดเมื่อคลิกการ์ด หรือเมื่อ AI สร้างเสร็จ
-- ฝั่งซ้าย: timeline รายวัน — แต่ละสถานที่มีรูป icon, ชื่อ, เวลา, คำอธิบาย, ปุ่มลบ/แก้
-- ฝั่งขวา: แผนที่ปักหมุดทุกจุด + เส้นเชื่อมตามลำดับของแต่ละวัน, สีหมุดแยกตามวัน
-- คลิกหมุด → highlight การ์ดในรายการ และในทางกลับกัน
-- Drag-and-drop เรียงลำดับสถานที่ใหม่ (ภายในวันเดียวกัน)
-- ปุ่ม: เพิ่มสถานที่เอง, เปลี่ยนชื่อทริป, ลบทริป, Export เป็น JSON
+Currently `regenerateDay` shows a single generic `t("aiError")` toast. Improve it:
 
-**4. บันทึก & รายการของฉัน**
-- ทุก itinerary บันทึกใน `localStorage` อัตโนมัติ (auto-save)
-- การ์ด "My Itineraries" บนหน้าแรก: รูป cover (รูปแรกของทริป), ชื่อ, จำนวนวัน·สถานที่·เมือง, วันที่อัปเดตล่าสุด
-- คลิกการ์ดเพื่อเปิด/แก้, hover ดูปุ่มลบ
+In `itinerary.$id.tsx`:
+- Track last failed day index in state: `lastFailedRegen: number | null`
+- Map server error codes to specific messages:
+  - `RATE_LIMIT` → `t("rateLimit")` (already in dict)
+  - `PAYMENT_REQUIRED` → `t("paymentRequired")` (already in dict)
+  - `AI_ERROR` / `EXCEPTION` / `NO_TOOL_CALL` → `t("aiError")`
+- Use `toast.error(message, { action: { label: t("retry"), onClick: () => regenerateDay(dayIdx) }, duration: 10000 })`
+- Add `retry` key to `src/lib/i18n.ts` (TH: "ลองอีกครั้ง", EN: "Retry")
+- Also surface inline retry: when a day's last regen failed, show a small inline alert above the day's places with a Retry button
 
-**5. แผนที่ (Leaflet + OSM)**
-- โหลดทั้ง globe ตอนเริ่มต้น zoom out เห็นทวีปต่างๆ พร้อม cluster หมุดของทริปที่บันทึกไว้
-- ตอนเลือกทริป: zoom ไปที่ bbox ของสถานที่ทั้งหมดในทริป
-- หมุด custom icon รูปกลม + เลขลำดับ
-- เส้นทางเชื่อมจุดด้วย polyline (เส้นตรงระหว่างจุด — ไม่ใช้ routing API)
+## 4. Dedicated PDF/print itinerary layout
 
-**6. สลับภาษา ไทย/อังกฤษ**
-- Toggle TH/EN ที่มุมขวาบน, จดจำใน localStorage
-- ครอบคลุมทุก label, ปุ่ม, ข้อความ system
-- AI prompt ปรับตามภาษาที่เลือก (สร้างคำอธิบายสถานที่เป็นภาษานั้น)
+Currently `exportPdf()` just calls `window.print()` and relies on `print:hidden` classes, which still prints the live screen layout awkwardly.
 
-## รายละเอียดทางเทคนิค
+Approach: render a hidden print-only view that's optimized for paper.
 
-- **เส้นทาง**: หน้าเดียว `/` (split-view planner + map) และ `/itinerary/$id` สำหรับหน้า detail
-- **State**: Zustand store สำหรับ itineraries + ภาษาปัจจุบัน, sync กับ localStorage
-- **แผนที่**: `react-leaflet` + `leaflet` (OpenStreetMap tiles, ไม่ต้อง API key)
-- **Autocomplete สถานที่**: เรียก Nominatim API ตรงจากฝั่ง client (ฟรี, มี rate limit แต่พอสำหรับ MVP)
-- **AI**: Server function `/api/ai/plan-trip` เรียก Lovable AI Gateway ด้วย tool calling เพื่อรับ structured JSON (สถานที่ + พิกัด)
-- **i18n**: Object dictionary ง่ายๆ (`{ th: {...}, en: {...} }`) + hook `useT()` — ไม่ใช้ library หนัก
-- **UI**: shadcn components ที่มีอยู่แล้ว (Card, Button, Input, Popover, Calendar, Collapsible, Sonner toast)
-- **Drag-and-drop**: `@dnd-kit/sortable`
-- **เปิดใช้ Lovable Cloud** เพื่อให้ใช้ AI Gateway (LOVABLE_API_KEY)
+- Create `src/components/PrintItinerary.tsx`:
+  - Receives `itinerary` prop
+  - Renders: cover header (title, destination, dates, day count), then per-day section with day title, color bar, table-like list of places (#, time, name, description, coords)
+  - No map, no buttons, no sidebar
+  - Uses `break-inside-avoid` on each day section and `break-after-page` between days for clean page breaks
+- In `itinerary.$id.tsx`:
+  - Render `<PrintItinerary />` inside a `<div className="hidden print:block">`
+  - Wrap the existing screen layout grid in `print:hidden`
+  - `exportPdf()` still calls `window.print()` — browser's native "Save as PDF" produces the clean layout
+- Add `@media print` rules in `src/styles.css`:
+  - `@page { margin: 18mm; size: A4; }`
+  - Force background colors (`-webkit-print-color-adjust: exact`)
+  - Day color bars/dots remain colored
 
-## ดีไซน์
+## Technical Notes
 
-- โทนสว่าง พื้นหลังฟ้าอ่อน gradient คล้ายภาพอ้างอิง
-- Primary: indigo-violet gradient สำหรับปุ่ม AI
-- การ์ด rounded-2xl, soft shadow, รูป cover 16:9
-- Typography: Inter, headers semibold
+- No new dependencies needed — all DnD, leaflet, dnd-kit, sonner already installed.
+- `toast.error` with `action` is supported by sonner.
+- Keep the visibility store keyed by itinerary id so different trips remember independently.
+- Skipping items already implemented: drag-and-drop reordering (done via @dnd-kit), show/hide map filtering (groups already filtered by visibleDays), color legends header + map.
+
+## Files Changed
+
+- `src/lib/store.ts` — add visibility persistence slice (or new sibling store)
+- `src/lib/i18n.ts` — add `retry`, `regenFailed`, print-layout strings (TH + EN)
+- `src/routes/itinerary.$id.tsx` — wire visibility store, error mapping with retry action, click-to-toggle map legend, mount PrintItinerary
+- `src/components/PrintItinerary.tsx` — new dedicated print layout
+- `src/styles.css` — `@page` rules + print color adjustments

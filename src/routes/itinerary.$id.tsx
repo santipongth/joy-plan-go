@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useItineraryStore, makeId } from "@/lib/store";
+import { useVisibilityStore } from "@/lib/visibility-store";
 import { useT, useLangStore } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft,
   Trash2,
@@ -22,8 +24,11 @@ import {
   Download,
   Share2,
   FileDown,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import MapView, { dayColor } from "@/components/MapView";
+import PrintItinerary from "@/components/PrintItinerary";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
@@ -84,16 +89,24 @@ function ItineraryDetail() {
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(itinerary?.title ?? "");
-  const [visibleDays, setVisibleDays] = useState<Set<number>>(new Set());
+  const visibleArr = useVisibilityStore((s) => s.visibleDaysByItinerary[id]);
+  const setVisible = useVisibilityStore((s) => s.setVisible);
+  const toggleVisible = useVisibilityStore((s) => s.toggle);
   const [regenLoading, setRegenLoading] = useState<number | null>(null);
+  const [regenErrors, setRegenErrors] = useState<Record<number, string>>({});
 
-  // initialize visible days when itinerary loads
+  // initialize visible days when itinerary loads (default = all)
   useEffect(() => {
-    if (itinerary && visibleDays.size === 0) {
-      setVisibleDays(new Set(itinerary.days.map((d) => d.day)));
+    if (itinerary && visibleArr === undefined) {
+      setVisible(id, itinerary.days.map((d) => d.day));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itinerary?.id]);
+  }, [itinerary?.id, visibleArr === undefined]);
+
+  const visibleDays = useMemo(
+    () => new Set(visibleArr ?? itinerary?.days.map((d) => d.day) ?? []),
+    [visibleArr, itinerary]
+  );
 
   const groups = useMemo(() => {
     if (!itinerary) return [];
@@ -142,16 +155,17 @@ function ItineraryDetail() {
   }
 
   function toggleDay(day: number) {
-    setVisibleDays((prev) => {
-      const next = new Set(prev);
-      if (next.has(day)) next.delete(day);
-      else next.add(day);
-      return next;
-    });
+    toggleVisible(id, day);
   }
 
   function showAllDays() {
-    setVisibleDays(new Set(itinerary!.days.map((d) => d.day)));
+    setVisible(id, itinerary!.days.map((d) => d.day));
+  }
+
+  function errorMessage(code: string): string {
+    if (code === "RATE_LIMIT") return t("rateLimit");
+    if (code === "PAYMENT_REQUIRED") return t("paymentRequired");
+    return t("aiError");
   }
 
   async function regenerateDay(dayIdx: number) {
@@ -173,7 +187,17 @@ function ItineraryDetail() {
         },
       });
       if (res.error || !res.day) {
-        toast.error(t("aiError"));
+        const code = res.error || "AI_ERROR";
+        const msg = errorMessage(code);
+        setRegenErrors((prev) => ({ ...prev, [target.day]: msg }));
+        toast.error(`${t("regenFailed")} — ${t("day")} ${target.day}`, {
+          description: msg,
+          duration: 10000,
+          action: {
+            label: t("retry"),
+            onClick: () => regenerateDay(dayIdx),
+          },
+        });
         return;
       }
       const newDay: DayPlan = {
@@ -190,7 +214,20 @@ function ItineraryDetail() {
         })),
       };
       replaceDay(id, dayIdx, newDay);
+      setRegenErrors((prev) => {
+        const next = { ...prev };
+        delete next[target.day];
+        return next;
+      });
       toast.success("✓");
+    } catch (e) {
+      const msg = t("aiError");
+      setRegenErrors((prev) => ({ ...prev, [target.day]: msg }));
+      toast.error(`${t("regenFailed")} — ${t("day")} ${target.day}`, {
+        description: msg,
+        duration: 10000,
+        action: { label: t("retry"), onClick: () => regenerateDay(dayIdx) },
+      });
     } finally {
       setRegenLoading(null);
     }
@@ -214,9 +251,16 @@ function ItineraryDetail() {
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <Toaster position="top-center" />
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] min-h-screen">
-        <div className="overflow-auto px-4 sm:px-8 py-6 print:overflow-visible">
-          <header className="flex items-center justify-between mb-6 print:hidden">
+
+      {/* Print-only dedicated layout */}
+      <div className="hidden print:block">
+        <PrintItinerary itinerary={itinerary} t={t} />
+      </div>
+
+      {/* Screen layout */}
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] min-h-screen print:hidden">
+        <div className="overflow-auto px-4 sm:px-8 py-6">
+          <header className="flex items-center justify-between mb-6">
             <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
               <ArrowLeft className="h-4 w-4 mr-1" />
               {t("back")}
@@ -264,7 +308,7 @@ function ItineraryDetail() {
                     setTitleDraft(itinerary.title);
                     setEditingTitle(true);
                   }}
-                  className="text-muted-foreground hover:text-foreground print:hidden"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
@@ -276,14 +320,14 @@ function ItineraryDetail() {
           </div>
 
           {/* Day legend with show/hide toggles */}
-          <div className="mb-6 p-3 rounded-lg bg-card/60 border print:bg-transparent">
+          <div className="mb-6 p-3 rounded-lg bg-card/60 border">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 {t("daysLegend")} · {t("showOnMap")}
               </span>
               <button
                 onClick={showAllDays}
-                className="text-xs text-primary hover:underline print:hidden"
+                className="text-xs text-primary hover:underline"
               >
                 {t("allDays")}
               </button>
@@ -296,6 +340,7 @@ function ItineraryDetail() {
                   <button
                     key={d.day}
                     onClick={() => toggleDay(d.day)}
+                    title={t("clickToToggle")}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
                       visible
                         ? "bg-background shadow-sm"
@@ -334,13 +379,14 @@ function ItineraryDetail() {
                   onReorder={(places) => reorderPlaces(id, dayIdx, places)}
                   onRegenerate={() => regenerateDay(dayIdx)}
                   regenerating={regenLoading === d.day}
+                  errorMessage={regenErrors[d.day]}
                   t={t}
                 />
               );
             })}
           </div>
 
-          <div className="mt-8 pt-6 border-t flex justify-between print:hidden">
+          <div className="mt-8 pt-6 border-t flex justify-between">
             <Button
               variant="destructive"
               size="sm"
@@ -357,7 +403,7 @@ function ItineraryDetail() {
           </div>
         </div>
 
-        <div className="hidden lg:block sticky top-0 h-screen p-4 print:hidden">
+        <div className="hidden lg:block sticky top-0 h-screen p-4">
           {groups.flatMap((g) => g.places).length === 0 ? (
             <div className="h-full rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
               <Compass className="h-12 w-12 opacity-40" />
@@ -365,26 +411,39 @@ function ItineraryDetail() {
           ) : (
             <div className="relative h-full">
               <MapView groups={groups} />
-              {/* Floating legend on map */}
-              <div className="absolute top-3 right-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[180px]">
+              {/* Floating legend on map — clickable to toggle */}
+              <div className="absolute top-3 right-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[200px]">
                 <div className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
                   {t("daysLegend")}
                 </div>
-                <div className="space-y-1">
-                  {itinerary.days
-                    .filter((d) => visibleDays.has(d.day))
-                    .map((d) => (
-                      <div key={d.day} className="flex items-center gap-1.5 text-xs">
+                <div className="space-y-0.5">
+                  {itinerary.days.map((d) => {
+                    const visible = visibleDays.has(d.day);
+                    return (
+                      <button
+                        key={d.day}
+                        onClick={() => toggleDay(d.day)}
+                        title={t("clickToToggle")}
+                        className={`flex items-center gap-1.5 text-xs w-full text-left px-1.5 py-1 rounded hover:bg-muted transition-colors ${
+                          visible ? "" : "opacity-40"
+                        }`}
+                      >
                         <span
                           className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                           style={{ background: dayColor(d.day - 1) }}
                         />
-                        <span className="truncate">
+                        <span className="truncate flex-1">
                           {t("day")} {d.day}
                           {d.title ? ` — ${d.title}` : ""}
                         </span>
-                      </div>
-                    ))}
+                        {visible ? (
+                          <Eye className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        ) : (
+                          <EyeOff className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -405,6 +464,7 @@ interface DaySectionProps {
   onReorder: (places: Place[]) => void;
   onRegenerate: () => void;
   regenerating: boolean;
+  errorMessage?: string;
   t: (k: any) => string;
 }
 
@@ -416,6 +476,7 @@ function DaySection({
   onReorder,
   onRegenerate,
   regenerating,
+  errorMessage,
   t,
 }: DaySectionProps) {
   const sensors = useSensors(
@@ -450,7 +511,7 @@ function DaySection({
             <span className="text-muted-foreground font-normal text-sm">— {day.title}</span>
           )}
         </h2>
-        <div className="flex gap-1 print:hidden">
+        <div className="flex gap-1">
           <Button
             size="sm"
             variant="ghost"
@@ -471,6 +532,26 @@ function DaySection({
           </Button>
         </div>
       </div>
+
+      {errorMessage && (
+        <Alert variant="destructive" className="mb-3">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between gap-2">
+            <span className="flex-1">
+              <strong>{t("regenFailed")}:</strong> {errorMessage}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onRegenerate}
+              disabled={regenerating}
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${regenerating ? "animate-spin" : ""}`} />
+              {t("retry")}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext

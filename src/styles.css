@@ -146,3 +146,119 @@
     color: var(--color-foreground);
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm;
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-doc {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    color: #111;
+  }
+
+  .print-cover {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #111;
+  }
+
+  .print-cover h1 {
+    font-size: 28px;
+    font-weight: 800;
+    margin: 0 0 8px;
+  }
+
+  .print-meta {
+    font-size: 12px;
+    color: #444;
+    margin: 2px 0;
+  }
+
+  .print-day {
+    margin-top: 16px;
+    page-break-inside: avoid;
+  }
+
+  .print-day-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-left: 6px solid #888;
+    padding: 8px 12px;
+    background: #f6f6f6;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    margin-bottom: 8px;
+  }
+
+  .print-day-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: white;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-day-header h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .print-day-title {
+    font-size: 12px;
+    color: #555;
+    margin: 2px 0 0;
+  }
+
+  .print-places {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .print-places th,
+  .print-places td {
+    border: 1px solid #d4d4d4;
+    padding: 6px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .print-places th {
+    background: #efefef;
+    font-weight: 600;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-type {
+    font-size: 9px;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+  }
+
+  .print-coords {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    color: #555;
+  }
+}
+
