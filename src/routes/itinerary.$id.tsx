@@ -1455,14 +1455,11 @@ function DayRoutePanel({
         anchor={anchor}
         anchorLabel={anchor ? startLabel : undefined}
         color={color}
-        showMinutes={effectiveMode !== "any"}
-        legMinutes={
-          effectiveMode !== "any"
-            ? estimateLegMinutes(day.places, effectiveMode, anchor)
-            : []
-        }
+        mode={effectiveMode}
         legMinutesTpl={t("legMinutes")}
         timelineLabel={t("timelineLabel")}
+        showLabel={t("showMinutes")}
+        hideLabel={t("hideMinutes")}
       />
     </div>
   );
