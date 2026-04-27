@@ -93,6 +93,10 @@ function ItineraryDetail() {
   const reorderPlaces = useItineraryStore((s) => s.reorderPlaces);
   const replaceDay = useItineraryStore((s) => s.replaceDay);
   const movePlace = useItineraryStore((s) => s.movePlace);
+  const setItineraryMode = useItineraryStore((s) => s.setItineraryMode);
+  const setDayMode = useItineraryStore((s) => s.setDayMode);
+  const setDayStart = useItineraryStore((s) => s.setDayStart);
+  const applyModeToAllDays = useItineraryStore((s) => s.applyModeToAllDays);
 
   const [highlightedType, setHighlightedType] = useState<string | null>(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
