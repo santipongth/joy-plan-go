@@ -161,6 +161,13 @@ function HomePage() {
       toast.error(t("fillFields"));
       return;
     }
+    const hardErrors = issues.filter((i) => i.level === "error");
+    if (hardErrors.length) {
+      toast.error(hardErrors[0].msg);
+      return;
+    }
+    const softWarns = issues.filter((i) => i.level === "warn");
+    softWarns.forEach((w) => toast.warning(w.msg));
     setLoading(true);
     try {
       const res = await planFn({
