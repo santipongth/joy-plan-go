@@ -885,15 +885,26 @@ function DaySection({
             {day.places.length === 0 && (
               <p className="text-xs text-muted-foreground italic pl-2">—</p>
             )}
-            {day.places.map((p, i) => (
-              <SortablePlace
-                key={p.id}
-                place={p}
-                index={i}
-                color={color}
-                onRemove={() => onRemovePlace(p.id)}
-              />
-            ))}
+            {day.places.map((p, i) => {
+              const otherDays = allDays
+                .map((d, idx) => ({ day: d.day, idx }))
+                .filter((d) => d.idx !== dayIdx);
+              return (
+                <SortablePlace
+                  key={p.id}
+                  place={p}
+                  index={i}
+                  color={color}
+                  onRemove={() => onRemovePlace(p.id)}
+                  onFocus={() => onFocusPlace(p.id)}
+                  otherDays={otherDays}
+                  onMove={(toDayIdx) => onMovePlace(p.id, toDayIdx)}
+                  moveLabel={t("moveToDay")}
+                  focusLabel={t("focusOnMap")}
+                  dayLabel={t("day")}
+                />
+              );
+            })}
           </div>
         </SortableContext>
       </DndContext>
