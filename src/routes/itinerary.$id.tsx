@@ -1383,7 +1383,93 @@ function DayRoutePanel({
         anchor={anchorForMap}
         color={color}
         startLabel={startLabel}
+        styleLabels={{
+          streets: t("mapStyleStreets"),
+          satellite: t("mapStyleSatellite"),
+          minimal: t("mapStyleMinimal"),
+        }}
       />
+      <DayTimeline
+        places={day.places}
+        anchor={anchor}
+        anchorLabel={anchor ? startLabel : undefined}
+        color={color}
+        showMinutes={effectiveMode !== "any"}
+        legMinutes={
+          effectiveMode !== "any"
+            ? estimateLegMinutes(day.places, effectiveMode, anchor)
+            : []
+        }
+        legMinutesTpl={t("legMinutes")}
+        timelineLabel={t("timelineLabel")}
+      />
+    </div>
+  );
+}
+
+function DayTimeline({
+  places,
+  anchor,
+  anchorLabel,
+  color,
+  showMinutes,
+  legMinutes,
+  legMinutesTpl,
+  timelineLabel,
+}: {
+  places: Place[];
+  anchor: { lat: number; lng: number } | null;
+  anchorLabel?: string;
+  color: string;
+  showMinutes: boolean;
+  legMinutes: number[];
+  legMinutesTpl: string;
+  timelineLabel: string;
+}) {
+  if (places.length === 0 && !anchor) return null;
+  const truncate = (s: string, n = 18) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+  return (
+    <div className="pt-1">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+        {timelineLabel}
+      </div>
+      <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap pb-1">
+        {anchor && anchorLabel && (
+          <>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-background text-[11px] font-medium">
+              <span
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                style={{ background: "#0f172a", border: `1px solid ${color}` }}
+              >
+                S
+              </span>
+              {truncate(anchorLabel)}
+            </span>
+          </>
+        )}
+        {places.map((p, i) => {
+          const showLegFor = anchor ? i : i - 1;
+          const legMin = showMinutes && showLegFor >= 0 ? legMinutes[i] : null;
+          return (
+            <span key={p.id} className="inline-flex items-center gap-1">
+              {(anchor || i > 0) && (
+                <span className="text-muted-foreground text-[11px] tabular-nums px-1">
+                  →{legMin != null ? ` ${legMinutesTpl.replace("{n}", String(legMin))}` : ""}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-background text-[11px] font-medium">
+                <span
+                  className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                  style={{ background: color }}
+                >
+                  {i + 1}
+                </span>
+                {truncate(p.name)}
+              </span>
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }
