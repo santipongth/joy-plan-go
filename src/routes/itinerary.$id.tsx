@@ -112,6 +112,7 @@ function ItineraryDetail() {
   const applyModeToAllDays = useItineraryStore((s) => s.applyModeToAllDays);
   const pushHistory = useReorderHistoryStore((s) => s.push);
   const popHistory = useReorderHistoryStore((s) => s.pop);
+  const clearHistory = useReorderHistoryStore((s) => s.clear);
   const historyStacks = useReorderHistoryStore((s) => s.stacks);
   const historyDepths = useMemo(() => {
     const out: Record<number, number> = {};
@@ -308,6 +309,7 @@ function ItineraryDetail() {
         })),
       };
       replaceDay(id, dayIdx, newDay);
+      clearHistory(id, dayIdx);
       setRegenErrors((prev) => {
         const next = { ...prev };
         delete next[target.day];
@@ -384,6 +386,7 @@ function ItineraryDetail() {
       });
       setVisible(id, skeleton.map((d) => d.day));
       setRegenErrors({});
+      clearHistory(id);
 
       // Then: stream per-day refinement so user sees progress per day
       const realTotal = skeleton.length;
@@ -448,6 +451,7 @@ function ItineraryDetail() {
           })),
         };
         replaceDay(id, i, newDay);
+        clearHistory(id, i);
         skeleton[i] = newDay;
         successCount++;
         // Compute ETA from successful completions only
@@ -921,6 +925,16 @@ function DaySection({
           {t("day")} {day.day}
           {day.title && (
             <span className="text-muted-foreground font-normal text-sm">— {day.title}</span>
+          )}
+          {historyDepth > 0 && (
+            <span
+              className="ml-1 inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground tabular-nums"
+              title={t("undoTooltip").replace("{n}", String(historyDepth))}
+              aria-label={t("undoTooltip").replace("{n}", String(historyDepth))}
+            >
+              <Undo2 className="h-3 w-3" />
+              {t("undo")} ({historyDepth})
+            </span>
           )}
         </h2>
         <div className="flex gap-1">
