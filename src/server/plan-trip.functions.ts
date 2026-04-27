@@ -51,7 +51,7 @@ function buildPreferencesBlock(p: PreferencesLike): string {
   return `\n\nUser Preferences:\n${lines.join("\n")}\n\nStrictly respect these preferences. If two conflict, prioritise the more specific one and briefly note the trade-off in the day title or a place description.`;
 }
 
-
+interface PlanDayInput {
   destination: string;
   dayNumber: number;
   totalDays: number;
@@ -59,8 +59,14 @@ function buildPreferencesBlock(p: PreferencesLike): string {
   interests?: string[];
   budget?: string;
   pace?: string;
+  companions?: string;
+  travelStyle?: string[];
+  accommodation?: string;
+  rhythm?: string[];
+  otherNeeds?: string;
   lang: "th" | "en";
 }
+
 
 export interface AIDayResult {
   day: AIDay | null;
