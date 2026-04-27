@@ -831,6 +831,9 @@ interface DaySectionProps {
   onSetDayMode: (mode: TravelMode | undefined) => void;
   onSetDayStart: (sp: DayStartPoint | undefined) => void;
   onReorderByMode: () => void;
+  onPushHistory: (prev: Place[]) => void;
+  onUndoReorder: () => void;
+  historyDepth: number;
   regenerating: boolean;
   errorMessage?: string;
   onDismissError?: () => void;
@@ -854,6 +857,9 @@ function DaySection({
   onSetDayMode,
   onSetDayStart,
   onReorderByMode,
+  onPushHistory,
+  onUndoReorder,
+  historyDepth,
   regenerating,
   errorMessage,
   onDismissError,
@@ -871,10 +877,11 @@ function DaySection({
     if (oldIdx < 0 || newIdx < 0) return;
     const prev = day.places;
     const next = arrayMove(day.places, oldIdx, newIdx);
+    onPushHistory(prev);
     onReorder(next);
     toast.success(t("reordered"), {
       duration: 5000,
-      action: { label: t("undo"), onClick: () => onReorder(prev) },
+      action: { label: t("undo"), onClick: () => onUndoReorder() },
     });
   }
 
