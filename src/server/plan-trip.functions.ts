@@ -33,8 +33,8 @@ function buildPreferencesBlock(p: PreferencesLike): string {
     (s) => !interests.some((i) => i.toLowerCase() === s.toLowerCase()),
   );
   let rhythms = dedupeCI(p.rhythm || []);
-  const hasEarly = rhythms.some((r) => /early/i.test(r));
-  const hasLate = rhythms.some((r) => /late/i.test(r));
+  const hasEarly = rhythms.some((r) => r.toLowerCase().indexOf("early") !== -1);
+  const hasLate = rhythms.some((r) => r.toLowerCase().indexOf("late") !== -1);
   if (hasEarly && hasLate) rhythms = ["Flexible (mixed early starts and late nights)"];
   const otherNeeds = (p.otherNeeds || "").trim().slice(0, 1000);
 
