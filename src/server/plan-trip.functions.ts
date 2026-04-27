@@ -1,5 +1,56 @@
 import { createServerFn } from "@tanstack/react-start";
 
+interface PreferencesLike {
+  interests?: string[];
+  budget?: string;
+  pace?: string;
+  companions?: string;
+  travelStyle?: string[];
+  accommodation?: string;
+  rhythm?: string[];
+  otherNeeds?: string;
+}
+
+function dedupeCI(items: (string | undefined | null)[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of items) {
+    if (!raw) continue;
+    const s = String(raw).trim();
+    if (!s) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
+function buildPreferencesBlock(p: PreferencesLike): string {
+  const lines: string[] = [];
+  const interests = dedupeCI(p.interests || []);
+  const styles = dedupeCI(p.travelStyle || []).filter(
+    (s) => !interests.some((i) => i.toLowerCase() === s.toLowerCase()),
+  );
+  let rhythms = dedupeCI(p.rhythm || []);
+  const hasEarly = rhythms.some((r) => /early/i.test(r));
+  const hasLate = rhythms.some((r) => /late/i.test(r));
+  if (hasEarly && hasLate) rhythms = ["Flexible (mixed early starts and late nights)"];
+  const otherNeeds = (p.otherNeeds || "").trim().slice(0, 1000);
+
+  if (p.companions) lines.push(`- Travel companions: ${p.companions}`);
+  if (styles.length) lines.push(`- Travel style: ${styles.join(", ")}`);
+  if (interests.length) lines.push(`- Interests: ${interests.join(", ")}`);
+  if (p.budget) lines.push(`- Budget: ${p.budget}`);
+  if (p.pace) lines.push(`- Pace: ${p.pace}`);
+  if (p.accommodation) lines.push(`- Accommodation: ${p.accommodation}`);
+  if (rhythms.length) lines.push(`- Day rhythm: ${rhythms.join(", ")}`);
+  if (otherNeeds) lines.push(`- Other needs: ${otherNeeds}`);
+
+  if (!lines.length) return "";
+  return `\n\nUser Preferences:\n${lines.join("\n")}\n\nStrictly respect these preferences. If two conflict, prioritise the more specific one and briefly note the trade-off in the day title or a place description.`;
+}
+
 interface PlanDayInput {
   destination: string;
   dayNumber: number;
@@ -8,8 +59,14 @@ interface PlanDayInput {
   interests?: string[];
   budget?: string;
   pace?: string;
+  companions?: string;
+  travelStyle?: string[];
+  accommodation?: string;
+  rhythm?: string[];
+  otherNeeds?: string;
   lang: "th" | "en";
 }
+
 
 export interface AIDayResult {
   day: AIDay | null;
@@ -30,9 +87,10 @@ export const planSingleDay = createServerFn({ method: "POST" })
         ? "ตอบเป็นภาษาไทย คำอธิบายเป็นภาษาไทย"
         : "Respond in English.";
     const sys = `You are an expert travel planner. Generate ONE day of a trip with 3-5 places including accurate lat/lng. ${langInstr}`;
+    const prefsBlock = buildPreferencesBlock(data);
     const user = `Trip to ${data.destination}. Generate ONLY day ${data.dayNumber} of ${data.totalDays}.${
       data.existingDaysSummary ? ` Other days cover: ${data.existingDaysSummary}. Do NOT repeat those places; pick different ones.` : ""
-    }${data.interests?.length ? ` Interests: ${data.interests.join(", ")}.` : ""}${data.budget ? ` Budget: ${data.budget}.` : ""}${data.pace ? ` Pace: ${data.pace}.` : ""}`;
+    }${prefsBlock}`;
 
     const tool = {
       type: "function" as const,
@@ -154,15 +212,8 @@ export const planTrip = createServerFn({ method: "POST" })
 
     const sys = `You are an expert travel planner. Generate a realistic day-by-day itinerary with 3-5 places per day. Each place must include accurate latitude/longitude coordinates (decimal degrees). Group nearby places on the same day to minimize travel. ${langInstr}`;
 
-    const user = `Plan a ${data.durationDays}-day trip${data.origin ? ` starting from ${data.origin}` : ""} to ${data.destination}.${
-      data.interests?.length ? ` Interests: ${data.interests.join(", ")}.` : ""
-    }${data.budget ? ` Budget: ${data.budget}.` : ""}${data.pace ? ` Pace: ${data.pace}.` : ""}${
-      data.companions ? ` Travel companions: ${data.companions}.` : ""
-    }${data.travelStyle?.length ? ` Travel style: ${data.travelStyle.join(", ")}.` : ""}${
-      data.accommodation ? ` Accommodation level: ${data.accommodation}.` : ""
-    }${data.rhythm?.length ? ` Day rhythm: ${data.rhythm.join(", ")}.` : ""}${
-      data.otherNeeds ? ` Other needs: ${data.otherNeeds}.` : ""
-    } Provide a creative trip title.`;
+    const prefsBlock = buildPreferencesBlock(data);
+    const user = `Plan a ${data.durationDays}-day trip${data.origin ? ` starting from ${data.origin}` : ""} to ${data.destination}. Provide a creative trip title.${prefsBlock}`;
 
     const tool = {
       type: "function" as const,

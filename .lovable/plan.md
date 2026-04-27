@@ -1,75 +1,64 @@
-## Inline Day Errors, Print Headers/Footers, Regen ETA
+## สิ่งที่จะทำ
 
-### 1. Per-day inline error during full-trip regeneration
+### 1. Summary Card ด้านขวา (เรียลไทม์ก่อนกดยืนยัน)
+เพิ่ม **PreferencesSummary** เป็นการ์ดลอยซ้อนทับด้านบนของแผนที่ (ฝั่งขวา) บน `src/routes/index.tsx` แสดงผลทันทีเมื่อผู้ใช้แก้ไขค่าใด ๆ ใน Preferences
 
-The inline `Alert` with day-specific Retry already exists in `DaySection` (driven by `regenErrors[day]`). Currently `regenerateAll` aborts the loop on the first failure. Change it so a per-day failure is recorded into `regenErrors` and the loop continues — so the user sees a red banner exactly on the failed day with a Retry button that only re-runs that day via the existing `regenerateDay(dayIdx)`.
+แสดงข้อมูลแบ่งเป็นหมวด:
+- Destination + Origin + Start date + Duration
+- Interests (badges)
+- Budget / Pace / Travel pace
+- Companions / Travel style / Accommodation / Day's rhythm
+- Other needs (truncate ที่ ~120 ตัวอักษร)
 
-**`src/routes/itinerary.$id.tsx` → inside `regenerateAll()` per-day loop:**
-- On `dayRes.error || !dayRes.day`:
-  - `setRegenErrors(prev => ({ ...prev, [target.day]: msg }))`
-  - Show a small toast `"Day {n}: {msg}"` (no global "regenFailed" abort).
-  - `continue;` — do NOT `return`.
-- After the loop, if any errors remain, show one summary toast: `"Some days failed — retry from each day"`. Otherwise the existing `regenAllSuccess` toast.
-- The existing inline `Alert` already calls `onRegenerate={() => regenerateDay(dayIdx)}` which only regenerates that single day — no change needed in `DaySection`.
+ดีไซน์:
+- การ์ดเล็กในมุมขวาบนของ MapView area, พื้นหลัง `bg-background/95 backdrop-blur`, แสดงเฉพาะหมวดที่มีค่า
+- มี header "สรุปความชอบของคุณ / Your preferences"
+- มีตัวนับ "X / Y categories selected"
+- ถ้ายังไม่ได้เลือกอะไรเลย แสดงข้อความ hint
 
-### 2. Estimated time remaining during full-trip regeneration
+### 2. Validation + คำเตือนก่อนส่งแพลน
+ใน `onAIPlan` (และ `onCreateMyself`) เพิ่มลำดับการตรวจสอบ ก่อนเรียก server:
 
-Track wall-clock elapsed time and project the remainder from average per-day time.
+- **Required**: destination ต้องไม่ว่าง → toast.error
+- **Soft warnings** (toast.warning, ยังคงส่งได้): 
+  - ไม่เลือก interests เลย และไม่กรอก otherNeeds → "เลือกอย่างน้อย 1 ประเภททริปเพื่อผลลัพธ์ดีขึ้น"
+  - days > 10 และ pace = "packed"/"ambitious" → "ทริปยาวร่วมกับจังหวะอัดแน่นอาจเหนื่อย"
+- **Hard errors** (block submit):
+  - otherNeeds เกิน 1000 ตัวอักษร → toast.error
+  - destination > 200 ตัวอักษร
+  - days < 1 หรือ > 14
+  - rhythm มี earlyStarts และ lateNights พร้อมกัน → เตือนว่าขัดแย้งกัน (ให้ผู้ใช้ยืนยัน)
 
-**`src/routes/itinerary.$id.tsx`:**
-- Extend progress state: `regenAllProgress: { current: number; total: number; startedAt: number; etaSec: number | null } | null`.
-- Set `startedAt = Date.now()` when starting; `etaSec = null` initially.
-- After each successful `replaceDay` in the loop:
-  - `const elapsed = (Date.now() - startedAt) / 1000;`
-  - `const avg = elapsed / current;`
-  - `const etaSec = Math.max(0, Math.round(avg * (total - current)));`
-  - `setRegenAllProgress({ current, total, startedAt, etaSec });`
-- In the header progress bar UI, show ETA next to the percent: `"Day 2 / 5  ·  ~14s left  ·  40%"`. Hide ETA until at least one day has finished (when `etaSec !== null`).
-- New i18n keys: `timeLeft` (`"เหลือประมาณ"` / `"~"`), `seconds` (`"วิ"` / `"s left"`).
+เพิ่มแถบ inline warning เล็ก ๆ ภายใน Preferences panel แสดงรายการ issues สด ๆ ขณะแก้ไข (สีเหลือง/แดงตามระดับ)
 
-### 3. Repeating print headers and footers
+เพิ่ม i18n keys ใหม่: `summaryTitle`, `summaryEmpty`, `categoriesSelected`, `warnNoInterests`, `warnPaceLong`, `warnRhythmConflict`, `warnOtherNeedsTooLong`, `warnDestinationTooLong`
 
-Add running headers (trip title + dates) and footers (page number) on every printed page using CSS `@page` margin boxes and `string-set`. Browsers that don't support margin boxes (Firefox) gracefully print without them — no broken layout.
+### 3. ปรับ prompt ฝั่ง server ให้เป็นระเบียบ + dedupe
+แก้ `src/server/plan-trip.functions.ts`:
 
-**`src/styles.css` (`@media print`):**
-- Define page margin boxes:
-  ```css
-  @page {
-    size: A4;
-    margin: 22mm 18mm 20mm 18mm;
-    @top-left   { content: string(trip-title); font: 10px ui-sans-serif; color: #555; }
-    @top-right  { content: string(trip-meta);  font: 10px ui-sans-serif; color: #555; }
-    @bottom-right { content: "Page " counter(page) " / " counter(pages); font: 10px ui-sans-serif; color: #555; }
-    @bottom-left  { content: string(trip-title); font: 10px ui-sans-serif; color: #999; }
-  }
-  ```
-- Make the cover set the running strings:
-  ```css
-  .print-cover h1 { string-set: trip-title content(); }
-  .print-cover .print-meta-running { string-set: trip-meta content(); }
-  ```
-- Add a hidden-on-screen, top-of-page running line so non-supporting browsers still get inline context (e.g. show as a small repeated header above each `.print-day` via a `position: fixed; top: 0;` strip is unreliable across browsers, so we rely on `@page` margin boxes for the repeat — fallback is just the per-day section header which remains).
+- เพิ่ม helper `buildPreferencesBlock(data)` ที่:
+  - แปลงทุกฟิลด์เป็น **bullet list หมวดหมู่** แทน inline text:
+    ```
+    User Preferences:
+    - Travel companions: Family
+    - Travel style: Cultural, Historical
+    - Budget: Mid-range
+    - Pace: Moderate
+    - Accommodation: Premium
+    - Day rhythm: Early starts
+    - Interests: Culture, Food
+    - Other needs: <text>
+    ```
+  - **Deduplicate** ค่าซ้ำในแต่ละ array (case-insensitive) — เช่น "Cultural" ใน travelStyle ซ้อน "Culture" ใน interests
+  - **ตรวจ conflict ภายใน**: ถ้า rhythm มีทั้ง earlyStarts + lateNights → รวมเป็น "Flexible (mixed early/late)"
+  - กรองค่าว่าง / undefined / whitespace-only ออก
+  - ตัด otherNeeds เหลือไม่เกิน 1000 ตัวอักษร (server-side guard)
+- เพิ่มประโยคใน system prompt: `"Strictly respect the user preferences listed below. If two preferences conflict, prioritise the more specific one and note the trade-off briefly in the day's title or place description."`
+- ใช้ helper เดียวกันทั้งใน `planTrip` และ `planSingleDay` (ส่ง preferences เพิ่มผ่าน input ของ `planSingleDay` เพื่อให้ regenerate รายวันสอดคล้องกัน — เพิ่ม optional fields เดียวกันใน `PlanDayInput`)
 
-**`src/components/PrintItinerary.tsx`:**
-- Add a single concise meta line on the cover used for `string-set: trip-meta`:
-  ```tsx
-  <p className="print-meta print-meta-running">
-    {itinerary.destination}
-    {itinerary.startDate ? ` · ${itinerary.startDate}` : ""}
-    {` · ${itinerary.durationDays} ${t("days")}`}
-  </p>
-  ```
-- No structural changes; the cover heading already sets the title via `string-set`.
+อัปเดต call site ของ `planSingleDay` ใน `src/routes/itinerary.$id.tsx` ให้ส่งค่า preferences ที่บันทึกไว้กับ itinerary (ถ้ามี — ขั้นนี้จะไม่ persist preferences ลง store ในรอบนี้ จะส่งเฉพาะ interests/budget/pace ที่มีอยู่แล้ว)
 
-### Files touched
-
-- `src/routes/itinerary.$id.tsx` — continue-on-error loop, ETA state and display
-- `src/lib/i18n.ts` — `timeLeft`, `seconds`, `page` keys
-- `src/styles.css` — `@page` margin boxes with `string-set` and page counters
-- `src/components/PrintItinerary.tsx` — class on cover meta line for `string-set`
-
-### Technical notes
-
-- ETA is recomputed after each successful day, so it self-corrects if early days are faster/slower. Skipped (failed) days don't contribute to the average — we only divide by *successful* completions to keep estimates honest.
-- `@page` margin boxes are widely supported in Chrome/Edge/Safari for print. Firefox ignores them; printout still works, just without the running header/footer. No JS polyfill needed.
-- `string-set` on `.print-cover h1` captures the trip title once; `counter(page)/counter(pages)` is automatic.
+## ไฟล์ที่จะแก้
+- `src/routes/index.tsx` — Summary card, validation logic, inline warnings
+- `src/server/plan-trip.functions.ts` — `buildPreferencesBlock` helper, dedupe, conflict resolve, ใช้ทั้ง 2 server fn
+- `src/lib/i18n.ts` — i18n keys ใหม่ (TH/EN)
