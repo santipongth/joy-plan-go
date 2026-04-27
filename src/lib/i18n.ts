@@ -307,6 +307,14 @@ export const dict = {
     miniMapTitle: "Today's route map",
     startMarker: "Start",
     noStartChosen: "No start point chosen",
+    mapStyleLabel: "Map style",
+    mapStyleStreets: "Streets",
+    mapStyleSatellite: "Satellite",
+    mapStyleMinimal: "Minimal",
+    legMinutes: "{n} min",
+    reordered: "Reordered",
+    undo: "Undo",
+    timelineLabel: "Trip order",
   },
 } as const;
 
