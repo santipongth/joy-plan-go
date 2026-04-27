@@ -277,10 +277,11 @@ export const planTrip = createServerFn({ method: "POST" })
       const parsed = JSON.parse(call.function.arguments) as AIPlanResult;
       // Cross-day dedupe by lat/lng (≤150m) or normalized name match
       const dedupedDays = dedupePlacesAcrossDays(parsed.days || [], 150);
+      const orderedDays = reorderDaysByDistance(dedupedDays, data.travelMode || "any");
       return {
         title: parsed.title || data.destination,
         citiesCount: parsed.citiesCount || 1,
-        days: dedupedDays,
+        days: orderedDays,
       };
     } catch (e) {
       console.error("planTrip failed", e);
