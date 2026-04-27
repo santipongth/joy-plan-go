@@ -17,7 +17,10 @@ const TIER_MULT: Record<BudgetTier, number> = {
   high: 1.8,
 };
 
-const PAID_ATTRACTION_TYPES = new Set([
+export const MIN_TRAVELERS = 1;
+export const MAX_TRAVELERS = 20;
+
+export const PAID_ATTRACTION_TYPES = new Set([
   "museum",
   "attraction",
   "landmark",
