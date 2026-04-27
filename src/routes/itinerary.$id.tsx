@@ -761,10 +761,13 @@ interface DaySectionProps {
   dayIdx: number;
   color: string;
   itineraryId: string;
+  allDays: DayPlan[];
   onAddPlace: () => void;
   onRemovePlace: (placeId: string) => void;
   onReorder: (places: Place[]) => void;
   onRegenerate: () => void;
+  onMovePlace: (placeId: string, toDayIdx: number) => void;
+  onFocusPlace: (placeId: string) => void;
   regenerating: boolean;
   errorMessage?: string;
   onDismissError?: () => void;
@@ -773,11 +776,15 @@ interface DaySectionProps {
 
 function DaySection({
   day,
+  dayIdx,
   color,
+  allDays,
   onAddPlace,
   onRemovePlace,
   onReorder,
   onRegenerate,
+  onMovePlace,
+  onFocusPlace,
   regenerating,
   errorMessage,
   onDismissError,
