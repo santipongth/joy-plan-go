@@ -710,7 +710,7 @@ function ItineraryDetail() {
                   onAddPlace={() => onAddPlace(dayIdx)}
                   onRemovePlace={(placeId) => removePlace(id, dayIdx, placeId)}
                   onReorder={(places) => reorderPlaces(id, dayIdx, places)}
-                  onRegenerate={() => regenerateDay(dayIdx)}
+                  onRegenerate={() => requestRegenerateDay(dayIdx)}
                   onMovePlace={(placeId, toDayIdx) => handleMovePlace(placeId, dayIdx, toDayIdx)}
                   onFocusPlace={focusPlace}
                   onSetDayMode={(m) => setDayMode(id, dayIdx, m)}
@@ -725,10 +725,7 @@ function ItineraryDetail() {
                       duration: 5000,
                       action: {
                         label: t("undo"),
-                        onClick: () => {
-                          popHistory(id, dayIdx);
-                          reorderPlaces(id, dayIdx, prev);
-                        },
+                        onClick: () => undoReorder(dayIdx, d.day, prev),
                       },
                     });
                   }}
@@ -736,12 +733,7 @@ function ItineraryDetail() {
                   errorMessage={regenErrors[d.day]}
                   onDismissError={() => clearRegenError(d.day)}
                   onPushHistory={(prev) => pushHistory(id, dayIdx, prev)}
-                  onUndoReorder={() => {
-                    const prev = popHistory(id, dayIdx);
-                    if (!prev) return;
-                    reorderPlaces(id, dayIdx, prev);
-                    toast.success(t("undoApplied"));
-                  }}
+                  onUndoReorder={() => undoReorder(dayIdx, d.day)}
                   historyDepth={historyDepths[dayIdx] ?? 0}
                   t={t}
                 />
