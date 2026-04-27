@@ -87,9 +87,10 @@ export const planSingleDay = createServerFn({ method: "POST" })
         ? "ตอบเป็นภาษาไทย คำอธิบายเป็นภาษาไทย"
         : "Respond in English.";
     const sys = `You are an expert travel planner. Generate ONE day of a trip with 3-5 places including accurate lat/lng. ${langInstr}`;
+    const prefsBlock = buildPreferencesBlock(data);
     const user = `Trip to ${data.destination}. Generate ONLY day ${data.dayNumber} of ${data.totalDays}.${
       data.existingDaysSummary ? ` Other days cover: ${data.existingDaysSummary}. Do NOT repeat those places; pick different ones.` : ""
-    }${data.interests?.length ? ` Interests: ${data.interests.join(", ")}.` : ""}${data.budget ? ` Budget: ${data.budget}.` : ""}${data.pace ? ` Pace: ${data.pace}.` : ""}`;
+    }${prefsBlock}`;
 
     const tool = {
       type: "function" as const,
