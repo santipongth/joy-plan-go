@@ -147,8 +147,9 @@ function HomePage() {
     if (accommodation) items.push({ label: t("accommodation"), value: t(accommodation as keyof typeof dict.en) as string });
     if (rhythm.length) items.push({ label: t("rhythm"), value: rhythm.map((r) => t(r as keyof typeof dict.en) as string).join(", ") });
     if (otherNeeds.trim()) items.push({ label: t("otherNeeds"), value: otherNeeds.trim().slice(0, 120) + (otherNeeds.length > 120 ? "…" : "") });
+    if (travelMode && travelMode !== "any") items.push({ label: t("travelMode"), value: t(`mode${travelMode.charAt(0).toUpperCase() + travelMode.slice(1)}` as keyof typeof dict.en) as string });
     return items;
-  }, [destination, origin, startDate, days, interests, budget, pace, companions, travelStyle, accommodation, rhythm, otherNeeds, t]);
+  }, [destination, origin, startDate, days, interests, budget, pace, companions, travelStyle, accommodation, rhythm, otherNeeds, travelMode, t]);
 
   const TOTAL_CATEGORIES = 8; // interests, budget, pace, companions, travelStyle, accommodation, rhythm, otherNeeds
   const filledCategories =
