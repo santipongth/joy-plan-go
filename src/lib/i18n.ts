@@ -124,6 +124,12 @@ export const dict = {
     filterByType: "กรองตามประเภท",
     allTypes: "ทุกประเภท",
     focusOnMap: "โฟกัสบนแผนที่",
+    travelMode: "โหมดการเดินทาง",
+    modeAny: "อิสระ",
+    modeWalking: "เดินเป็นหลัก",
+    modeTransit: "ขนส่งสาธารณะ",
+    modeMixed: "ผสม (เดิน+ขนส่ง)",
+    travelModeHint: "AI จะจัดลำดับสถานที่ในแต่ละวันตามระยะทาง/เวลาเดินทางจริง",
   },
   en: {
     appName: "Trip.Planner",
@@ -245,6 +251,12 @@ export const dict = {
     filterByType: "Filter by type",
     allTypes: "All types",
     focusOnMap: "Focus on map",
+    travelMode: "Travel mode",
+    modeAny: "Any (default)",
+    modeWalking: "Walking-first",
+    modeTransit: "Public transit",
+    modeMixed: "Mixed (walk + transit)",
+    travelModeHint: "AI will reorder each day by real walking/transit distance",
   },
 } as const;
 
