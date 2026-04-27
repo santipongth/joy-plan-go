@@ -17,7 +17,10 @@ const TIER_MULT: Record<BudgetTier, number> = {
   high: 1.8,
 };
 
-const PAID_ATTRACTION_TYPES = new Set([
+export const MIN_TRAVELERS = 1;
+export const MAX_TRAVELERS = 20;
+
+export const PAID_ATTRACTION_TYPES = new Set([
   "museum",
   "attraction",
   "landmark",
@@ -102,6 +105,74 @@ export function estimateBudget(
   };
 }
 
-export function formatUSD(n: number): string {
-  return `US$${Math.round(n).toLocaleString("en-US")}`;
+import type { CurrencyCode } from "./currency-store";
+
+interface CurrencyMeta {
+  code: CurrencyCode;
+  symbol: string;
+  /** Multiplier from USD → currency. */
+  rate: number;
+  /** Whole-number currency? (no decimals shown) */
+  whole?: boolean;
 }
+
+export const CURRENCIES: Record<CurrencyCode, CurrencyMeta> = {
+  USD: { code: "USD", symbol: "US$", rate: 1 },
+  THB: { code: "THB", symbol: "฿", rate: 36, whole: true },
+  EUR: { code: "EUR", symbol: "€", rate: 0.92 },
+  JPY: { code: "JPY", symbol: "¥", rate: 155, whole: true },
+  GBP: { code: "GBP", symbol: "£", rate: 0.79 },
+};
+
+export function formatMoney(usd: number, currency: CurrencyCode = "USD"): string {
+  const meta = CURRENCIES[currency] ?? CURRENCIES.USD;
+  const converted = usd * meta.rate;
+  const rounded = meta.whole ? Math.round(converted) : Math.round(converted);
+  return `${meta.symbol}${rounded.toLocaleString("en-US")}`;
+}
+
+/** Backwards-compat helper. */
+export function formatUSD(n: number): string {
+  return formatMoney(n, "USD");
+}
+
+export interface DayBudget {
+  day: number;
+  stay: number;
+  attractions: number;
+  transportation: number;
+  total: number;
+}
+
+export function estimateBudgetByDay(
+  it: Itinerary,
+  travelers: number,
+  tier: BudgetTier,
+): DayBudget[] {
+  const mult = TIER_MULT[tier];
+  const trav = Math.max(1, travelers);
+  const nights = Math.max(0, it.durationDays - 1);
+  const stayPerNight = 35 * trav * mult;
+  const interCity =
+    it.origin && it.origin.trim() && it.origin.trim() !== it.destination.trim()
+      ? 200 * trav * mult
+      : 0;
+
+  return it.days.map((d, idx) => {
+    const isLast = idx === it.days.length - 1;
+    const stay = nights > 0 && !isLast ? roundTo5(stayPerNight) : 0;
+    const attractionCount = d.places.filter((p) => isPaidAttraction(p.type)).length;
+    const attractions = roundTo5(attractionCount * 15 * trav * mult);
+    const mode: TravelMode = d.travelMode ?? it.travelMode ?? "any";
+    const intra = (TRANSPORT_PER_DAY[mode] ?? TRANSPORT_PER_DAY.any) * trav * mult;
+    const transportation = roundTo5(intra + (idx === 0 ? interCity : 0));
+    return {
+      day: d.day ?? idx + 1,
+      stay,
+      attractions,
+      transportation,
+      total: stay + attractions + transportation,
+    };
+  });
+}
+

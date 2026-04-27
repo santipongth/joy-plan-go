@@ -181,6 +181,11 @@ export const dict = {
     travelersLabel: "ผู้เดินทาง",
     travelerSingular: "ผู้เดินทาง",
     travelerPlural: "ผู้เดินทาง",
+    currency: "สกุลเงิน",
+    perDayBreakdown: "รายละเอียดต่อวัน",
+    paidAttractionsInfoTitle: "นับเป็นสถานที่เสียค่าเข้าชม",
+    paidAttractionsInfoBody: "ประเภทสถานที่เหล่านี้ถูกนับเป็นค่าเข้าชม: {types} • ประมาณ $15 ต่อสถานที่ต่อผู้เดินทาง (ปรับตามระดับงบประมาณ)",
+    travelersClamped: "จำนวนผู้เดินทางต้องอยู่ระหว่าง {min} ถึง {max}",
   },
   en: {
     appName: "Trip.Planner",
@@ -359,6 +364,11 @@ export const dict = {
     travelersLabel: "Travelers",
     travelerSingular: "traveler",
     travelerPlural: "travelers",
+    currency: "Currency",
+    perDayBreakdown: "Per-day breakdown",
+    paidAttractionsInfoTitle: "Counted as paid attractions",
+    paidAttractionsInfoBody: "These place types count toward attractions: {types} • ≈ $15 per attraction per traveler (adjusted by tier).",
+    travelersClamped: "Travelers must be between {min} and {max}",
   },
 } as const;
 

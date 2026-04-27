@@ -1,86 +1,49 @@
-# Plan
+# Core Budget Estimate — Enhancements
 
-Three small, independent additions to the itinerary detail page (`src/routes/itinerary.$id.tsx`).
+Five upgrades to `BudgetEstimate`: currency selector, per-day breakdown chart, info tooltip for paid attractions, hardened traveler validation, and confirmed persistence of preferences.
 
-## 1. Toast after clicking "Undo (n)"
+## What you'll see
 
-Today, clicking the day's Undo button quietly pops one history entry and shows a generic "Undo applied" toast. We'll change it so the toast tells you exactly how many reorder steps were undone for that day in this click — and how many remain.
+1. **Currency selector** (THB / USD / EUR / JPY / GBP) sits next to the "Estimate" badge in the card header. Switching currency instantly reformats every number in the card and the new chart. Choice is remembered after refresh.
+2. **Per-day breakdown chart** appears just under the totals. A compact stacked horizontal bar per day shows Stay / Attractions / Transportation portions with a legend, plus the day total. Bars scale to the largest day so days are visually comparable. Collapsible (default open) to keep the card compact.
+3. **Info tooltip** — a small "i" icon next to the "Attractions" row. Hover/tap reveals the list of place types counted as paid attractions (museum, landmark, temple, zoo, etc.) plus the per-attraction rate, so the calculation is transparent.
+4. **Travelers stepper validation** — typed/clamped to 1–20, +/- buttons disabled at limits (already partly implemented), plus an inline numeric input so users can type a value directly; out-of-range entries are clamped and a brief toast is shown.
+5. **Persistence** — `budget`, `travelers`, and the new `currency` survive browser refresh.
 
-- Capture the depth before pop, then show:
-  - "Day {n}: undid 1 reorder step ({remaining} more available)"
-  - When 0 remain: "Day {n}: undid 1 reorder step (no more to undo)"
-- Same wording for the in-toast "Undo" action that fires from drag/drop and auto-reorder.
+## Technical details
 
-## 2. Confirm before regenerating a day with pending undo history
+### Currency
+- New file `src/lib/currency-store.ts`: zustand-persist store holding `currency: "THB" | "USD" | "EUR" | "JPY" | "GBP"` (default `"USD"`) under key `budget-currency-v1`. Currency is a per-user preference, not per-itinerary, so it lives outside the itinerary store.
+- New helper in `src/lib/budget.ts`:
+  - `CURRENCIES` constant with `{code, symbol, rate}` (rates are static fallbacks relative to USD; e.g., THB 36, EUR 0.92, JPY 155, GBP 0.79).
+  - Replace `formatUSD(n)` with `formatMoney(n, currency)` that converts USD → target currency and formats with `Intl.NumberFormat`. Keep a thin `formatUSD` re-export for any legacy callers.
+- `BudgetEstimate.tsx` reads currency from the store and passes it to all formatters.
 
-When you press "Regenerate day", if that day's undo stack is non-empty, we'll open a confirmation dialog first so reorder changes aren't silently wiped (regenerate already calls `clearHistory(id, dayIdx)`).
+### Per-day breakdown chart
+- Add `estimateBudgetByDay(itinerary, travelers, tier)` to `src/lib/budget.ts` that returns `Array<{ day: number; stay: number; attractions: number; transportation: number; total: number }>`. Reuses the existing per-category logic but scoped to one day:
+  - Stay portion: `(nights/durationDays)` share allocated evenly across days, or 0 on the last day if we treat nights = days-1 (we'll spread evenly across `durationDays-1` nights and assign 0 to last day).
+  - Attractions: count paid attractions in `day.places` only.
+  - Transportation: that day's mode rate × travelers × tier multiplier; inter-city allowance is added to day 1 only.
+- New component `src/components/BudgetByDayChart.tsx`: renders a list of rows, each with day label, a stacked bar (CSS flex with width % per category using brand colors that match the existing icons), and the per-day total formatted in the selected currency. Includes a small legend (color swatch + label) at the top.
+- Inserted in `BudgetEstimate.tsx` directly under the totals block, inside a collapsible `<details>` with a "Per-day breakdown" summary so the card stays compact when not needed.
 
-- Use the existing shadcn `AlertDialog` component.
-- Title: "Regenerate Day {n}?"
-- Body: "You have {n} unsaved reorder change(s) for this day. Regenerating will discard them and you won't be able to undo."
-- Buttons: Cancel / Regenerate anyway (destructive style).
-- If the stack is empty, regenerate runs immediately (current behavior).
-- "Regenerate all" gets the same treatment if any day in the trip has undo history (single combined dialog listing affected day numbers).
+### Paid-attractions tooltip
+- Export `PAID_ATTRACTION_TYPES` from `src/lib/budget.ts` (currently a local const).
+- In `BudgetEstimate.tsx`, render an `Info` lucide icon next to the "Attractions" label wrapped in shadcn `Tooltip` (already available under `@/components/ui/tooltip`). Tooltip content lists the types (sorted, comma-separated) plus the line "≈ $15 per paid attraction per traveler (adjusted by tier)".
 
-## 3. "Core Budget Estimate" card
+### Travelers validation
+- In `BudgetEstimate.tsx`, replace the static span showing the count with a small `<input type="number" min={1} max={20}>` styled like the current span. On blur/Enter, clamp to `[1, 20]`; if user typed an out-of-range value, call `onTravelersChange(clamped)` and show `sonner` toast `t("travelersClamped")` ("Travelers must be between 1 and 20").
+- Constants `MIN_TRAVELERS = 1`, `MAX_TRAVELERS = 20` exported from `src/lib/budget.ts` and reused by both stepper buttons and the input.
 
-A new collapsible card inserted between the trip header (title + destination + days line) and the day legend.
+### Persistence
+- `budget` and `travelers` are already saved through `update(id, { ... })` into the zustand-persisted itinerary store — no change needed; verified in `src/lib/store.ts`.
+- `currency` persists via the new `currency-store.ts` (zustand `persist` middleware).
 
-Layout matches the reference image:
+### i18n
+Add to `src/lib/i18n.ts` (en + th):
+- `currency`, `perDayBreakdown`, `paidAttractionsInfo`, `travelersClamped`, `day` (if missing).
 
-```text
-┌─────────────────────────────────────────────────────┐
-│ Core Budget Estimate                                │
-│                                                     │
-│ For the proposed itinerary and your budget, here    │
-│ are the estimated expenses for {N} traveler(s)      │
-│ going on a {D}-day trip departing {date}. Some      │
-│ Attractions and Transportation prices are           │
-│ unavailable at the moment. For up-to-date costs,    │
-│ please confirm at the time of booking.              │
-│                                                     │
-│ ┌─────────────────────────────────────────────────┐ │
-│ │ Total ({N} traveler)            ≈ US$X,XXX      │ │
-│ │ ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱                          │ │
-│ │ 🚆 Transportation                    US$2,590    │ │
-│ │ 🏔  Attractions                      US$120      │ │
-│ │ 🛏  Stay                             US$70       │ │
-│ └─────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────┘
-```
-
-### Inputs
-- `travelers` (default 1) — small +/- stepper next to the total.
-- `budget` tier already saved on the trip (low/medium/high). If missing, default to medium.
-- `durationDays`, `startDate`, places per day, and travel mode all come from the existing itinerary.
-
-### How the estimate is calculated (transparent heuristic, no external API)
-Per-traveler per-day base rates, scaled by budget tier (low ×0.6, medium ×1.0, high ×1.8):
-
-- **Stay**: base $35/night/traveler · (days − 1), min 0.
-- **Attractions**: $15 × number of places that look like paid attractions (type in: museum, attraction, landmark, park-with-fee, theme, tour, show), per traveler.
-- **Transportation**: weighted by the day's travel mode — walking $5/day, transit $15/day, mixed $25/day, "any" $30/day, all per traveler. Plus a flat one-time inter-city allowance of $200 × travelers if `origin` differs from `destination`.
-
-Numbers shown rounded to the nearest $5; total is the sum. The progress bar fills `total / (high-tier total)` so users can visually see where they sit on the budget spectrum.
-
-### UX details
-- Card uses existing `Card` component, same border/background as the day legend block.
-- Three rows: Transportation (Train icon), Attractions (Mountain icon), Stay (Bed icon) — all from `lucide-react`.
-- Right-aligned monetary values, tabular-nums.
-- Tiny "Estimate" badge in header to set expectations.
-- All strings go through the i18n dictionary (Thai + English keys added to `src/lib/i18n.ts`).
-- Currency: USD only for now (matches reference); formatted as `US$X,XXX`.
-
-## Files
-
-- `src/routes/itinerary.$id.tsx` — modify undo handlers (toast wording), wrap regenerate calls in AlertDialog, render the new budget card.
-- `src/components/BudgetEstimate.tsx` — new component containing the card, calculator, and travelers stepper.
-- `src/lib/budget.ts` — new pure helper exporting `estimateBudget(itinerary, travelers, tier)` returning `{ total, transportation, attractions, stay, maxScale }`. Easy to unit test later.
-- `src/lib/i18n.ts` — add keys: `coreBudgetEstimate`, `budgetIntro`, `total`, `transportation`, `attractions`, `stay`, `estimate`, `traveler`, `travelers`, `undidNStepsRemaining`, `undidNStepsNoMore`, `regenConfirmTitle`, `regenConfirmBody`, `regenConfirmAction`, `regenAllConfirmBody`, `cancel`.
-- `src/lib/types.ts` — add optional `budget?: "low" | "medium" | "high"` and `travelers?: number` to `Itinerary` (persisted via existing zustand store; both optional so existing trips stay valid).
-
-## Out of scope
-
-- Real pricing APIs (Skyscanner / Booking / GetYourGuide). The card is clearly labeled as an estimate.
-- Currency switching — USD only for now.
-- Per-day budget breakdown — only the trip-wide totals shown in the reference.
+### Files
+- **Created**: `src/lib/currency-store.ts`, `src/components/BudgetByDayChart.tsx`
+- **Edited**: `src/lib/budget.ts` (export types list, add `formatMoney`, `estimateBudgetByDay`, constants), `src/components/BudgetEstimate.tsx` (currency selector, tooltip, input validation, embed chart), `src/lib/i18n.ts` (new keys)
+- **Unchanged**: `src/routes/itinerary.$id.tsx` — existing `update(id, { travelers })` / `update(id, { budget })` calls already persist via zustand.
