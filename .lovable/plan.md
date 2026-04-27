@@ -1,57 +1,86 @@
-## Goals
+# Plan
 
-1. Mini-map style toggle (streets / satellite / simplified).
-2. Compact ordered-stops timeline under the mini map with per-leg minutes.
-3. Full keyboard support for the start-point dropdown.
-4. Toast-based "Undo" for place reorders within a few seconds.
+Three small, independent additions to the itinerary detail page (`src/routes/itinerary.$id.tsx`).
 
----
+## 1. Toast after clicking "Undo (n)"
 
-## 1. Map style toggle (`src/components/DayMiniMap.tsx`)
+Today, clicking the day's Undo button quietly pops one history entry and shows a generic "Undo applied" toast. We'll change it so the toast tells you exactly how many reorder steps were undone for that day in this click — and how many remain.
 
-- Add a new prop-less internal state `mapStyle: "streets" | "satellite" | "minimal"`, persisted globally via a tiny zustand store at `src/lib/map-style-store.ts` so the choice sticks across days/refresh.
-- Define a `TILES` map:
-  - `streets` → OSM `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`.
-  - `satellite` → Esri World Imagery `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}`.
-  - `minimal` → CartoDB Positron `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`.
-- Replace the single `L.tileLayer(...).addTo(map)` with a `tileLayerRef` that we swap when `mapStyle` changes (remove old, add new). No need to recreate the map.
-- Add a small floating control inside the map container (top-right, absolute, z-[400]) with three icon buttons (Map / Satellite / Layers icons from lucide). Style with existing tokens — `bg-background/90 backdrop-blur border rounded-md`. Each button tooltip = i18n label.
+- Capture the depth before pop, then show:
+  - "Day {n}: undid 1 reorder step ({remaining} more available)"
+  - When 0 remain: "Day {n}: undid 1 reorder step (no more to undo)"
+- Same wording for the in-toast "Undo" action that fires from drag/drop and auto-reorder.
 
-## 2. Compact stops timeline (under the mini map)
+## 2. Confirm before regenerating a day with pending undo history
 
-- Add `estimateLegMinutes(places, mode, anchor)` to `src/lib/route-utils.ts` (returns `number[]` where `legs[i]` is minutes to reach `places[i]`; `0` for the first when no anchor). Also export `modeProfile` so the component can reuse it.
-- Render a new horizontally-scrolling row inside `DayRoutePanel` (after `DayMiniMap`):
-  - Optional "S" chip when an anchor exists (start label, truncated).
-  - For each place: a colored numbered chip with the place name (truncated to ~14 chars), separated by a `→` arrow that carries the leg's minutes (e.g. `↦ 12 min`).
-  - When `effectiveMode === "any"`, show just the order without minutes.
-- Use existing `color` prop. Use `overflow-x-auto whitespace-nowrap` so it never breaks layout.
+When you press "Regenerate day", if that day's undo stack is non-empty, we'll open a confirmation dialog first so reorder changes aren't silently wiped (regenerate already calls `clearHistory(id, dayIdx)`).
 
-## 3. Keyboard support for the start-point dropdown
+- Use the existing shadcn `AlertDialog` component.
+- Title: "Regenerate Day {n}?"
+- Body: "You have {n} unsaved reorder change(s) for this day. Regenerating will discard them and you won't be able to undo."
+- Buttons: Cancel / Regenerate anyway (destructive style).
+- If the stack is empty, regenerate runs immediately (current behavior).
+- "Regenerate all" gets the same treatment if any day in the trip has undo history (single combined dialog listing affected day numbers).
 
-cmdk's `Command` already handles ↑/↓/Enter when the `CommandInput` has focus. The current Popover loses input focus when items are clicked but doesn't fully wire the keyboard path:
+## 3. "Core Budget Estimate" card
 
-- Set `<PopoverContent ... onOpenAutoFocus={(e) => { /* let cmdk auto-focus its input */ }}>` and ensure `<CommandInput autoFocus />`.
-- Ensure each `<CommandItem>` uses `onSelect` (already true — keep). Items will then be Enter-selectable.
-- Esc: Popover closes on Esc by default via Radix, but currently the input swallows it. Add `onKeyDown` on `CommandInput`: if `e.key === "Escape"`, call `setStartOpen(false)` and `e.stopPropagation()` so the Popover closes immediately even when the query is non-empty.
-- Add a "use custom label" Enter shortcut: when the input has text and Enter is pressed but no item matched (CommandEmpty branch), trigger `chooseCustom`. Implement via `onKeyDown` on `CommandInput`: when `e.key === "Enter"` and the visible cmdk list has no selectable item, call `chooseCustom()`. Detect "no matches" via a small `onValueChange`-driven count (read from filtered groups manually) — simpler: check `commandRef.current?.querySelector('[cmdk-item][data-selected="true"]')`; if none, run `chooseCustom()`.
+A new collapsible card inserted between the trip header (title + destination + days line) and the day legend.
 
-## 4. Undo for drag-and-drop reordering
+Layout matches the reference image:
 
-- In `DaySection.handleDragEnd` (`src/routes/itinerary.$id.tsx`):
-  - Snapshot `prev = day.places` before applying the new order.
-  - Call `onReorder(arrayMove(...))` as today.
-  - Show `toast.success(t("reordered"), { duration: 5000, action: { label: t("undo"), onClick: () => onReorder(prev) } })`.
-- Apply the same undo pattern to the per-day "Update this day's order" button (snapshot before, undo on toast action) so the user can revert auto-optimised orders too.
-- Add i18n keys: `reordered`, `undo`, `mapStyleStreets`, `mapStyleSatellite`, `mapStyleMinimal`, `mapStyleLabel`, `legMinutes`.
+```text
+┌─────────────────────────────────────────────────────┐
+│ Core Budget Estimate                                │
+│                                                     │
+│ For the proposed itinerary and your budget, here    │
+│ are the estimated expenses for {N} traveler(s)      │
+│ going on a {D}-day trip departing {date}. Some      │
+│ Attractions and Transportation prices are           │
+│ unavailable at the moment. For up-to-date costs,    │
+│ please confirm at the time of booking.              │
+│                                                     │
+│ ┌─────────────────────────────────────────────────┐ │
+│ │ Total ({N} traveler)            ≈ US$X,XXX      │ │
+│ │ ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱                          │ │
+│ │ 🚆 Transportation                    US$2,590    │ │
+│ │ 🏔  Attractions                      US$120      │ │
+│ │ 🛏  Stay                             US$70       │ │
+│ └─────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
+```
 
----
+### Inputs
+- `travelers` (default 1) — small +/- stepper next to the total.
+- `budget` tier already saved on the trip (low/medium/high). If missing, default to medium.
+- `durationDays`, `startDate`, places per day, and travel mode all come from the existing itinerary.
+
+### How the estimate is calculated (transparent heuristic, no external API)
+Per-traveler per-day base rates, scaled by budget tier (low ×0.6, medium ×1.0, high ×1.8):
+
+- **Stay**: base $35/night/traveler · (days − 1), min 0.
+- **Attractions**: $15 × number of places that look like paid attractions (type in: museum, attraction, landmark, park-with-fee, theme, tour, show), per traveler.
+- **Transportation**: weighted by the day's travel mode — walking $5/day, transit $15/day, mixed $25/day, "any" $30/day, all per traveler. Plus a flat one-time inter-city allowance of $200 × travelers if `origin` differs from `destination`.
+
+Numbers shown rounded to the nearest $5; total is the sum. The progress bar fills `total / (high-tier total)` so users can visually see where they sit on the budget spectrum.
+
+### UX details
+- Card uses existing `Card` component, same border/background as the day legend block.
+- Three rows: Transportation (Train icon), Attractions (Mountain icon), Stay (Bed icon) — all from `lucide-react`.
+- Right-aligned monetary values, tabular-nums.
+- Tiny "Estimate" badge in header to set expectations.
+- All strings go through the i18n dictionary (Thai + English keys added to `src/lib/i18n.ts`).
+- Currency: USD only for now (matches reference); formatted as `US$X,XXX`.
 
 ## Files
 
-- **Edited**: `src/components/DayMiniMap.tsx`, `src/lib/route-utils.ts`, `src/lib/i18n.ts`, `src/routes/itinerary.$id.tsx`.
-- **Created**: `src/lib/map-style-store.ts` (small zustand persist store for the chosen tile style).
+- `src/routes/itinerary.$id.tsx` — modify undo handlers (toast wording), wrap regenerate calls in AlertDialog, render the new budget card.
+- `src/components/BudgetEstimate.tsx` — new component containing the card, calculator, and travelers stepper.
+- `src/lib/budget.ts` — new pure helper exporting `estimateBudget(itinerary, travelers, tier)` returning `{ total, transportation, attractions, stay, maxScale }`. Easy to unit test later.
+- `src/lib/i18n.ts` — add keys: `coreBudgetEstimate`, `budgetIntro`, `total`, `transportation`, `attractions`, `stay`, `estimate`, `traveler`, `travelers`, `undidNStepsRemaining`, `undidNStepsNoMore`, `regenConfirmTitle`, `regenConfirmBody`, `regenConfirmAction`, `regenAllConfirmBody`, `cancel`.
+- `src/lib/types.ts` — add optional `budget?: "low" | "medium" | "high"` and `travelers?: number` to `Itinerary` (persisted via existing zustand store; both optional so existing trips stay valid).
 
 ## Out of scope
 
-- Real per-leg routing (still haversine + mode profile).
-- An undo stack — only the last reorder, via the toast action button (5 s window).
+- Real pricing APIs (Skyscanner / Booking / GetYourGuide). The card is clearly labeled as an estimate.
+- Currency switching — USD only for now.
+- Per-day budget breakdown — only the trip-wide totals shown in the reference.
