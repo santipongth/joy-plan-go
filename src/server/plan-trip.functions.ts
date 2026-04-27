@@ -3,7 +3,10 @@ import { buildPreferencesBlock } from "./preferences-prompt";
 import {
   dedupePlacesAcrossDays,
   filterDuplicatesAgainst,
+  reorderDaysByDistance,
+  reorderPlacesByDistance,
   type PlaceLite,
+  type TravelMode,
 } from "./dedupe";
 
 interface PlanDayInput {
@@ -20,6 +23,7 @@ interface PlanDayInput {
   accommodation?: string;
   rhythm?: string[];
   otherNeeds?: string;
+  travelMode?: TravelMode;
   lang: "th" | "en";
 }
 
@@ -47,9 +51,13 @@ export const planSingleDay = createServerFn({ method: "POST" })
     const existingList = (data.existingPlaces || [])
       .map((p) => `${p.name} (${p.lat.toFixed(4)},${p.lng.toFixed(4)})`)
       .join("; ");
+    const modeInstr =
+      data.travelMode && data.travelMode !== "any"
+        ? ` Order the places in the order a traveler would actually visit them by ${data.travelMode === "walking" ? "walking" : data.travelMode === "transit" ? "public transit" : "a mix of walking and public transit"}, minimizing back-and-forth.`
+        : "";
     const user = `Trip to ${data.destination}. Generate ONLY day ${data.dayNumber} of ${data.totalDays}.${
       data.existingDaysSummary ? ` Other days cover: ${data.existingDaysSummary}. Do NOT repeat those places; pick different ones.` : ""
-    }${existingList ? ` Forbidden places (already used in other days, do NOT include or pick anything within ~200m): ${existingList}.` : ""}${prefsBlock}`;
+    }${existingList ? ` Forbidden places (already used in other days, do NOT include or pick anything within ~200m): ${existingList}.` : ""}${modeInstr}${prefsBlock}`;
 
     const tool = {
       type: "function" as const,
@@ -108,7 +116,8 @@ export const planSingleDay = createServerFn({ method: "POST" })
       // Drop any places that duplicate other days' places by name or lat/lng
       const existing: PlaceLite[] = data.existingPlaces || [];
       const cleanedPlaces = filterDuplicatesAgainst(parsed.places || [], existing, 200);
-      return { day: { ...parsed, places: cleanedPlaces } };
+      const orderedPlaces = reorderPlacesByDistance(cleanedPlaces, data.travelMode || "any");
+      return { day: { ...parsed, places: orderedPlaces } };
     } catch (e) {
       console.error("planSingleDay failed", e);
       return { day: null, error: "EXCEPTION" };
@@ -150,6 +159,7 @@ interface PlanInput {
   accommodation?: string;
   rhythm?: string[];
   otherNeeds?: string;
+  travelMode?: TravelMode;
   lang: "th" | "en";
 }
 
@@ -175,7 +185,11 @@ export const planTrip = createServerFn({ method: "POST" })
     const sys = `You are an expert travel planner. Generate a realistic day-by-day itinerary with 3-5 places per day. Each place must include accurate latitude/longitude coordinates (decimal degrees). Group nearby places on the same day to minimize travel. CRITICAL: every place across the whole trip must be UNIQUE — distinct names AND coordinates more than ~200m apart from any other place in the itinerary. Never repeat or revisit places. ${langInstr}`;
 
     const prefsBlock = buildPreferencesBlock(data);
-    const user = `Plan a ${data.durationDays}-day trip${data.origin ? ` starting from ${data.origin}` : ""} to ${data.destination}. Provide a creative trip title.${prefsBlock}`;
+    const modeInstr =
+      data.travelMode && data.travelMode !== "any"
+        ? ` The traveler will move between places by ${data.travelMode === "walking" ? "walking" : data.travelMode === "transit" ? "public transit" : "a mix of walking and public transit"}. Within each day, ORDER the places along an efficient route (nearest-neighbour from the day's starting point) to minimise total travel distance/time, not just by opening hours.`
+        : "";
+    const user = `Plan a ${data.durationDays}-day trip${data.origin ? ` starting from ${data.origin}` : ""} to ${data.destination}. Provide a creative trip title.${modeInstr}${prefsBlock}`;
 
     const tool = {
       type: "function" as const,
@@ -263,10 +277,11 @@ export const planTrip = createServerFn({ method: "POST" })
       const parsed = JSON.parse(call.function.arguments) as AIPlanResult;
       // Cross-day dedupe by lat/lng (≤150m) or normalized name match
       const dedupedDays = dedupePlacesAcrossDays(parsed.days || [], 150);
+      const orderedDays = reorderDaysByDistance(dedupedDays, data.travelMode || "any");
       return {
         title: parsed.title || data.destination,
         citiesCount: parsed.citiesCount || 1,
-        days: dedupedDays,
+        days: orderedDays,
       };
     } catch (e) {
       console.error("planTrip failed", e);

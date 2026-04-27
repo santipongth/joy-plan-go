@@ -59,6 +59,13 @@ const RHYTHMS = [
   { key: "earlyStarts", emoji: "" },
   { key: "lateNights", emoji: "" },
 ] as const;
+const TRAVEL_MODES = [
+  { key: "any", emoji: "✨" },
+  { key: "walking", emoji: "🚶" },
+  { key: "transit", emoji: "🚇" },
+  { key: "mixed", emoji: "🚶🚇" },
+] as const;
+type TravelModeKey = typeof TRAVEL_MODES[number]["key"];
 
 function HomePage() {
   const t = useT();
@@ -81,6 +88,7 @@ function HomePage() {
   const [accommodation, setAccommodation] = useState<string>("");
   const [rhythm, setRhythm] = useState<string[]>([]);
   const [otherNeeds, setOtherNeeds] = useState("");
+  const [travelMode, setTravelMode] = useState<TravelModeKey>("any");
   const [loading, setLoading] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
 
@@ -97,6 +105,7 @@ function HomePage() {
     setAccommodation("");
     setRhythm([]);
     setOtherNeeds("");
+    setTravelMode("any");
   }
 
   const mapGroups = useMemo(() => {
@@ -138,8 +147,9 @@ function HomePage() {
     if (accommodation) items.push({ label: t("accommodation"), value: t(accommodation as keyof typeof dict.en) as string });
     if (rhythm.length) items.push({ label: t("rhythm"), value: rhythm.map((r) => t(r as keyof typeof dict.en) as string).join(", ") });
     if (otherNeeds.trim()) items.push({ label: t("otherNeeds"), value: otherNeeds.trim().slice(0, 120) + (otherNeeds.length > 120 ? "…" : "") });
+    if (travelMode && travelMode !== "any") items.push({ label: t("travelMode"), value: t(`mode${travelMode.charAt(0).toUpperCase() + travelMode.slice(1)}` as keyof typeof dict.en) as string });
     return items;
-  }, [destination, origin, startDate, days, interests, budget, pace, companions, travelStyle, accommodation, rhythm, otherNeeds, t]);
+  }, [destination, origin, startDate, days, interests, budget, pace, companions, travelStyle, accommodation, rhythm, otherNeeds, travelMode, t]);
 
   const TOTAL_CATEGORIES = 8; // interests, budget, pace, companions, travelStyle, accommodation, rhythm, otherNeeds
   const filledCategories =
@@ -184,6 +194,7 @@ function HomePage() {
           accommodation: accommodation ? (dict.en[accommodation as keyof typeof dict.en] as string) : undefined,
           rhythm: rhythm.map((k) => dict.en[k as keyof typeof dict.en] as string),
           otherNeeds: otherNeeds.trim() || undefined,
+          travelMode,
           lang,
         },
       });
@@ -300,6 +311,13 @@ function HomePage() {
                 </div>
               </div>
 
+              <div>
+                <Label className="text-xs text-muted-foreground mb-2 block">
+                  {t("duration")}: <span className="font-semibold text-foreground">{days}</span>
+                </Label>
+                <Slider min={1} max={14} step={1} value={[days]} onValueChange={(v) => setDays(v[0])} />
+              </div>
+
               <Collapsible open={prefsOpen} onOpenChange={setPrefsOpen}>
                 <CollapsibleTrigger asChild>
                   <button type="button" className="flex items-center gap-2 text-sm font-medium hover:text-primary">
@@ -310,10 +328,22 @@ function HomePage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-4 space-y-4">
                   <div>
-                    <Label className="text-xs text-muted-foreground mb-2 block">
-                      {t("duration")}: <span className="font-semibold text-foreground">{days}</span>
-                    </Label>
-                    <Slider min={1} max={14} step={1} value={[days]} onValueChange={(v) => setDays(v[0])} />
+                    <Label className="text-xs text-muted-foreground mb-2 block">{t("travelMode")}</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {TRAVEL_MODES.map((m) => (
+                        <Button
+                          key={m.key}
+                          type="button"
+                          size="sm"
+                          variant={travelMode === m.key ? "default" : "outline"}
+                          onClick={() => setTravelMode(m.key)}
+                        >
+                          <span className="mr-1">{m.emoji}</span>
+                          {t(`mode${m.key.charAt(0).toUpperCase() + m.key.slice(1)}` as keyof typeof dict.en)}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">{t("travelModeHint")}</p>
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground mb-2 block">{t("interests")}</Label>
