@@ -98,14 +98,29 @@ function ItineraryDetail() {
   const toggleVisible = useVisibilityStore((s) => s.toggle);
   const [regenLoading, setRegenLoading] = useState<number | null>(null);
   const [regenErrors, setRegenErrors] = useState<Record<number, string>>({});
+  const [regenAllLoading, setRegenAllLoading] = useState(false);
+  const planTripFn = useServerFn(planTrip);
 
-  // initialize visible days when itinerary loads (default = all)
+  // initialize / sync visible days when itinerary loads or day numbers change
+  const dayNumbersKey = itinerary?.days.map((d) => d.day).join(",") ?? "";
   useEffect(() => {
-    if (itinerary && visibleArr === undefined) {
-      setVisible(id, itinerary.days.map((d) => d.day));
+    if (!itinerary) return;
+    const allDays = itinerary.days.map((d) => d.day);
+    if (visibleArr === undefined) {
+      setVisible(id, allDays);
+      return;
+    }
+    // If saved set is out of sync with current day numbers, reset to all visible
+    const allSet = new Set(allDays);
+    const savedSet = new Set(visibleArr);
+    const sameSize = allSet.size === savedSet.size;
+    const sameItems = sameSize && [...allSet].every((d) => savedSet.has(d));
+    const hasStale = visibleArr.some((d) => !allSet.has(d));
+    if (hasStale || (!sameItems && allSet.size !== savedSet.size)) {
+      setVisible(id, allDays);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itinerary?.id, visibleArr === undefined]);
+  }, [itinerary?.id, dayNumbersKey, visibleArr === undefined]);
 
   const visibleDays = useMemo(
     () => new Set(visibleArr ?? itinerary?.days.map((d) => d.day) ?? []),
