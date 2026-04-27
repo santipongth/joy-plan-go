@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useItineraryStore, makeId } from "@/lib/store";
+import { useVisibilityStore } from "@/lib/visibility-store";
 import { useT, useLangStore } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft,
   Trash2,
@@ -22,8 +24,11 @@ import {
   Download,
   Share2,
   FileDown,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import MapView, { dayColor } from "@/components/MapView";
+import PrintItinerary from "@/components/PrintItinerary";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
