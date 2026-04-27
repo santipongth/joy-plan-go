@@ -251,9 +251,16 @@ function ItineraryDetail() {
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <Toaster position="top-center" />
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] min-h-screen">
-        <div className="overflow-auto px-4 sm:px-8 py-6 print:overflow-visible">
-          <header className="flex items-center justify-between mb-6 print:hidden">
+
+      {/* Print-only dedicated layout */}
+      <div className="hidden print:block">
+        <PrintItinerary itinerary={itinerary} t={t} />
+      </div>
+
+      {/* Screen layout */}
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] min-h-screen print:hidden">
+        <div className="overflow-auto px-4 sm:px-8 py-6">
+          <header className="flex items-center justify-between mb-6">
             <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
               <ArrowLeft className="h-4 w-4 mr-1" />
               {t("back")}
@@ -301,7 +308,7 @@ function ItineraryDetail() {
                     setTitleDraft(itinerary.title);
                     setEditingTitle(true);
                   }}
-                  className="text-muted-foreground hover:text-foreground print:hidden"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
@@ -313,14 +320,14 @@ function ItineraryDetail() {
           </div>
 
           {/* Day legend with show/hide toggles */}
-          <div className="mb-6 p-3 rounded-lg bg-card/60 border print:bg-transparent">
+          <div className="mb-6 p-3 rounded-lg bg-card/60 border">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 {t("daysLegend")} · {t("showOnMap")}
               </span>
               <button
                 onClick={showAllDays}
-                className="text-xs text-primary hover:underline print:hidden"
+                className="text-xs text-primary hover:underline"
               >
                 {t("allDays")}
               </button>
@@ -333,6 +340,7 @@ function ItineraryDetail() {
                   <button
                     key={d.day}
                     onClick={() => toggleDay(d.day)}
+                    title={t("clickToToggle")}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
                       visible
                         ? "bg-background shadow-sm"
@@ -371,13 +379,14 @@ function ItineraryDetail() {
                   onReorder={(places) => reorderPlaces(id, dayIdx, places)}
                   onRegenerate={() => regenerateDay(dayIdx)}
                   regenerating={regenLoading === d.day}
+                  errorMessage={regenErrors[d.day]}
                   t={t}
                 />
               );
             })}
           </div>
 
-          <div className="mt-8 pt-6 border-t flex justify-between print:hidden">
+          <div className="mt-8 pt-6 border-t flex justify-between">
             <Button
               variant="destructive"
               size="sm"
@@ -394,7 +403,7 @@ function ItineraryDetail() {
           </div>
         </div>
 
-        <div className="hidden lg:block sticky top-0 h-screen p-4 print:hidden">
+        <div className="hidden lg:block sticky top-0 h-screen p-4">
           {groups.flatMap((g) => g.places).length === 0 ? (
             <div className="h-full rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
               <Compass className="h-12 w-12 opacity-40" />
@@ -402,26 +411,39 @@ function ItineraryDetail() {
           ) : (
             <div className="relative h-full">
               <MapView groups={groups} />
-              {/* Floating legend on map */}
-              <div className="absolute top-3 right-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[180px]">
+              {/* Floating legend on map — clickable to toggle */}
+              <div className="absolute top-3 right-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[200px]">
                 <div className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
                   {t("daysLegend")}
                 </div>
-                <div className="space-y-1">
-                  {itinerary.days
-                    .filter((d) => visibleDays.has(d.day))
-                    .map((d) => (
-                      <div key={d.day} className="flex items-center gap-1.5 text-xs">
+                <div className="space-y-0.5">
+                  {itinerary.days.map((d) => {
+                    const visible = visibleDays.has(d.day);
+                    return (
+                      <button
+                        key={d.day}
+                        onClick={() => toggleDay(d.day)}
+                        title={t("clickToToggle")}
+                        className={`flex items-center gap-1.5 text-xs w-full text-left px-1.5 py-1 rounded hover:bg-muted transition-colors ${
+                          visible ? "" : "opacity-40"
+                        }`}
+                      >
                         <span
                           className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                           style={{ background: dayColor(d.day - 1) }}
                         />
-                        <span className="truncate">
+                        <span className="truncate flex-1">
                           {t("day")} {d.day}
                           {d.title ? ` — ${d.title}` : ""}
                         </span>
-                      </div>
-                    ))}
+                        {visible ? (
+                          <Eye className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        ) : (
+                          <EyeOff className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
