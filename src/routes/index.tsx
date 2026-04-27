@@ -75,9 +75,29 @@ function HomePage() {
   const [startDate, setStartDate] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
   const [budget, setBudget] = useState("medium");
-  const [pace, setPace] = useState("normal");
+  const [pace, setPace] = useState("moderate");
+  const [companions, setCompanions] = useState<string>("");
+  const [travelStyle, setTravelStyle] = useState<string[]>([]);
+  const [accommodation, setAccommodation] = useState<string>("");
+  const [rhythm, setRhythm] = useState<string[]>([]);
+  const [otherNeeds, setOtherNeeds] = useState("");
   const [loading, setLoading] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
+
+  function toggleInList(value: string, list: string[], setter: (v: string[]) => void) {
+    setter(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
+  }
+
+  function clearPrefs() {
+    setInterests([]);
+    setBudget("medium");
+    setPace("moderate");
+    setCompanions("");
+    setTravelStyle([]);
+    setAccommodation("");
+    setRhythm([]);
+    setOtherNeeds("");
+  }
 
   const mapGroups = useMemo(() => {
     return itineraries.flatMap((it, idx) =>
