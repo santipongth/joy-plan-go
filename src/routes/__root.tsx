@@ -29,14 +29,13 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Trip.Planner — AI Travel Itinerary Builder" },
+      { name: "description", content: "Plan trips with AI. Build day-by-day itineraries with maps, save them locally, and visualize your journey." },
+      { name: "author", content: "Trip.Planner" },
+      { property: "og:title", content: "Trip.Planner — AI Travel Itinerary Builder" },
+      { property: "og:description", content: "Plan trips with AI. Build day-by-day itineraries with maps." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {

@@ -1,0 +1,141 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+export type Lang = "th" | "en";
+
+export const dict = {
+  th: {
+    appName: "Trip.Planner",
+    startingFrom: "ออกเดินทางจาก",
+    headingTo: "ปลายทาง",
+    placeholderPlace: "ประเทศ / เมือง / สถานที่",
+    dateDuration: "วันที่ / ระยะเวลา",
+    select: "เลือก",
+    preferences: "ความชอบ",
+    createMyself: "สร้างเอง",
+    planWithAI: "วางแผนด้วย AI",
+    terms: "เมื่อดำเนินการต่อ ถือว่าคุณยอมรับเงื่อนไขการใช้งานของ Trip.Planner",
+    myItineraries: "ทริปของฉัน",
+    days: "วัน",
+    places: "สถานที่",
+    cities: "เมือง",
+    autoSaved: "บันทึกอัตโนมัติ",
+    duration: "ระยะเวลา (วัน)",
+    interests: "ประเภททริป",
+    budget: "งบประมาณ",
+    pace: "จังหวะการเที่ยว",
+    relaxed: "สบายๆ",
+    normal: "ปกติ",
+    packed: "อัดแน่น",
+    low: "ประหยัด",
+    medium: "ปานกลาง",
+    high: "หรูหรา",
+    culture: "วัฒนธรรม",
+    nature: "ธรรมชาติ",
+    food: "อาหาร",
+    shopping: "ช้อปปิ้ง",
+    family: "ครอบครัว",
+    nightlife: "ไลฟ์สไตล์ยามค่ำคืน",
+    aiPlanning: "AI กำลังวางแผนทริปให้คุณ...",
+    fillFields: "กรุณากรอกปลายทางและเลือกระยะเวลา",
+    aiError: "เกิดข้อผิดพลาดในการสร้างแผน",
+    rateLimit: "มีคำขอมากเกินไป โปรดลองอีกครั้งในไม่ช้า",
+    paymentRequired: "เครดิต AI หมด โปรดเติมเครดิตที่ Settings → Workspace → Usage",
+    back: "ย้อนกลับ",
+    day: "วัน",
+    addPlace: "เพิ่มสถานที่",
+    deleteTrip: "ลบทริป",
+    confirmDelete: "ลบทริปนี้?",
+    rename: "เปลี่ยนชื่อ",
+    untitled: "ทริปไม่มีชื่อ",
+    noItineraries: "ยังไม่มีทริป สร้างทริปแรกของคุณได้เลย",
+    placeholderTrip: "เช่น โตเกียว 5 วัน",
+    searching: "กำลังค้นหา...",
+    open: "เปิด",
+    delete: "ลบ",
+    save: "บันทึก",
+    cancel: "ยกเลิก",
+    placeName: "ชื่อสถานที่",
+    note: "บันทึก",
+    time: "เวลา",
+    typeLabel: "ประเภท",
+  },
+  en: {
+    appName: "Trip.Planner",
+    startingFrom: "Starting from",
+    headingTo: "Heading to",
+    placeholderPlace: "Country / City / Landmark",
+    dateDuration: "Date / Duration",
+    select: "Select",
+    preferences: "Preferences",
+    createMyself: "Create It Myself",
+    planWithAI: "Plan a Trip with AI",
+    terms: "By proceeding, you agree to Trip.Planner Terms of Use",
+    myItineraries: "My Itineraries",
+    days: "days",
+    places: "places",
+    cities: "cities",
+    autoSaved: "Auto-saved",
+    duration: "Duration (days)",
+    interests: "Interests",
+    budget: "Budget",
+    pace: "Pace",
+    relaxed: "Relaxed",
+    normal: "Normal",
+    packed: "Packed",
+    low: "Budget",
+    medium: "Mid-range",
+    high: "Luxury",
+    culture: "Culture",
+    nature: "Nature",
+    food: "Food",
+    shopping: "Shopping",
+    family: "Family",
+    nightlife: "Nightlife",
+    aiPlanning: "AI is planning your trip...",
+    fillFields: "Please enter destination and duration",
+    aiError: "Failed to generate plan",
+    rateLimit: "Too many requests. Please try again shortly.",
+    paymentRequired: "AI credits exhausted. Add credits at Settings → Workspace → Usage.",
+    back: "Back",
+    day: "Day",
+    addPlace: "Add place",
+    deleteTrip: "Delete trip",
+    confirmDelete: "Delete this trip?",
+    rename: "Rename",
+    untitled: "Untitled trip",
+    noItineraries: "No itineraries yet. Create your first trip!",
+    placeholderTrip: "e.g. 5 days in Tokyo",
+    searching: "Searching...",
+    open: "Open",
+    delete: "Delete",
+    save: "Save",
+    cancel: "Cancel",
+    placeName: "Place name",
+    note: "Note",
+    time: "Time",
+    typeLabel: "Type",
+  },
+} as const;
+
+type DictKey = keyof typeof dict.en;
+
+interface LangState {
+  lang: Lang;
+  setLang: (l: Lang) => void;
+}
+
+export const useLangStore = create<LangState>()(
+  persist(
+    (set) => ({
+      lang: "th",
+      setLang: (lang) => set({ lang }),
+    }),
+    { name: "trip-planner-lang" }
+  )
+);
+
+export function useT() {
+  const lang = useLangStore((s) => s.lang);
+  return (key: DictKey) => dict[lang][key] ?? key;
+}
