@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
-import { Star, MapPin, Clock, ExternalLink, Check } from "lucide-react";
+import { Star, MapPin, Clock, ExternalLink, Check, Navigation } from "lucide-react";
+import { haversineMeters } from "@/lib/route-utils";
 
 const CUISINE_EMOJI: Record<string, string> = {
   thai: "🍜",
