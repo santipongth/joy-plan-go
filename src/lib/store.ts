@@ -269,6 +269,56 @@ export const useItineraryStore = create<State>()(
               : i
           ),
         })),
+      addLodging: (id, lodging) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id ? touch({ ...i, lodgings: [...(i.lodgings ?? []), lodging] }) : i
+          ),
+        })),
+      updateLodging: (id, lodgingId, patch) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({
+                  ...i,
+                  lodgings: (i.lodgings ?? []).map((l) =>
+                    l.id === lodgingId ? { ...l, ...patch } : l
+                  ),
+                })
+              : i
+          ),
+        })),
+      removeLodging: (id, lodgingId) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({ ...i, lodgings: (i.lodgings ?? []).filter((l) => l.id !== lodgingId) })
+              : i
+          ),
+        })),
+      setLodgingDays: (id, lodgingId, dayIndexes) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({
+                  ...i,
+                  lodgings: (i.lodgings ?? []).map((l) =>
+                    l.id === lodgingId ? { ...l, dayIndexes } : l
+                  ),
+                })
+              : i
+          ),
+        })),
+      setDayTransport: (id, dayIndex, legs) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) => {
+            if (i.id !== id) return i;
+            const days = i.days.map((d, idx) =>
+              idx === dayIndex ? { ...d, transport: legs } : d
+            );
+            return touch({ ...i, days });
+          }),
+        })),
     }),
     {
       name: "trip-planner-itineraries",
