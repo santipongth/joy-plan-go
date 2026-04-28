@@ -57,7 +57,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Place, DayPlan, TravelMode, Itinerary } from "@/lib/types";
+import type { Place, DayPlan, TravelMode, Itinerary, MealType } from "@/lib/types";
 import { planSingleDay } from "@/server/plan-trip.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -85,7 +85,6 @@ import SimilarPopover from "@/components/SimilarPopover";
 import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
 import { haversineMeters, modeProfile, resolveAnchor } from "@/lib/route-utils";
 
-import { suggestMeals } from "@/server/discover.functions";
 import AuthButton from "@/components/AuthButton";
 
 import PhotoGallery from "@/components/PhotoGallery";
@@ -93,6 +92,11 @@ import LodgingCard from "@/components/LodgingCard";
 import DayTransportPanel from "@/components/DayTransportPanel";
 import DayLodgingPanel from "@/components/DayLodgingPanel";
 import ItinerarySkeleton from "@/components/ItinerarySkeleton";
+import MealSuggestDialog from "@/components/MealSuggestDialog";
+import MealEmptyBanner from "@/components/MealEmptyBanner";
+import MealSlotInline, { detectMissingMealSlots } from "@/components/MealSlotInline";
+import MealReplacePopover from "@/components/MealReplacePopover";
+import { Utensils } from "lucide-react";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
