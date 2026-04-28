@@ -165,6 +165,7 @@ export interface Itinerary {
   expenses?: Expense[];
   lodgings?: Lodging[];
   localTips?: LocalTips;
+  mealPreferences?: MealPreferences;
   createdAt: number;
   updatedAt: number;
 }
