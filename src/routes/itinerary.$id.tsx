@@ -1150,6 +1150,7 @@ interface DaySectionProps {
   dayIdx: number;
   color: string;
   itineraryId: string;
+  itinerary: Itinerary;
   allDays: DayPlan[];
   tripOriginLabel?: string;
   effectiveMode: TravelMode;
