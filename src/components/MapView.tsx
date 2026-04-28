@@ -103,7 +103,7 @@ export default function MapView({
   useEffect(() => {
     renderMarkers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, highlightedType]);
+  }, [groups, highlightedType, lodgings]);
 
   // Pan to selected place + open popup when selectedPlaceId changes
   useEffect(() => {
