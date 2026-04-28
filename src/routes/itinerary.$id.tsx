@@ -1205,6 +1205,51 @@ function DaySection({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
   const updatePlaceField = useItineraryStore((s) => s.updatePlace);
+  const addPlaceFn = useItineraryStore((s) => s.addPlace);
+  const suggestMealsFn = useServerFn(suggestMeals);
+  const lang = useLangStore((s) => s.lang);
+  const [mealsLoading, setMealsLoading] = useState(false);
+
+  async function handleSuggestMeals() {
+    if (day.places.length === 0) return;
+    setMealsLoading(true);
+    try {
+      const res = await suggestMealsFn({
+        data: {
+          destination: itinerary.destination,
+          dayPlaces: day.places.map((p) => ({
+            name: p.name,
+            lat: p.lat,
+            lng: p.lng,
+            kind: p.kind,
+          })),
+          lang,
+        },
+      });
+      if (res.error) {
+        if (res.error === "RATE_LIMIT") toast.error(t("aiRateLimit"));
+        else if (res.error === "PAYMENT_REQUIRED") toast.error(t("aiPaymentRequired"));
+        else toast.error(t("aiError"));
+        return;
+      }
+      for (const m of res.meals) {
+        addPlaceFn(itineraryId, dayIdx, {
+          id: makeId(),
+          name: m.name,
+          description: m.description,
+          time: m.time,
+          type: m.cuisine || "food",
+          lat: m.lat,
+          lng: m.lng,
+          kind: "meal",
+        });
+      }
+      toast.success(t("mealsAdded").replace("{n}", String(res.meals.length)));
+    } finally {
+      setMealsLoading(false);
+    }
+  }
+
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
