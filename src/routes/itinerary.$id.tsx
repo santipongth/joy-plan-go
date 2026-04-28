@@ -90,7 +90,7 @@ import { suggestMeals } from "@/server/discover.functions";
 import ShareTripDialog from "@/components/ShareTripDialog";
 import ThemeToggle from "@/components/ThemeToggle";
 import AuthButton from "@/components/AuthButton";
-import AISuggestDialog from "@/components/AISuggestDialog";
+
 import PhotoGallery from "@/components/PhotoGallery";
 import LodgingCard from "@/components/LodgingCard";
 import DayTransportPanel from "@/components/DayTransportPanel";
