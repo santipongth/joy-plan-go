@@ -854,6 +854,7 @@ function ItineraryDetail() {
                   dayIdx={dayIdx}
                   color={color}
                   itineraryId={id}
+                  itinerary={itinerary}
                   allDays={itinerary.days}
                   tripOriginLabel={itinerary.origin}
                   effectiveMode={effectiveMode}
