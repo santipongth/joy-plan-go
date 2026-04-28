@@ -314,8 +314,39 @@ export const suggestMeals = createServerFn({ method: "POST" })
     if (!call?.function?.arguments) return { meals: [], error: "NO_TOOL_CALL" };
     try {
       const parsed = JSON.parse(call.function.arguments);
-      const meals: MealSuggestion[] = Array.isArray(parsed.meals) ? parsed.meals.slice(0, count) : [];
-      return { meals };
+      const raw: MealSuggestion[] = Array.isArray(parsed.meals) ? parsed.meals : [];
+      // Post-filter: enforce strong dedup against excludeNames + within-batch
+      const norm = (s: string) =>
+        s.toLowerCase().replace(/[^a-z0-9ก-๙]+/gi, " ").replace(/\s+/g, " ").trim();
+      const excludedNorm = new Set((data.excludeNames ?? []).map(norm));
+      const excludedCuisinesNorm = new Set(
+        (data.excludeCuisines ?? []).map((c) => c.toLowerCase().trim()),
+      );
+      const seenNames = new Set<string>();
+      const seenCuisines = new Set<string>();
+      const filtered: MealSuggestion[] = [];
+      for (const m of raw) {
+        if (!m?.name) continue;
+        const nn = norm(m.name);
+        if (!nn || excludedNorm.has(nn) || seenNames.has(nn)) continue;
+        // Substring overlap (e.g. "Som Tam Nua" vs "Som Tam Nua Branch 2")
+        let dupSubstring = false;
+        for (const ex of excludedNorm) {
+          if (ex.length >= 4 && (nn.includes(ex) || ex.includes(nn))) {
+            dupSubstring = true;
+            break;
+          }
+        }
+        if (dupSubstring) continue;
+        const cu = (m.cuisine ?? "").toLowerCase().trim();
+        if (cu && excludedCuisinesNorm.has(cu)) continue;
+        if (cu && seenCuisines.has(cu)) continue;
+        seenNames.add(nn);
+        if (cu) seenCuisines.add(cu);
+        filtered.push(m);
+        if (filtered.length >= count) break;
+      }
+      return { meals: filtered };
     } catch {
       return { meals: [], error: "PARSE_ERROR" };
     }
