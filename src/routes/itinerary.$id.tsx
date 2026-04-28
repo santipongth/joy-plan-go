@@ -97,9 +97,9 @@ import ThemeToggle from "@/components/ThemeToggle";
 import AuthButton from "@/components/AuthButton";
 import AISuggestDialog from "@/components/AISuggestDialog";
 import PhotoGallery from "@/components/PhotoGallery";
-import LodgingSuggestDialog from "@/components/LodgingSuggestDialog";
-import LodgingList from "@/components/LodgingList";
+import LodgingCard from "@/components/LodgingCard";
 import DayTransportPanel from "@/components/DayTransportPanel";
+import DayLodgingPanel from "@/components/DayLodgingPanel";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
@@ -666,7 +666,6 @@ function ItineraryDetail() {
                 </span>
               </Button>
               <AISuggestDialog itinerary={itinerary} />
-              <LodgingSuggestDialog itinerary={itinerary} />
               <Button variant="outline" size="sm" onClick={exportPdf} title={t("print")}>
                 <Printer className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">{t("print")}</span>
@@ -743,7 +742,10 @@ function ItineraryDetail() {
             </div>
           )}
 
-          <div className="mb-4">
+          <Card className="mb-4 p-4">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">
+              {t("tripCardTitle")}
+            </div>
             {editingTitle ? (
               <div className="flex gap-2">
                 <Input
@@ -775,7 +777,7 @@ function ItineraryDetail() {
             <div className="mt-3">
               <WeatherStrip itinerary={itinerary} />
             </div>
-          </div>
+          </Card>
 
           <BudgetEstimate
             itinerary={itinerary}
@@ -785,7 +787,7 @@ function ItineraryDetail() {
 
           <PackingChecklist itinerary={itinerary} />
           <LocalTipsCard itinerary={itinerary} />
-          <LodgingList itinerary={itinerary} />
+          <LodgingCard itinerary={itinerary} />
 
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
@@ -1395,6 +1397,11 @@ function DaySection({
         </SortableContext>
       </DndContext>
       <DayTransportPanel itinerary={itinerary} day={day} dayIdx={dayIdx} />
+      <DayLodgingPanel
+        itinerary={itinerary}
+        dayIdx={dayIdx}
+        onFocusLodging={(lodgingId) => onFocusPlace(`lodging:${lodgingId}`)}
+      />
     </section>
   );
 }
