@@ -8,6 +8,7 @@ interface State {
   update: (id: string, patch: Partial<Itinerary>) => void;
   remove: (id: string) => void;
   get: (id: string) => Itinerary | undefined;
+  duplicate: (id: string, newTitle?: string) => string | null;
   updateDays: (id: string, days: DayPlan[]) => void;
   addPlace: (id: string, dayIndex: number, place: Place) => void;
   removePlace: (id: string, dayIndex: number, placeId: string) => void;
@@ -34,6 +35,25 @@ export const useItineraryStore = create<State>()(
       remove: (id) =>
         set((s) => ({ itineraries: s.itineraries.filter((i) => i.id !== id) })),
       get: (id) => get().itineraries.find((i) => i.id === id),
+      duplicate: (id, newTitle) => {
+        const src = get().itineraries.find((i) => i.id === id);
+        if (!src) return null;
+        const newId = makeId();
+        const cloned: Itinerary = {
+          ...src,
+          id: newId,
+          title: newTitle ?? src.title,
+          days: src.days.map((d) => ({
+            ...d,
+            places: d.places.map((p) => ({ ...p, id: makeId() })),
+            startPoint: d.startPoint ? { ...d.startPoint } : undefined,
+          })),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set((s) => ({ itineraries: [cloned, ...s.itineraries] }));
+        return newId;
+      },
       updateDays: (id, days) =>
         set((s) => ({
           itineraries: s.itineraries.map((i) => (i.id === id ? touch({ ...i, days }) : i)),
