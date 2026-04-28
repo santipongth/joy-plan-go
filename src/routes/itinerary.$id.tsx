@@ -97,9 +97,9 @@ import ThemeToggle from "@/components/ThemeToggle";
 import AuthButton from "@/components/AuthButton";
 import AISuggestDialog from "@/components/AISuggestDialog";
 import PhotoGallery from "@/components/PhotoGallery";
-import LodgingSuggestDialog from "@/components/LodgingSuggestDialog";
-import LodgingList from "@/components/LodgingList";
+import LodgingCard from "@/components/LodgingCard";
 import DayTransportPanel from "@/components/DayTransportPanel";
+import DayLodgingPanel from "@/components/DayLodgingPanel";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
