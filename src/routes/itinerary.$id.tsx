@@ -57,7 +57,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Place, DayPlan, TravelMode, Itinerary } from "@/lib/types";
+import type { Place, DayPlan, TravelMode, Itinerary, MealType } from "@/lib/types";
 import { planSingleDay } from "@/server/plan-trip.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -85,7 +85,6 @@ import SimilarPopover from "@/components/SimilarPopover";
 import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
 import { haversineMeters, modeProfile, resolveAnchor } from "@/lib/route-utils";
 
-import { suggestMeals } from "@/server/discover.functions";
 import AuthButton from "@/components/AuthButton";
 
 import PhotoGallery from "@/components/PhotoGallery";
@@ -93,6 +92,11 @@ import LodgingCard from "@/components/LodgingCard";
 import DayTransportPanel from "@/components/DayTransportPanel";
 import DayLodgingPanel from "@/components/DayLodgingPanel";
 import ItinerarySkeleton from "@/components/ItinerarySkeleton";
+import MealSuggestDialog from "@/components/MealSuggestDialog";
+import MealEmptyBanner from "@/components/MealEmptyBanner";
+import MealSlotInline, { detectMissingMealSlots } from "@/components/MealSlotInline";
+import MealReplacePopover from "@/components/MealReplacePopover";
+import { Utensils } from "lucide-react";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
@@ -914,50 +918,16 @@ function DaySection({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
   const updatePlaceField = useItineraryStore((s) => s.updatePlace);
-  const addPlaceFn = useItineraryStore((s) => s.addPlace);
-  const suggestMealsFn = useServerFn(suggestMeals);
-  const lang = useLangStore((s) => s.lang);
-  const [mealsLoading, setMealsLoading] = useState(false);
 
-  async function handleSuggestMeals() {
-    if (day.places.length === 0) return;
-    setMealsLoading(true);
-    try {
-      const res = await suggestMealsFn({
-        data: {
-          destination: itinerary.destination,
-          dayPlaces: day.places.map((p) => ({
-            name: p.name,
-            lat: p.lat,
-            lng: p.lng,
-            kind: p.kind,
-          })),
-          lang,
-        },
-      });
-      if (res.error) {
-        if (res.error === "RATE_LIMIT") toast.error(t("aiRateLimit"));
-        else if (res.error === "PAYMENT_REQUIRED") toast.error(t("aiPaymentRequired"));
-        else toast.error(t("aiError"));
-        return;
-      }
-      for (const m of res.meals) {
-        addPlaceFn(itineraryId, dayIdx, {
-          id: makeId(),
-          name: m.name,
-          description: m.description,
-          time: m.time,
-          type: m.cuisine || "food",
-          lat: m.lat,
-          lng: m.lng,
-          kind: "meal",
-        });
-      }
-      toast.success(t("mealsAdded").replace("{n}", String(res.meals.length)));
-    } finally {
-      setMealsLoading(false);
-    }
+  const [mealDialog, setMealDialog] = useState<{ open: boolean; preset?: MealType[] }>({
+    open: false,
+  });
+  function openMealDialog(preset?: MealType[]) {
+    setMealDialog({ open: true, preset });
   }
+
+  const missingSlots = detectMissingMealSlots(day.places, itinerary.durationDays > 1);
+  const hasAnyMeal = day.places.some((p) => p.kind === "meal");
 
 
   function handleDragEnd(event: DragEndEvent) {
@@ -1037,16 +1007,11 @@ function DaySection({
           <Button
             size="sm"
             variant="ghost"
-            onClick={handleSuggestMeals}
-            disabled={mealsLoading || day.places.length === 0}
+            onClick={() => openMealDialog()}
             title={t("suggestMeals")}
           >
-            {mealsLoading ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4 mr-1" />
-            )}
-            🍴 {t("suggestMeals")}
+            <Utensils className="h-4 w-4 mr-1" />
+            {t("suggestMeals")}
           </Button>
         </div>
       </div>
@@ -1095,6 +1060,10 @@ function DaySection({
         <PhotoGallery itinerary={itinerary} dayIndex={dayIdx} compact />
       </div>
 
+      {!hasAnyMeal && day.places.length > 0 && (
+        <MealEmptyBanner onClick={() => openMealDialog()} />
+      )}
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext
           items={day.places.map((p) => p.id)}
@@ -1120,7 +1089,6 @@ function DaySection({
                   onMove={(toDayIdx) => onMovePlace(p.id, toDayIdx)}
                   moveLabel={t("moveToDay")}
                   focusLabel={t("focusOnMap")}
-                  
                   onUpdatePlace={(patch) =>
                     updatePlaceField(itineraryId, dayIdx, p.id, patch)
                   }
@@ -1130,6 +1098,17 @@ function DaySection({
                 />
               );
             })}
+            {hasAnyMeal && missingSlots.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                {missingSlots.map((slot) => (
+                  <MealSlotInline
+                    key={slot}
+                    mealType={slot}
+                    onClick={() => openMealDialog([slot])}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </SortableContext>
       </DndContext>
@@ -1139,6 +1118,14 @@ function DaySection({
         dayIdx={dayIdx}
         onFocusLodging={(lodgingId) => onFocusPlace(`lodging:${lodgingId}`)}
         selectedPlaceId={selectedPlaceId}
+      />
+
+      <MealSuggestDialog
+        itinerary={itinerary}
+        dayIdx={dayIdx}
+        open={mealDialog.open}
+        onOpenChange={(v) => setMealDialog((s) => ({ ...s, open: v }))}
+        presetMealTypes={mealDialog.preset}
       />
     </section>
   );
@@ -1306,6 +1293,9 @@ function SortablePlace({
             <MapPin className="h-4 w-4" />
           </button>
           <SimilarPopover itinerary={itinerary} dayIdx={dayIdx} place={place} />
+          {place.kind === "meal" && (
+            <MealReplacePopover itinerary={itinerary} dayIdx={dayIdx} place={place} />
+          )}
           {otherDays.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

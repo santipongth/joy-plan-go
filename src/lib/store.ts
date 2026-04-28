@@ -10,6 +10,7 @@ import type {
   Expense,
   Lodging,
   TransportLeg,
+  MealPreferences,
 } from "./types";
 
 interface State {
@@ -42,6 +43,8 @@ interface State {
   removeLodging: (id: string, lodgingId: string) => void;
   setLodgingDays: (id: string, lodgingId: string, dayIndexes: number[]) => void;
   setDayTransport: (id: string, dayIndex: number, legs: TransportLeg[] | undefined) => void;
+  setMealPreferences: (id: string, prefs: MealPreferences) => void;
+  replacePlace: (id: string, dayIndex: number, oldPlaceId: string, newPlace: Place) => void;
 }
 
 const touch = (it: Itinerary): Itinerary => ({ ...it, updatedAt: Date.now() });
@@ -316,6 +319,26 @@ export const useItineraryStore = create<State>()(
             const days = i.days.map((d, idx) =>
               idx === dayIndex ? { ...d, transport: legs } : d
             );
+            return touch({ ...i, days });
+          }),
+        })),
+      setMealPreferences: (id, prefs) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id ? touch({ ...i, mealPreferences: prefs }) : i
+          ),
+        })),
+      replacePlace: (id, dayIndex, oldPlaceId, newPlace) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) => {
+            if (i.id !== id) return i;
+            const days = i.days.map((d, idx) => {
+              if (idx !== dayIndex) return d;
+              return {
+                ...d,
+                places: d.places.map((p) => (p.id === oldPlaceId ? newPlace : p)),
+              };
+            });
             return touch({ ...i, days });
           }),
         })),
