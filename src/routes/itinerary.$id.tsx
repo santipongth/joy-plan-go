@@ -12,7 +12,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft,
   Trash2,
-  Plus,
   Compass,
   MapPin,
   Clock,
@@ -87,8 +86,6 @@ import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-tri
 import { haversineMeters, modeProfile, resolveAnchor } from "@/lib/route-utils";
 
 import { suggestMeals } from "@/server/discover.functions";
-import ShareTripDialog from "@/components/ShareTripDialog";
-import ThemeToggle from "@/components/ThemeToggle";
 import AuthButton from "@/components/AuthButton";
 
 import PhotoGallery from "@/components/PhotoGallery";
@@ -123,7 +120,7 @@ function ItineraryDetail() {
   const update = useItineraryStore((s) => s.update);
   const removeItin = useItineraryStore((s) => s.remove);
   const removePlace = useItineraryStore((s) => s.removePlace);
-  const addPlace = useItineraryStore((s) => s.addPlace);
+  
   const reorderPlaces = useItineraryStore((s) => s.reorderPlaces);
   const duplicateTrip = useItineraryStore((s) => s.duplicate);
   const replaceDay = useItineraryStore((s) => s.replaceDay);
@@ -282,24 +279,6 @@ function ItineraryDetail() {
     setEditingTitle(false);
   }
 
-  function onAddPlace(dayIdx: number) {
-    const name = prompt(t("placeName"));
-    if (!name) return;
-    const latStr = prompt("Latitude (e.g. 13.7563)");
-    const lngStr = prompt("Longitude (e.g. 100.5018)");
-    const lat = Number(latStr);
-    const lng = Number(lngStr);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    addPlace(id, dayIdx, {
-      id: makeId(),
-      name,
-      lat,
-      lng,
-      time: "",
-      description: "",
-      type: "landmark",
-    });
-  }
 
   function toggleDay(day: number) {
     toggleVisible(id, day);
@@ -517,8 +496,6 @@ function ItineraryDetail() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <ShareTripDialog itinerary={itinerary} />
-              <ThemeToggle />
               <LangSwitch />
               <AuthButton />
             </div>
@@ -637,8 +614,6 @@ function ItineraryDetail() {
                   allDays={itinerary.days}
                   tripOriginLabel={itinerary.origin}
                   effectiveMode={effectiveMode}
-                  
-                  onAddPlace={() => onAddPlace(dayIdx)}
                   onRemovePlace={(placeId) => removePlace(id, dayIdx, placeId)}
                   onReorder={(places) => reorderPlaces(id, dayIdx, places)}
                   onRegenerate={() => requestRegenerateDay(dayIdx)}
@@ -883,7 +858,7 @@ interface DaySectionProps {
   allDays: DayPlan[];
   tripOriginLabel?: string;
   effectiveMode: TravelMode;
-  onAddPlace: () => void;
+  
   onRemovePlace: (placeId: string) => void;
   onReorder: (places: Place[]) => void;
   onRegenerate: () => void;
@@ -908,7 +883,7 @@ function DaySection({
   allDays,
   tripOriginLabel,
   effectiveMode,
-  onAddPlace,
+  
   onRemovePlace,
   onReorder,
   onRegenerate,
@@ -1060,10 +1035,6 @@ function DaySection({
               <Sparkles className="h-4 w-4 mr-1" />
             )}
             🍴 {t("suggestMeals")}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onAddPlace}>
-            <Plus className="h-4 w-4 mr-1" />
-            {t("addPlace")}
           </Button>
         </div>
       </div>
