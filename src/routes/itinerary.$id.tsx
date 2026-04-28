@@ -63,7 +63,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Place, DayPlan, TravelMode, DayStartPoint } from "@/lib/types";
+import type { Place, DayPlan, TravelMode, DayStartPoint, Itinerary } from "@/lib/types";
 import { planSingleDay, planTrip } from "@/server/plan-trip.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -96,9 +96,12 @@ import BudgetEstimate from "@/components/BudgetEstimate";
 import WeatherStrip from "@/components/WeatherStrip";
 import PackingChecklist from "@/components/PackingChecklist";
 import SpendingTracker from "@/components/SpendingTracker";
+import LocalTipsCard from "@/components/LocalTipsCard";
+import SimilarPopover from "@/components/SimilarPopover";
 import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
 import { estimateDayTravel, haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
+import { suggestMeals } from "@/server/discover.functions";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
@@ -783,6 +786,7 @@ function ItineraryDetail() {
 
           <PackingChecklist itinerary={itinerary} />
           <SpendingTracker itinerary={itinerary} />
+          <LocalTipsCard itinerary={itinerary} />
 
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
@@ -850,6 +854,7 @@ function ItineraryDetail() {
                   dayIdx={dayIdx}
                   color={color}
                   itineraryId={id}
+                  itinerary={itinerary}
                   allDays={itinerary.days}
                   tripOriginLabel={itinerary.origin}
                   effectiveMode={effectiveMode}
@@ -1146,6 +1151,7 @@ interface DaySectionProps {
   dayIdx: number;
   color: string;
   itineraryId: string;
+  itinerary: Itinerary;
   allDays: DayPlan[];
   tripOriginLabel?: string;
   effectiveMode: TravelMode;
@@ -1173,6 +1179,7 @@ function DaySection({
   dayIdx,
   color,
   itineraryId,
+  itinerary,
   allDays,
   tripOriginLabel,
   effectiveMode,
@@ -1198,6 +1205,51 @@ function DaySection({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
   const updatePlaceField = useItineraryStore((s) => s.updatePlace);
+  const addPlaceFn = useItineraryStore((s) => s.addPlace);
+  const suggestMealsFn = useServerFn(suggestMeals);
+  const lang = useLangStore((s) => s.lang);
+  const [mealsLoading, setMealsLoading] = useState(false);
+
+  async function handleSuggestMeals() {
+    if (day.places.length === 0) return;
+    setMealsLoading(true);
+    try {
+      const res = await suggestMealsFn({
+        data: {
+          destination: itinerary.destination,
+          dayPlaces: day.places.map((p) => ({
+            name: p.name,
+            lat: p.lat,
+            lng: p.lng,
+            kind: p.kind,
+          })),
+          lang,
+        },
+      });
+      if (res.error) {
+        if (res.error === "RATE_LIMIT") toast.error(t("aiRateLimit"));
+        else if (res.error === "PAYMENT_REQUIRED") toast.error(t("aiPaymentRequired"));
+        else toast.error(t("aiError"));
+        return;
+      }
+      for (const m of res.meals) {
+        addPlaceFn(itineraryId, dayIdx, {
+          id: makeId(),
+          name: m.name,
+          description: m.description,
+          time: m.time,
+          type: m.cuisine || "food",
+          lat: m.lat,
+          lng: m.lng,
+          kind: "meal",
+        });
+      }
+      toast.success(t("mealsAdded").replace("{n}", String(res.meals.length)));
+    } finally {
+      setMealsLoading(false);
+    }
+  }
+
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -1272,6 +1324,20 @@ function DaySection({
               <Sparkles className="h-4 w-4 mr-1" />
             )}
             {regenerating ? t("regenerating") : t("regenerateDay")}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleSuggestMeals}
+            disabled={mealsLoading || day.places.length === 0}
+            title={t("suggestMeals")}
+          >
+            {mealsLoading ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-1" />
+            )}
+            🍴 {t("suggestMeals")}
           </Button>
           <Button size="sm" variant="ghost" onClick={onAddPlace}>
             <Plus className="h-4 w-4 mr-1" />
@@ -1355,6 +1421,8 @@ function DaySection({
                   onUpdatePlace={(patch) =>
                     updatePlaceField(itineraryId, dayIdx, p.id, patch)
                   }
+                  itinerary={itinerary}
+                  dayIdx={dayIdx}
                   t={t}
                 />
               );
@@ -1378,6 +1446,8 @@ function SortablePlace({
   focusLabel,
   dayLabel,
   onUpdatePlace,
+  itinerary,
+  dayIdx,
   t,
 }: {
   place: Place;
@@ -1391,6 +1461,8 @@ function SortablePlace({
   focusLabel: string;
   dayLabel: string;
   onUpdatePlace: (patch: Partial<Place>) => void;
+  itinerary: Itinerary;
+  dayIdx: number;
   t: (k: any) => string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -1564,6 +1636,7 @@ function SortablePlace({
           >
             <MapPin className="h-4 w-4" />
           </button>
+          <SimilarPopover itinerary={itinerary} dayIdx={dayIdx} place={place} />
           {otherDays.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

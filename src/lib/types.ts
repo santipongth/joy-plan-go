@@ -2,6 +2,8 @@ export type TravelMode = "any" | "walking" | "transit" | "mixed";
 
 export type DaySlot = "morning" | "afternoon" | "evening" | "night";
 
+export type PlaceKind = "attraction" | "meal" | "transit" | "stay";
+
 export interface Place {
   id: string;
   name: string;
@@ -13,6 +15,19 @@ export interface Place {
   notes?: string;
   bookmarked?: boolean;
   slot?: DaySlot;
+  kind?: PlaceKind;
+}
+
+export interface LocalTips {
+  generatedAt: number;
+  lang: "th" | "en";
+  dressCode?: string;
+  tipping?: string;
+  language?: string;
+  hours?: string;
+  festivals?: string;
+  etiquette?: string;
+  safety?: string;
 }
 
 export interface PackingItem {
@@ -72,6 +87,7 @@ export interface Itinerary {
   travelers?: number;
   packing?: PackingItem[];
   expenses?: Expense[];
+  localTips?: LocalTips;
   createdAt: number;
   updatedAt: number;
 }
