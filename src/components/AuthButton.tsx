@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogIn, LogOut, User as UserIcon, Cloud, CloudOff, Loader2 } from "lucide-react";
+import { LogIn, LogOut, User as UserIcon, Cloud, Loader2 } from "lucide-react";
 import { useAuth, signOut } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
 import { useEffect } from "react";
@@ -19,7 +19,6 @@ import { toast } from "sonner";
 export default function AuthButton() {
   const t = useT();
   const { user, loading } = useAuth();
-  const itineraries = useItineraryStore((s) => s.itineraries);
   const setAll = (its: any[]) => useItineraryStore.setState({ itineraries: its });
 
   // First-login sync: push local-only trips, then merge cloud trips into store.

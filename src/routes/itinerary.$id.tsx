@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useItineraryStore, makeId } from "@/lib/store";
 import { useVisibilityStore } from "@/lib/visibility-store";
 import { useReorderHistoryStore } from "@/lib/reorder-history-store";
@@ -72,15 +72,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -98,7 +89,7 @@ import PackingChecklist from "@/components/PackingChecklist";
 import LocalTipsCard from "@/components/LocalTipsCard";
 import SimilarPopover from "@/components/SimilarPopover";
 import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
-import { estimateDayTravel, haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
+import { haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 
 import { suggestMeals } from "@/server/discover.functions";
 import ShareTripDialog from "@/components/ShareTripDialog";
@@ -139,10 +130,8 @@ function ItineraryDetail() {
   const duplicateTrip = useItineraryStore((s) => s.duplicate);
   const replaceDay = useItineraryStore((s) => s.replaceDay);
   const movePlace = useItineraryStore((s) => s.movePlace);
-  const setItineraryMode = useItineraryStore((s) => s.setItineraryMode);
   const setDayMode = useItineraryStore((s) => s.setDayMode);
   const setDayStart = useItineraryStore((s) => s.setDayStart);
-  const applyModeToAllDays = useItineraryStore((s) => s.applyModeToAllDays);
   const pushHistory = useReorderHistoryStore((s) => s.push);
   const popHistory = useReorderHistoryStore((s) => s.pop);
   const clearHistory = useReorderHistoryStore((s) => s.clear);
