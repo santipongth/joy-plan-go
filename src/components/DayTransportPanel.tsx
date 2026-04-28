@@ -42,6 +42,42 @@ function genId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+const TRAVELMODE_FOR_GMAPS: Partial<Record<TransportMode, string>> = {
+  walk: "walking",
+  bike: "bicycling",
+  transit: "transit",
+  subway: "transit",
+  bus: "transit",
+  train: "transit",
+  ferry: "transit",
+  taxi: "driving",
+  rideshare: "driving",
+  car: "driving",
+};
+
+function buildDirectionsUrl(
+  from: { lat?: number; lng?: number; label?: string } | undefined,
+  to: { lat?: number; lng?: number; label?: string },
+  mode: TransportMode,
+): string | null {
+  const toQ =
+    typeof to.lat === "number" && typeof to.lng === "number"
+      ? `${to.lat},${to.lng}`
+      : to.label || "";
+  if (!toQ) return null;
+  const fromQ =
+    from && typeof from.lat === "number" && typeof from.lng === "number"
+      ? `${from.lat},${from.lng}`
+      : from?.label || "";
+  const params = new URLSearchParams({
+    api: "1",
+    destination: toQ,
+    travelmode: TRAVELMODE_FOR_GMAPS[mode] || "transit",
+  });
+  if (fromQ) params.set("origin", fromQ);
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
 export default function DayTransportPanel({
   itinerary,
   day,
