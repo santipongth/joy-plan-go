@@ -31,6 +31,7 @@ import {
   X,
   Printer,
   Undo2,
+  Maximize2,
   Minimize2,
   Bookmark,
   BookmarkCheck,
