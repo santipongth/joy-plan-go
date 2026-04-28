@@ -1184,6 +1184,7 @@ function DaySection({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
+  const updatePlaceField = useItineraryStore((s) => s.updatePlace);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
