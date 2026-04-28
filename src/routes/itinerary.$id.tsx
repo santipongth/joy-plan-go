@@ -105,6 +105,8 @@ import { suggestMeals } from "@/server/discover.functions";
 import ShareTripDialog from "@/components/ShareTripDialog";
 import ThemeToggle from "@/components/ThemeToggle";
 import AuthButton from "@/components/AuthButton";
+import AISuggestDialog from "@/components/AISuggestDialog";
+import PhotoGallery from "@/components/PhotoGallery";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
@@ -793,6 +795,13 @@ function ItineraryDetail() {
           <PackingChecklist itinerary={itinerary} />
           <SpendingTracker itinerary={itinerary} />
           <LocalTipsCard itinerary={itinerary} />
+
+          <div className="mb-6 p-3 rounded-lg bg-card/60 border">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              {t("photosTitle")}
+            </h3>
+            <PhotoGallery itinerary={itinerary} dayIndex={null} />
+          </div>
 
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
