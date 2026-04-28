@@ -1340,6 +1340,10 @@ function DaySection({
                   moveLabel={t("moveToDay")}
                   focusLabel={t("focusOnMap")}
                   dayLabel={t("day")}
+                  onUpdatePlace={(patch) =>
+                    updatePlaceField(itineraryId, dayIdx, p.id, patch)
+                  }
+                  t={t}
                 />
               );
             })}
