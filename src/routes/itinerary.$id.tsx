@@ -96,9 +96,12 @@ import BudgetEstimate from "@/components/BudgetEstimate";
 import WeatherStrip from "@/components/WeatherStrip";
 import PackingChecklist from "@/components/PackingChecklist";
 import SpendingTracker from "@/components/SpendingTracker";
+import LocalTipsCard from "@/components/LocalTipsCard";
+import SimilarPopover from "@/components/SimilarPopover";
 import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
 import { estimateDayTravel, haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
+import { suggestMeals } from "@/server/discover.functions";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
