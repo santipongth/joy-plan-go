@@ -92,6 +92,7 @@ import PhotoGallery from "@/components/PhotoGallery";
 import LodgingCard from "@/components/LodgingCard";
 import DayTransportPanel from "@/components/DayTransportPanel";
 import DayLodgingPanel from "@/components/DayLodgingPanel";
+import ItinerarySkeleton from "@/components/ItinerarySkeleton";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
@@ -263,7 +264,18 @@ function ItineraryDetail() {
     setTimeout(() => setSelectedPlaceId(placeId), 0);
   }
 
+  // Brief skeleton while zustand-persist hydrates from localStorage,
+  // then "not found" if still missing.
+  const [hydrationGraceDone, setHydrationGraceDone] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setHydrationGraceDone(true), 350);
+    return () => clearTimeout(timer);
+  }, []);
+
   if (!itinerary) {
+    if (!hydrationGraceDone) {
+      return <ItinerarySkeleton />;
+    }
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <p>Not found</p>
