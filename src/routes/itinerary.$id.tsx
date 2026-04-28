@@ -1434,16 +1434,6 @@ function SortablePlace({
                 {place.type}
               </span>
             )}
-            {place.slot &&
-              (() => {
-                const Ico = slotMeta[place.slot].icon;
-                return (
-                  <span className="text-[10px] inline-flex items-center gap-1 bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                    <Ico className="h-3 w-3" />
-                    {t(slotMeta[place.slot].key as any)}
-                  </span>
-                );
-              })()}
           </div>
           {place.description && (
             <p className="text-xs text-muted-foreground mt-1">{place.description}</p>
@@ -1453,30 +1443,6 @@ function SortablePlace({
             {place.lat.toFixed(4)}, {place.lng.toFixed(4)}
           </p>
 
-          {/* Time-of-day slot chips */}
-          <div className="flex flex-wrap gap-1 mt-2 print:hidden">
-            {slots.map((s) => {
-              const Ico = slotMeta[s].icon;
-              const active = place.slot === s;
-              return (
-                <button
-                  key={s}
-                  onClick={() => onUpdatePlace({ slot: active ? undefined : s })}
-                  className={
-                    "inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border transition-colors min-h-[28px] " +
-                    (active
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background hover:bg-muted border-border text-muted-foreground")
-                  }
-                  aria-label={t(slotMeta[s].key as any)}
-                  title={t(slotMeta[s].key as any)}
-                >
-                  <Ico className="h-3 w-3" />
-                  {t(slotMeta[s].key as any)}
-                </button>
-              );
-            })}
-          </div>
 
           {/* Notes editor */}
           {notesOpen ? (
