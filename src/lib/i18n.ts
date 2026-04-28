@@ -808,6 +808,8 @@ export const dict = {
     lodgingDayHeading: "Stay for this day",
     lodgingDayEmpty: "No lodging assigned to this day yet",
     lodgingFocusOnMap: "Focus on map",
+    lodgingFocusBtn: "Focus stay",
+    lodgingSelected: "Selected",
     tripCardTitle: "Trip",
     transportSuggest: "Suggest transport",
     transportSuggesting: "Finding routes...",
