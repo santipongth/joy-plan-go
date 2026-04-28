@@ -162,15 +162,15 @@ function ItineraryDetail() {
   const [pendingRegenDay, setPendingRegenDay] = useState<number | null>(null);
   const [pendingRegenAll, setPendingRegenAll] = useState(false);
 
-  // ESC closes overlays on mobile
+  // ESC closes overlays on any screen size
   useEffect(() => {
-    if (!isMobile || overlaysCollapsed) return;
+    if (overlaysCollapsed) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOverlaysCollapsed(true);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isMobile, overlaysCollapsed]);
+  }, [overlaysCollapsed]);
 
   // Swipe gesture helper for overlay panels
   function makeSwipeHandlers(direction: "horizontal" | "vertical", onDismiss: () => void) {
@@ -934,6 +934,11 @@ function ItineraryDetail() {
                         {tp} <span className="opacity-60">({n})</span>
                       </button>
                     ))}
+                  {isMobile && !overlaysCollapsed && (
+                    <span className="ml-auto self-center text-[10px] text-muted-foreground italic flex-shrink-0 pl-2">
+                      ↑ {t("swipeToCollapseV")}
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -994,6 +999,11 @@ function ItineraryDetail() {
                     );
                   })}
                 </div>
+                {isMobile && !overlaysCollapsed && (
+                  <div className="mt-1.5 pt-1.5 border-t text-[10px] text-muted-foreground italic text-center">
+                    {t("swipeToCollapseH")} →
+                  </div>
+                )}
               </div>
             </div>
           )}
