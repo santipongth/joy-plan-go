@@ -102,6 +102,9 @@ import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-tri
 import { estimateDayTravel, haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
 import { suggestMeals } from "@/server/discover.functions";
+import ShareTripDialog from "@/components/ShareTripDialog";
+import ThemeToggle from "@/components/ThemeToggle";
+import AuthButton from "@/components/AuthButton";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
@@ -705,7 +708,10 @@ function ItineraryDetail() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <ShareTripDialog itinerary={itinerary} />
+              <ThemeToggle />
               <LangSwitch />
+              <AuthButton />
             </div>
           </header>
 
