@@ -24,7 +24,7 @@ import { useT, useLangStore } from "@/lib/i18n";
 import { useServerFn } from "@tanstack/react-start";
 import { aiSuggestPlan } from "@/server/discover.functions";
 import { useItineraryStore, makeId } from "@/lib/store";
-import type { Itinerary, Place } from "@/lib/types";
+import type { Itinerary, Place, DayPlan } from "@/lib/types";
 import { toast } from "sonner";
 
 const STYLE_OPTIONS = ["relaxing", "sightseeing", "foodie", "adventurous", "shopping", "culture"] as const;
@@ -62,6 +62,7 @@ export default function AISuggestDialog({ itinerary }: { itinerary: Itinerary })
   const [progress, setProgress] = useState<{ cur: number; total: number } | null>(null);
   const [proposals, setProposals] = useState<ProposedDay[]>([]);
   const replaceDay = useItineraryStore((s) => s.replaceDay);
+  const updateDays = useItineraryStore((s) => s.updateDays);
   const suggestFn = useServerFn(aiSuggestPlan);
 
   function reset() {
