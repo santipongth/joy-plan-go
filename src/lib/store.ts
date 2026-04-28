@@ -187,6 +187,81 @@ export const useItineraryStore = create<State>()(
             return touch({ ...i, days });
           }),
         })),
+      updatePlace: (id, dayIndex, placeId, patch) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) => {
+            if (i.id !== id) return i;
+            const days = i.days.map((d, idx) =>
+              idx === dayIndex
+                ? {
+                    ...d,
+                    places: d.places.map((p) => (p.id === placeId ? { ...p, ...patch } : p)),
+                  }
+                : d
+            );
+            return touch({ ...i, days });
+          }),
+        })),
+      addPackingItem: (id, item) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id ? touch({ ...i, packing: [...(i.packing ?? []), item] }) : i
+          ),
+        })),
+      updatePackingItem: (id, itemId, patch) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({
+                  ...i,
+                  packing: (i.packing ?? []).map((p) =>
+                    p.id === itemId ? { ...p, ...patch } : p
+                  ),
+                })
+              : i
+          ),
+        })),
+      removePackingItem: (id, itemId) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({ ...i, packing: (i.packing ?? []).filter((p) => p.id !== itemId) })
+              : i
+          ),
+        })),
+      setPacking: (id, items) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id ? touch({ ...i, packing: items }) : i
+          ),
+        })),
+      addExpense: (id, exp) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id ? touch({ ...i, expenses: [...(i.expenses ?? []), exp] }) : i
+          ),
+        })),
+      updateExpense: (id, expId, patch) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({
+                  ...i,
+                  expenses: (i.expenses ?? []).map((e) =>
+                    e.id === expId ? { ...e, ...patch } : e
+                  ),
+                })
+              : i
+          ),
+        })),
+      removeExpense: (id, expId) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({ ...i, expenses: (i.expenses ?? []).filter((e) => e.id !== expId) })
+              : i
+          ),
+        })),
     }),
     {
       name: "trip-planner-itineraries",
