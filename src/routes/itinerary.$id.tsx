@@ -34,6 +34,7 @@ import {
   Undo2,
 } from "lucide-react";
 import MapView, { dayColor } from "@/components/MapView";
+import { useIsMobile } from "@/hooks/use-mobile";
 import PrintItinerary from "@/components/PrintItinerary";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Toaster } from "@/components/ui/sonner";
