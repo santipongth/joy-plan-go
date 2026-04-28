@@ -86,6 +86,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import DayMiniMap from "@/components/DayMiniMap";
 import BudgetEstimate from "@/components/BudgetEstimate";
+import WeatherStrip from "@/components/WeatherStrip";
+import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
 import { estimateDayTravel, haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
 
@@ -118,6 +120,7 @@ function ItineraryDetail() {
   const removePlace = useItineraryStore((s) => s.removePlace);
   const addPlace = useItineraryStore((s) => s.addPlace);
   const reorderPlaces = useItineraryStore((s) => s.reorderPlaces);
+  const duplicateTrip = useItineraryStore((s) => s.duplicate);
   const replaceDay = useItineraryStore((s) => s.replaceDay);
   const movePlace = useItineraryStore((s) => s.movePlace);
   const setItineraryMode = useItineraryStore((s) => s.setItineraryMode);
@@ -587,6 +590,25 @@ function ItineraryDetail() {
     window.print();
   }
 
+  function exportIcs() {
+    if (!itinerary) return;
+    downloadFile(buildIcs(itinerary), `${safeFilename(itinerary.title)}.ics`, "text/calendar");
+  }
+
+  function exportGpx() {
+    if (!itinerary) return;
+    downloadFile(buildGpx(itinerary), `${safeFilename(itinerary.title)}.gpx`, "application/gpx+xml");
+  }
+
+  function onDuplicate() {
+    if (!itinerary) return;
+    const newId = duplicateTrip(itinerary.id, `${t("copyOf")} ${itinerary.title}`);
+    if (newId) {
+      toast.success(t("duplicatedToast"));
+      navigate({ to: "/itinerary/$id", params: { id: newId } });
+    }
+  }
+
   async function copyShareLink() {
     const url = window.location.href;
     try {
@@ -652,6 +674,18 @@ function ItineraryDetail() {
                   <DropdownMenuItem onClick={exportPdf}>
                     <FileDown className="h-4 w-4 mr-2" />
                     {t("exportPdf")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportIcs}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    {t("exportIcs")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportGpx}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    {t("exportGpx")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onDuplicate}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    {t("duplicateTrip")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={copyShareLink}>
                     <Share2 className="h-4 w-4 mr-2" />
@@ -727,6 +761,9 @@ function ItineraryDetail() {
             <p className="text-sm text-muted-foreground mt-1">
               {itinerary.destination} · {itinerary.durationDays} {t("days")}
             </p>
+            <div className="mt-3">
+              <WeatherStrip itinerary={itinerary} />
+            </div>
           </div>
 
           <BudgetEstimate
