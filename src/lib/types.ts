@@ -1,5 +1,7 @@
 export type TravelMode = "any" | "walking" | "transit" | "mixed";
 
+export type DaySlot = "morning" | "afternoon" | "evening" | "night";
+
 export interface Place {
   id: string;
   name: string;
@@ -8,6 +10,34 @@ export interface Place {
   time?: string;
   lat: number;
   lng: number;
+  notes?: string;
+  bookmarked?: boolean;
+  slot?: DaySlot;
+}
+
+export interface PackingItem {
+  id: string;
+  label: string;
+  category?: string;
+  done?: boolean;
+}
+
+export type ExpenseCategory =
+  | "food"
+  | "transport"
+  | "lodging"
+  | "attraction"
+  | "shopping"
+  | "other";
+
+export interface Expense {
+  id: string;
+  amount: number;
+  currency?: string;
+  category: ExpenseCategory;
+  note?: string;
+  dayIndex?: number; // 0-based day in itinerary; undefined => trip-level
+  createdAt: number;
 }
 
 export interface DayStartPoint {
@@ -40,6 +70,8 @@ export interface Itinerary {
   travelMode?: TravelMode; // global default
   budget?: BudgetTier;
   travelers?: number;
+  packing?: PackingItem[];
+  expenses?: Expense[];
   createdAt: number;
   updatedAt: number;
 }

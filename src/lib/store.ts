@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Itinerary, Place, DayPlan, TravelMode, DayStartPoint } from "./types";
+import type {
+  Itinerary,
+  Place,
+  DayPlan,
+  TravelMode,
+  DayStartPoint,
+  PackingItem,
+  Expense,
+} from "./types";
 
 interface State {
   itineraries: Itinerary[];
@@ -19,6 +27,14 @@ interface State {
   setDayMode: (id: string, dayIndex: number, mode: TravelMode | undefined) => void;
   setDayStart: (id: string, dayIndex: number, sp: DayStartPoint | undefined) => void;
   applyModeToAllDays: (id: string, mode: TravelMode | undefined) => void;
+  updatePlace: (id: string, dayIndex: number, placeId: string, patch: Partial<Place>) => void;
+  addPackingItem: (id: string, item: PackingItem) => void;
+  updatePackingItem: (id: string, itemId: string, patch: Partial<PackingItem>) => void;
+  removePackingItem: (id: string, itemId: string) => void;
+  setPacking: (id: string, items: PackingItem[]) => void;
+  addExpense: (id: string, exp: Expense) => void;
+  updateExpense: (id: string, expId: string, patch: Partial<Expense>) => void;
+  removeExpense: (id: string, expId: string) => void;
 }
 
 const touch = (it: Itinerary): Itinerary => ({ ...it, updatedAt: Date.now() });
@@ -170,6 +186,81 @@ export const useItineraryStore = create<State>()(
             const days = i.days.map((d) => ({ ...d, travelMode: mode }));
             return touch({ ...i, days });
           }),
+        })),
+      updatePlace: (id, dayIndex, placeId, patch) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) => {
+            if (i.id !== id) return i;
+            const days = i.days.map((d, idx) =>
+              idx === dayIndex
+                ? {
+                    ...d,
+                    places: d.places.map((p) => (p.id === placeId ? { ...p, ...patch } : p)),
+                  }
+                : d
+            );
+            return touch({ ...i, days });
+          }),
+        })),
+      addPackingItem: (id, item) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id ? touch({ ...i, packing: [...(i.packing ?? []), item] }) : i
+          ),
+        })),
+      updatePackingItem: (id, itemId, patch) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({
+                  ...i,
+                  packing: (i.packing ?? []).map((p) =>
+                    p.id === itemId ? { ...p, ...patch } : p
+                  ),
+                })
+              : i
+          ),
+        })),
+      removePackingItem: (id, itemId) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({ ...i, packing: (i.packing ?? []).filter((p) => p.id !== itemId) })
+              : i
+          ),
+        })),
+      setPacking: (id, items) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id ? touch({ ...i, packing: items }) : i
+          ),
+        })),
+      addExpense: (id, exp) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id ? touch({ ...i, expenses: [...(i.expenses ?? []), exp] }) : i
+          ),
+        })),
+      updateExpense: (id, expId, patch) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({
+                  ...i,
+                  expenses: (i.expenses ?? []).map((e) =>
+                    e.id === expId ? { ...e, ...patch } : e
+                  ),
+                })
+              : i
+          ),
+        })),
+      removeExpense: (id, expId) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({ ...i, expenses: (i.expenses ?? []).filter((e) => e.id !== expId) })
+              : i
+          ),
         })),
     }),
     {

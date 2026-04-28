@@ -34,6 +34,13 @@ import {
   Undo2,
   Maximize2,
   Minimize2,
+  Bookmark,
+  BookmarkCheck,
+  StickyNote,
+  Sunrise,
+  Sun,
+  Sunset,
+  Moon,
 } from "lucide-react";
 import MapView, { dayColor } from "@/components/MapView";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -87,6 +94,8 @@ import {
 import DayMiniMap from "@/components/DayMiniMap";
 import BudgetEstimate from "@/components/BudgetEstimate";
 import WeatherStrip from "@/components/WeatherStrip";
+import PackingChecklist from "@/components/PackingChecklist";
+import SpendingTracker from "@/components/SpendingTracker";
 import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
 import { estimateDayTravel, haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
@@ -772,6 +781,9 @@ function ItineraryDetail() {
             onTierChange={(b) => update(id, { budget: b })}
           />
 
+          <PackingChecklist itinerary={itinerary} />
+          <SpendingTracker itinerary={itinerary} />
+
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
             <div className="flex items-center justify-between mb-2">
@@ -1160,6 +1172,7 @@ function DaySection({
   day,
   dayIdx,
   color,
+  itineraryId,
   allDays,
   tripOriginLabel,
   effectiveMode,
@@ -1184,6 +1197,7 @@ function DaySection({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
+  const updatePlaceField = useItineraryStore((s) => s.updatePlace);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -1338,6 +1352,10 @@ function DaySection({
                   moveLabel={t("moveToDay")}
                   focusLabel={t("focusOnMap")}
                   dayLabel={t("day")}
+                  onUpdatePlace={(patch) =>
+                    updatePlaceField(itineraryId, dayIdx, p.id, patch)
+                  }
+                  t={t}
                 />
               );
             })}
@@ -1359,6 +1377,8 @@ function SortablePlace({
   moveLabel,
   focusLabel,
   dayLabel,
+  onUpdatePlace,
+  t,
 }: {
   place: Place;
   index: number;
@@ -1370,6 +1390,8 @@ function SortablePlace({
   moveLabel: string;
   focusLabel: string;
   dayLabel: string;
+  onUpdatePlace: (patch: Partial<Place>) => void;
+  t: (k: any) => string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: place.id,
@@ -1379,6 +1401,17 @@ function SortablePlace({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const [notesOpen, setNotesOpen] = useState(!!place.notes);
+  const [notesDraft, setNotesDraft] = useState(place.notes ?? "");
+
+  const slotMeta: Record<NonNullable<Place["slot"]>, { icon: any; key: string }> = {
+    morning: { icon: Sunrise, key: "slotMorning" },
+    afternoon: { icon: Sun, key: "slotAfternoon" },
+    evening: { icon: Sunset, key: "slotEvening" },
+    night: { icon: Moon, key: "slotNight" },
+  };
+  const slots: Array<NonNullable<Place["slot"]>> = ["morning", "afternoon", "evening", "night"];
 
   return (
     <Card
@@ -1404,6 +1437,12 @@ function SortablePlace({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-sm">{place.name}</h3>
+            {place.bookmarked && (
+              <BookmarkCheck
+                className="h-3.5 w-3.5 text-amber-500"
+                aria-label={t("bookmarked")}
+              />
+            )}
             {place.time && (
               <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
                 <Clock className="h-3 w-3" />
@@ -1415,6 +1454,16 @@ function SortablePlace({
                 {place.type}
               </span>
             )}
+            {place.slot &&
+              (() => {
+                const Ico = slotMeta[place.slot].icon;
+                return (
+                  <span className="text-[10px] inline-flex items-center gap-1 bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                    <Ico className="h-3 w-3" />
+                    {t(slotMeta[place.slot].key as any)}
+                  </span>
+                );
+              })()}
           </div>
           {place.description && (
             <p className="text-xs text-muted-foreground mt-1">{place.description}</p>
@@ -1423,8 +1472,90 @@ function SortablePlace({
             <MapPin className="h-3 w-3" />
             {place.lat.toFixed(4)}, {place.lng.toFixed(4)}
           </p>
+
+          {/* Time-of-day slot chips */}
+          <div className="flex flex-wrap gap-1 mt-2 print:hidden">
+            {slots.map((s) => {
+              const Ico = slotMeta[s].icon;
+              const active = place.slot === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => onUpdatePlace({ slot: active ? undefined : s })}
+                  className={
+                    "inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border transition-colors min-h-[28px] " +
+                    (active
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background hover:bg-muted border-border text-muted-foreground")
+                  }
+                  aria-label={t(slotMeta[s].key as any)}
+                  title={t(slotMeta[s].key as any)}
+                >
+                  <Ico className="h-3 w-3" />
+                  {t(slotMeta[s].key as any)}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Notes editor */}
+          {notesOpen ? (
+            <div className="mt-2 print:hidden">
+              <textarea
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                onBlur={() => onUpdatePlace({ notes: notesDraft.trim() || undefined })}
+                placeholder={t("notesPlaceholder")}
+                rows={2}
+                className="w-full text-xs rounded-md border border-input bg-background px-2 py-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+              />
+            </div>
+          ) : (
+            place.notes && (
+              <button
+                onClick={() => setNotesOpen(true)}
+                className="mt-2 text-xs text-left rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/50 px-2 py-1.5 w-full inline-flex items-start gap-1.5 hover:bg-amber-100/70 dark:hover:bg-amber-950/50 transition-colors print:hidden"
+              >
+                <StickyNote className="h-3 w-3 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                <span className="whitespace-pre-wrap">{place.notes}</span>
+              </button>
+            )
+          )}
         </div>
         <div className="flex items-center gap-1 print:hidden">
+          <button
+            onClick={() => onUpdatePlace({ bookmarked: !place.bookmarked })}
+            className={
+              "transition-opacity p-1 " +
+              (place.bookmarked
+                ? "text-amber-500"
+                : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-amber-500")
+            }
+            aria-label={t("bookmark")}
+            title={t("bookmark")}
+          >
+            {place.bookmarked ? (
+              <BookmarkCheck className="h-4 w-4" />
+            ) : (
+              <Bookmark className="h-4 w-4" />
+            )}
+          </button>
+          <button
+            onClick={() => {
+              setNotesDraft(place.notes ?? "");
+              setNotesOpen((o) => !o);
+            }}
+            className={
+              "transition-opacity p-1 " +
+              (place.notes || notesOpen
+                ? "text-primary"
+                : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-primary")
+            }
+            aria-label={t("addNote")}
+            title={t("addNote")}
+          >
+            <StickyNote className="h-4 w-4" />
+          </button>
           <button
             onClick={onFocus}
             className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-primary transition-opacity p-1"
