@@ -517,8 +517,6 @@ function ItineraryDetail() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <ShareTripDialog itinerary={itinerary} />
-              <ThemeToggle />
               <LangSwitch />
               <AuthButton />
             </div>
@@ -1060,10 +1058,6 @@ function DaySection({
               <Sparkles className="h-4 w-4 mr-1" />
             )}
             🍴 {t("suggestMeals")}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onAddPlace}>
-            <Plus className="h-4 w-4 mr-1" />
-            {t("addPlace")}
           </Button>
         </div>
       </div>
