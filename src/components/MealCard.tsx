@@ -181,6 +181,15 @@ export default function MealCard({
           <p className="text-xs text-muted-foreground line-clamp-2">{meal.description}</p>
         )}
 
+        {!compact && referencePoint && distanceKm !== null && (
+          <MiniMapPreview
+            from={{ lat: referencePoint.lat, lng: referencePoint.lng, label: referencePoint.name }}
+            to={{ lat: meal.lat, lng: meal.lng, label: meal.name }}
+            distanceKm={distanceKm}
+            referenceLabel={referenceLabel}
+          />
+        )}
+
         {meal.nearestPlaceName && (
           <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
             <MapPin className="h-3 w-3 flex-shrink-0" />
