@@ -18,6 +18,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import MapView, { dayColor } from "@/components/MapView";
+import AuthButton from "@/components/AuthButton";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/")({
@@ -271,7 +272,13 @@ function HomePage() {
               </div>
               <h1 className="text-xl font-bold tracking-tight">{t("appName")}</h1>
             </Link>
-            <LangSwitch />
+            <div className="flex items-center gap-2">
+              <Link to="/gallery" className="text-sm text-muted-foreground hover:text-foreground">
+                {t("galleryTitle")}
+              </Link>
+              <LangSwitch />
+              <AuthButton />
+            </div>
           </header>
 
           {/* Planner Card */}

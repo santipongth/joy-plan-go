@@ -14,13 +14,120 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trip_collaborators: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+          trip_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: string
+          trip_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+          trip_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_collaborators_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trips: {
+        Row: {
+          client_id: string | null
+          cover_image: string | null
+          created_at: string
+          data: Json
+          destination: string
+          duration_days: number
+          id: string
+          is_public: boolean
+          owner_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          cover_image?: string | null
+          created_at?: string
+          data: Json
+          destination: string
+          duration_days?: number
+          id?: string
+          is_public?: boolean
+          owner_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          cover_image?: string | null
+          created_at?: string
+          data?: Json
+          destination?: string
+          duration_days?: number
+          id?: string
+          is_public?: boolean
+          owner_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_trip_collaborator: {
+        Args: { _trip_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_trip_owner: {
+        Args: { _trip_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
