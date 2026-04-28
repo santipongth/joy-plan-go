@@ -524,7 +524,7 @@ function ItineraryDetail() {
             </div>
           </header>
 
-          <Card className="mb-4 p-4 sm:p-5 overflow-hidden">
+          <Card className="mb-4 p-4 sm:p-5 w-full max-w-full overflow-hidden">
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
               {t("tripCardTitle")}
             </div>
