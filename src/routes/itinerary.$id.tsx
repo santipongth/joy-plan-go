@@ -63,7 +63,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Place, DayPlan, TravelMode, DayStartPoint, Itinerary } from "@/lib/types";
+import type { Place, DayPlan, TravelMode, Itinerary } from "@/lib/types";
 import { planSingleDay, planTrip } from "@/server/plan-trip.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
