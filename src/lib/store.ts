@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Itinerary, Place, DayPlan, TravelMode, DayStartPoint } from "./types";
+import type {
+  Itinerary,
+  Place,
+  DayPlan,
+  TravelMode,
+  DayStartPoint,
+  PackingItem,
+  Expense,
+} from "./types";
 
 interface State {
   itineraries: Itinerary[];
