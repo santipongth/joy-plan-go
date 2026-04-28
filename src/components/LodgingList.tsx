@@ -3,7 +3,22 @@ import type { Itinerary } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BedDouble, ExternalLink, Star, Trash2 } from "lucide-react";
+import { BedDouble, ExternalLink, Star, Trash2, MapPin } from "lucide-react";
+
+function buildBookingUrl(name: string, lat: number, lng: number) {
+  const params = new URLSearchParams({
+    ss: name,
+    latitude: lat.toFixed(6),
+    longitude: lng.toFixed(6),
+  });
+  return `https://www.booking.com/searchresults.html?${params.toString()}`;
+}
+function buildAirbnbUrl(name: string) {
+  return `https://www.airbnb.com/s/${encodeURIComponent(name)}/homes`;
+}
+function buildMapUrl(lat: number, lng: number, name: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}&query_place_id=${encodeURIComponent(name)}`;
+}
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -101,17 +116,43 @@ export default function LodgingList({ itinerary }: { itinerary: Itinerary }) {
                     })}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                {l.bookingUrl && (
-                  <a
-                    href={l.bookingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] inline-flex items-center gap-1 text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    {t("lodgingBookOn")}
-                  </a>
-                )}
+                {(() => {
+                  const bookingHref = l.bookingUrl || buildBookingUrl(l.name, l.lat, l.lng);
+                  const airbnbHref = buildAirbnbUrl(l.name);
+                  const mapHref = buildMapUrl(l.lat, l.lng, l.name);
+                  return (
+                    <div className="flex items-center gap-1 flex-wrap justify-end">
+                      <a
+                        href={mapHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border bg-background text-[11px] hover:bg-muted transition-colors"
+                        title={t("lodgingViewMap")}
+                      >
+                        <MapPin className="h-3 w-3" />
+                        {t("lodgingViewMap")}
+                      </a>
+                      <a
+                        href={airbnbHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border bg-background text-[11px] hover:bg-muted transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {t("lodgingBookAirbnb")}
+                      </a>
+                      <a
+                        href={bookingHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-primary text-primary-foreground text-[11px] font-medium hover:bg-primary/90 transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {t("lodgingBookOn")}
+                      </a>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           );
