@@ -24,7 +24,7 @@ import { useT, useLangStore } from "@/lib/i18n";
 import { useServerFn } from "@tanstack/react-start";
 import { aiSuggestPlan } from "@/server/discover.functions";
 import { useItineraryStore, makeId } from "@/lib/store";
-import type { Itinerary, Place } from "@/lib/types";
+import type { Itinerary, Place, DayPlan } from "@/lib/types";
 import { toast } from "sonner";
 
 const STYLE_OPTIONS = ["relaxing", "sightseeing", "foodie", "adventurous", "shopping", "culture"] as const;
@@ -62,6 +62,7 @@ export default function AISuggestDialog({ itinerary }: { itinerary: Itinerary })
   const [progress, setProgress] = useState<{ cur: number; total: number } | null>(null);
   const [proposals, setProposals] = useState<ProposedDay[]>([]);
   const replaceDay = useItineraryStore((s) => s.replaceDay);
+  const updateDays = useItineraryStore((s) => s.updateDays);
   const suggestFn = useServerFn(aiSuggestPlan);
 
   function reset() {
@@ -153,31 +154,70 @@ export default function AISuggestDialog({ itinerary }: { itinerary: Itinerary })
     }
   }
 
+  function buildDay(prop: ProposedDay): DayPlan | null {
+    if (prop.error || !prop.proposedPlaces.length) return null;
+    const day = itinerary.days[prop.dayIdx];
+    return {
+      day: day.day,
+      title: prop.proposedTitle || day.title,
+      places: prop.proposedPlaces
+        .filter((p) => typeof p.lat === "number" && typeof p.lng === "number")
+        .map((p) => ({
+          id: makeId(),
+          name: p.name,
+          description: p.description,
+          type: p.type,
+          time: p.time,
+          lat: p.lat as number,
+          lng: p.lng as number,
+        })),
+      travelMode: day.travelMode,
+      startPoint: day.startPoint,
+    };
+  }
+
+  function showUndoToast(snapshot: DayPlan[]) {
+    toast.success(t("suggestApplied"), {
+      action: {
+        label: t("undo"),
+        onClick: () => {
+          updateDays(itinerary.id, snapshot);
+          toast.success(t("aiSuggestUndone"));
+        },
+      },
+      duration: 8000,
+    });
+  }
+
+  function applyOne(idx: number) {
+    const prop = proposals[idx];
+    const newDay = buildDay(prop);
+    if (!newDay) return;
+    const snapshot = itinerary.days.map((d) => ({
+      ...d,
+      places: d.places.map((p) => ({ ...p })),
+      startPoint: d.startPoint ? { ...d.startPoint } : undefined,
+    }));
+    replaceDay(itinerary.id, prop.dayIdx, newDay);
+    setProposals((ps) => ps.filter((_, j) => j !== idx));
+    showUndoToast(snapshot);
+  }
+
   function applySelected() {
+    const snapshot = itinerary.days.map((d) => ({
+      ...d,
+      places: d.places.map((p) => ({ ...p })),
+      startPoint: d.startPoint ? { ...d.startPoint } : undefined,
+    }));
     let count = 0;
     for (const prop of proposals) {
-      if (!prop.selected || prop.error || !prop.proposedPlaces.length) continue;
-      const day = itinerary.days[prop.dayIdx];
-      replaceDay(itinerary.id, prop.dayIdx, {
-        day: day.day,
-        title: prop.proposedTitle || day.title,
-        places: prop.proposedPlaces
-          .filter((p) => typeof p.lat === "number" && typeof p.lng === "number")
-          .map((p) => ({
-            id: makeId(),
-            name: p.name,
-            description: p.description,
-            type: p.type,
-            time: p.time,
-            lat: p.lat as number,
-            lng: p.lng as number,
-          })),
-        travelMode: day.travelMode,
-        startPoint: day.startPoint,
-      });
+      if (!prop.selected) continue;
+      const newDay = buildDay(prop);
+      if (!newDay) continue;
+      replaceDay(itinerary.id, prop.dayIdx, newDay);
       count++;
     }
-    if (count > 0) toast.success(t("suggestApplied"));
+    if (count > 0) showUndoToast(snapshot);
     setOpen(false);
     reset();
   }
@@ -313,20 +353,31 @@ export default function AISuggestDialog({ itinerary }: { itinerary: Itinerary })
                       )}
                     </span>
                   </label>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7"
-                    disabled={prop.rerolling}
-                    onClick={() => reroll(i)}
-                  >
-                    {prop.rerolling ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-3 w-3" />
-                    )}
-                    <span className="ml-1 text-xs">{t("aiPreviewReroll")}</span>
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7"
+                      disabled={prop.rerolling}
+                      onClick={() => reroll(i)}
+                    >
+                      {prop.rerolling ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3" />
+                      )}
+                      <span className="ml-1 text-xs">{t("aiPreviewReroll")}</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-7"
+                      disabled={!!prop.error || prop.rerolling || !prop.proposedPlaces.length}
+                      onClick={() => applyOne(i)}
+                    >
+                      <span className="text-xs">{t("aiPreviewApplyDay")}</span>
+                    </Button>
+                  </div>
                 </div>
 
                 {prop.error ? (
