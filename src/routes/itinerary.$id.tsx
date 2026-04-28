@@ -162,15 +162,15 @@ function ItineraryDetail() {
   const [pendingRegenDay, setPendingRegenDay] = useState<number | null>(null);
   const [pendingRegenAll, setPendingRegenAll] = useState(false);
 
-  // ESC closes overlays on mobile
+  // ESC closes overlays on any screen size
   useEffect(() => {
-    if (!isMobile || overlaysCollapsed) return;
+    if (overlaysCollapsed) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOverlaysCollapsed(true);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isMobile, overlaysCollapsed]);
+  }, [overlaysCollapsed]);
 
   // Swipe gesture helper for overlay panels
   function makeSwipeHandlers(direction: "horizontal" | "vertical", onDismiss: () => void) {
