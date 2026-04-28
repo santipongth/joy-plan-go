@@ -62,12 +62,70 @@ export interface DayStartPoint {
   placeId?: string; // when set, anchor uses this place's coordinates
 }
 
+export type LodgingType =
+  | "hotel"
+  | "hostel"
+  | "resort"
+  | "guesthouse"
+  | "apartment";
+
+export interface Lodging {
+  id: string;
+  name: string;
+  type: LodgingType;
+  lat: number;
+  lng: number;
+  address?: string;
+  priceTier?: BudgetTier;
+  pricePerNight?: number;
+  currency?: string;
+  rating?: number; // 0..5
+  description?: string;
+  amenities?: string[];
+  bookingUrl?: string;
+  dayIndexes?: number[]; // which day indexes (0-based) this lodging covers
+  createdAt: number;
+}
+
+export type TransportMode =
+  | "walk"
+  | "transit"
+  | "subway"
+  | "bus"
+  | "train"
+  | "taxi"
+  | "rideshare"
+  | "ferry"
+  | "bike"
+  | "car";
+
+export interface TransportAlternative {
+  mode: TransportMode;
+  durationMin?: number;
+  costEstimate?: number;
+  note?: string;
+}
+
+export interface TransportLeg {
+  id: string;
+  fromPlaceId: string; // empty string => from the day's start anchor
+  toPlaceId: string;
+  mode: TransportMode;
+  durationMin?: number;
+  distanceKm?: number;
+  costEstimate?: number;
+  currency?: string;
+  instructions?: string;
+  alternatives?: TransportAlternative[];
+}
+
 export interface DayPlan {
   day: number;
   title?: string;
   places: Place[];
   travelMode?: TravelMode; // overrides itinerary.travelMode for this day
   startPoint?: DayStartPoint;
+  transport?: TransportLeg[];
 }
 
 export type BudgetTier = "low" | "medium" | "high";
