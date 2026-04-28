@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { Place } from "@/lib/types";
+import type { Lodging, Place } from "@/lib/types";
 import { useMapBoundsStore } from "@/lib/map-bounds-store";
 
 interface DayMarkers {
@@ -10,6 +10,7 @@ interface DayMarkers {
 
 interface Props {
   groups: DayMarkers[];
+  lodgings?: Lodging[];
   height?: string;
   fitBounds?: boolean;
   onMarkerClick?: (place: Place, day: number) => void;
