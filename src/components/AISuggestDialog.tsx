@@ -353,20 +353,31 @@ export default function AISuggestDialog({ itinerary }: { itinerary: Itinerary })
                       )}
                     </span>
                   </label>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7"
-                    disabled={prop.rerolling}
-                    onClick={() => reroll(i)}
-                  >
-                    {prop.rerolling ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-3 w-3" />
-                    )}
-                    <span className="ml-1 text-xs">{t("aiPreviewReroll")}</span>
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7"
+                      disabled={prop.rerolling}
+                      onClick={() => reroll(i)}
+                    >
+                      {prop.rerolling ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3" />
+                      )}
+                      <span className="ml-1 text-xs">{t("aiPreviewReroll")}</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-7"
+                      disabled={!!prop.error || prop.rerolling || !prop.proposedPlaces.length}
+                      onClick={() => applyOne(i)}
+                    >
+                      <span className="text-xs">{t("aiPreviewApplyDay")}</span>
+                    </Button>
+                  </div>
                 </div>
 
                 {prop.error ? (
