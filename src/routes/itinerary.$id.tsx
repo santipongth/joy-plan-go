@@ -590,6 +590,25 @@ function ItineraryDetail() {
     window.print();
   }
 
+  function exportIcs() {
+    if (!itinerary) return;
+    downloadFile(buildIcs(itinerary), `${safeFilename(itinerary.title)}.ics`, "text/calendar");
+  }
+
+  function exportGpx() {
+    if (!itinerary) return;
+    downloadFile(buildGpx(itinerary), `${safeFilename(itinerary.title)}.gpx`, "application/gpx+xml");
+  }
+
+  function onDuplicate() {
+    if (!itinerary) return;
+    const newId = duplicateTrip(itinerary.id, `${t("copyOf")} ${itinerary.title}`);
+    if (newId) {
+      toast.success(t("duplicatedToast"));
+      navigate({ to: "/itinerary/$id", params: { id: newId } });
+    }
+  }
+
   async function copyShareLink() {
     const url = window.location.href;
     try {
