@@ -94,6 +94,8 @@ import {
 import DayMiniMap from "@/components/DayMiniMap";
 import BudgetEstimate from "@/components/BudgetEstimate";
 import WeatherStrip from "@/components/WeatherStrip";
+import PackingChecklist from "@/components/PackingChecklist";
+import SpendingTracker from "@/components/SpendingTracker";
 import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
 import { estimateDayTravel, haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
