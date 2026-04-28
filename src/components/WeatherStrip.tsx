@@ -23,7 +23,12 @@ function buildOptions(it: Itinerary): AnchorOption[] {
   const out: AnchorOption[] = [];
   it.days.forEach((d) => {
     d.places.forEach((p) => {
-      if (typeof p.lat === "number" && typeof p.lng === "number") {
+      if (
+        typeof p.lat === "number" &&
+        typeof p.lng === "number" &&
+        Number.isFinite(p.lat) &&
+        Number.isFinite(p.lng)
+      ) {
         out.push({
           id: p.id,
           label: p.name,
@@ -45,19 +50,39 @@ export default function WeatherStrip({ itinerary }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const anchors = useWeatherAnchorStore((s) => s.anchors);
+  const setAnchor = useWeatherAnchorStore((s) => s.setAnchor);
 
   const options = useMemo(() => buildOptions(itinerary), [itinerary]);
   const selected = anchors[itinerary.id] ?? "auto";
 
+  // Detect whether the persisted anchor still refers to an existing place.
+  // If not, fall back to "auto" (first available place) and reset the persisted
+  // value so a deleted place doesn't keep the forecast pointed at nothing.
+  const anchorMissing =
+    selected !== "auto" && !options.some((o) => o.id === selected);
+
+  useEffect(() => {
+    if (anchorMissing) setAnchor(itinerary.id, "auto");
+  }, [anchorMissing, itinerary.id, setAnchor]);
+
   const active = useMemo(() => {
-    if (selected === "auto") return options[0] ?? null;
+    if (selected === "auto" || anchorMissing) return options[0] ?? null;
     return options.find((o) => o.id === selected) ?? options[0] ?? null;
-  }, [selected, options]);
+  }, [selected, anchorMissing, options]);
+
+  // Clear any stale forecast/error the moment the active anchor disappears or
+  // moves to a different coordinate, so the UI never shows results for a
+  // deleted/moved place.
+  useEffect(() => {
+    setData(null);
+    setError(null);
+  }, [active?.id, active?.lat, active?.lng]);
 
   useEffect(() => {
     if (!itinerary.startDate) return;
     if (!isForecastable(itinerary.startDate, itinerary.durationDays)) return;
     if (!active) return;
+    if (!Number.isFinite(active.lat) || !Number.isFinite(active.lng)) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -77,7 +102,14 @@ export default function WeatherStrip({ itinerary }: Props) {
 
   if (!itinerary.startDate) return null;
   if (!isForecastable(itinerary.startDate, itinerary.durationDays)) return null;
-  if (!active) return null;
+  if (!active) {
+    // No usable place to anchor on (all deleted, or none have coordinates).
+    return (
+      <div className="text-xs text-muted-foreground flex items-center gap-2 px-1 py-2">
+        <Cloud className="h-3 w-3" /> {t("weatherNoAnchor")}
+      </div>
+    );
+  }
 
   const dateFmt = lang === "th" ? "d MMM" : "MMM d";
   const startD = (() => {
