@@ -30,17 +30,12 @@ import {
   RefreshCw,
   X,
   Printer,
-  Wand2,
   Undo2,
   Maximize2,
   Minimize2,
   Bookmark,
   BookmarkCheck,
   StickyNote,
-  Sunrise,
-  Sun,
-  Sunset,
-  Moon,
 } from "lucide-react";
 import MapView, { dayColor } from "@/components/MapView";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -64,7 +59,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Place, DayPlan, TravelMode, Itinerary } from "@/lib/types";
-import { planSingleDay, planTrip } from "@/server/plan-trip.functions";
+import { planSingleDay } from "@/server/plan-trip.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
   DropdownMenu,
@@ -95,7 +90,7 @@ import { suggestMeals } from "@/server/discover.functions";
 import ShareTripDialog from "@/components/ShareTripDialog";
 import ThemeToggle from "@/components/ThemeToggle";
 import AuthButton from "@/components/AuthButton";
-import AISuggestDialog from "@/components/AISuggestDialog";
+
 import PhotoGallery from "@/components/PhotoGallery";
 import LodgingCard from "@/components/LodgingCard";
 import DayTransportPanel from "@/components/DayTransportPanel";
@@ -159,17 +154,8 @@ function ItineraryDetail() {
   const toggleVisible = useVisibilityStore((s) => s.toggle);
   const [regenLoading, setRegenLoading] = useState<number | null>(null);
   const [regenErrors, setRegenErrors] = useState<Record<number, string>>({});
-  const [regenAllProgress, setRegenAllProgress] = useState<{
-    current: number;
-    total: number;
-    startedAt: number;
-    etaSec: number | null;
-  } | null>(null);
-  const planTripFn = useServerFn(planTrip);
-
   // Pending regenerate confirmations when undo stack is non-empty
   const [pendingRegenDay, setPendingRegenDay] = useState<number | null>(null);
-  const [pendingRegenAll, setPendingRegenAll] = useState(false);
 
   // ESC closes overlays on any screen size
   useEffect(() => {
@@ -361,15 +347,6 @@ function ItineraryDetail() {
     void regenerateDay(dayIdx);
   }
 
-  /** Wrap regenerateAll with a confirmation when any day has undo entries. */
-  function requestRegenerateAll() {
-    const hasAny = Object.values(historyDepths).some((n) => n > 0);
-    if (hasAny) {
-      setPendingRegenAll(true);
-      return;
-    }
-    void regenerateAll();
-  }
 
   async function regenerateDay(dayIdx: number) {
     if (!itinerary) return;
@@ -454,143 +431,6 @@ function ItineraryDetail() {
     });
   }
 
-  async function regenerateAll() {
-    if (!itinerary) return;
-    if (!confirm(t("confirmRegenAll"))) return;
-    const total = itinerary.durationDays;
-    const startedAt = Date.now();
-    setRegenAllProgress({ current: 0, total, startedAt, etaSec: null });
-    try {
-      // First: get fresh trip skeleton (title + day count)
-      const res = await planTripFn({
-        data: {
-          origin: itinerary.origin,
-          destination: itinerary.destination,
-          durationDays: itinerary.durationDays,
-          startDate: itinerary.startDate,
-          lang,
-        },
-      });
-      if (res.error || !res.days?.length) {
-        const code = res.error || "AI_ERROR";
-        const msg = errorMessage(code);
-        toast.error(t("regenFailed"), {
-          description: msg,
-          duration: 10000,
-          action: { label: t("retry"), onClick: () => regenerateAll() },
-        });
-        return;
-      }
-      // Commit the skeleton immediately so the UI shows new days/titles
-      const skeleton: DayPlan[] = res.days.map((d) => ({
-        day: d.day,
-        title: d.title,
-        places: d.places.map((p) => ({
-          id: makeId(),
-          name: p.name,
-          description: p.description,
-          type: p.type,
-          time: p.time,
-          lat: p.lat,
-          lng: p.lng,
-        })),
-      }));
-      update(id, {
-        title: res.title || itinerary.title,
-        citiesCount: res.citiesCount || itinerary.citiesCount,
-        days: skeleton,
-      });
-      setVisible(id, skeleton.map((d) => d.day));
-      setRegenErrors({});
-      clearHistory(id);
-
-      // Then: stream per-day refinement so user sees progress per day
-      const realTotal = skeleton.length;
-      const refineStartedAt = Date.now();
-      setRegenAllProgress({ current: 0, total: realTotal, startedAt: refineStartedAt, etaSec: null });
-      let successCount = 0;
-      const failedDays: number[] = [];
-      for (let i = 0; i < skeleton.length; i++) {
-        const target = skeleton[i];
-        setRegenAllProgress({
-          current: i + 1,
-          total: realTotal,
-          startedAt: refineStartedAt,
-          etaSec: null,
-        });
-        const otherDaysAll = skeleton.filter((_, idx) => idx !== i);
-        const summary = otherDaysAll
-          .map((d) => `Day ${d.day}: ${d.places.map((p) => p.name).join(", ")}`)
-          .join("; ");
-        const existingPlaces = otherDaysAll.flatMap((d) =>
-          d.places
-            .filter((p) => typeof p.lat === "number" && typeof p.lng === "number")
-            .map((p) => ({ name: p.name, lat: p.lat, lng: p.lng })),
-        );
-        const dayRes = await planSingleDay({
-          data: {
-            destination: itinerary.destination,
-            dayNumber: target.day,
-            totalDays: realTotal,
-            existingDaysSummary: summary,
-            existingPlaces,
-            travelMode: target.travelMode ?? itinerary.travelMode,
-            startLabel: target.startPoint?.label,
-            lang,
-          },
-        });
-        if (dayRes.error || !dayRes.day) {
-          const code = dayRes.error || "AI_ERROR";
-          const msg = errorMessage(code);
-          setRegenErrors((prev) => ({ ...prev, [target.day]: msg }));
-          failedDays.push(target.day);
-          toast.error(`${t("day")} ${target.day}: ${msg}`, { duration: 6000 });
-          // Still update ETA so the bar keeps moving
-          const elapsed = (Date.now() - refineStartedAt) / 1000;
-          const completedSteps = i + 1;
-          const avg = elapsed / completedSteps;
-          const etaSec = Math.max(0, Math.round(avg * (realTotal - completedSteps)));
-          setRegenAllProgress({ current: i + 1, total: realTotal, startedAt: refineStartedAt, etaSec });
-          continue;
-        }
-        const newDay: DayPlan = {
-          day: target.day,
-          title: dayRes.day.title,
-          places: dayRes.day.places.map((p) => ({
-            id: makeId(),
-            name: p.name,
-            description: p.description,
-            type: p.type,
-            time: p.time,
-            lat: p.lat,
-            lng: p.lng,
-          })),
-        };
-        replaceDay(id, i, newDay);
-        clearHistory(id, i);
-        skeleton[i] = newDay;
-        successCount++;
-        // Compute ETA from successful completions only
-        const elapsed = (Date.now() - refineStartedAt) / 1000;
-        const avg = elapsed / successCount;
-        const remaining = realTotal - (i + 1);
-        const etaSec = Math.max(0, Math.round(avg * remaining));
-        setRegenAllProgress({ current: i + 1, total: realTotal, startedAt: refineStartedAt, etaSec });
-      }
-      if (failedDays.length > 0) {
-        toast.error(t("regenSomeFailed"), { duration: 8000 });
-      } else {
-        toast.success(t("regenAllSuccess"));
-      }
-    } catch {
-      toast.error(t("aiError"), {
-        action: { label: t("retry"), onClick: () => regenerateAll() },
-      });
-    } finally {
-      setRegenAllProgress(null);
-    }
-  }
-
   function exportPdf() {
     // Print-friendly: open print dialog (user can save as PDF)
     window.print();
@@ -643,29 +483,6 @@ function ItineraryDetail() {
               {t("back")}
             </Button>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={requestRegenerateAll}
-                disabled={regenAllProgress !== null}
-                title={t("regenerateAll")}
-              >
-                {regenAllProgress !== null ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <Wand2 className="h-4 w-4 mr-1" />
-                )}
-                <span className="hidden sm:inline">
-                  {regenAllProgress !== null
-                    ? regenAllProgress.current === 0
-                      ? t("regeneratingAll")
-                      : t("regeneratingDay")
-                          .replace("{n}", String(regenAllProgress.current))
-                          .replace("{total}", String(regenAllProgress.total))
-                    : t("regenerateAll")}
-                </span>
-              </Button>
-              <AISuggestDialog itinerary={itinerary} />
               <Button variant="outline" size="sm" onClick={exportPdf} title={t("print")}>
                 <Printer className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">{t("print")}</span>
@@ -707,100 +524,71 @@ function ItineraryDetail() {
             </div>
           </header>
 
-          {regenAllProgress !== null && (
-            <div className="mb-4">
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                <span>
-                  {t("regeneratingDay")
-                    .replace("{n}", String(Math.max(1, regenAllProgress.current)))
-                    .replace("{total}", String(regenAllProgress.total))}
-                </span>
-                <span className="flex items-center gap-3">
-                  {regenAllProgress.etaSec !== null && (
-                    <span className="tabular-nums">
-                      {t("timeLeft")} {regenAllProgress.etaSec}{t("seconds").startsWith(" ") ? "" : " "}{t("seconds")}
-                    </span>
-                  )}
-                  <span className="tabular-nums">
-                    {Math.round(
-                      (regenAllProgress.current / Math.max(1, regenAllProgress.total)) * 100
-                    )}
-                    %
-                  </span>
-                </span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{
-                    width: `${
-                      (regenAllProgress.current / Math.max(1, regenAllProgress.total)) * 100
-                    }%`,
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          <Card className="mb-4 p-4">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">
+          <Card className="mb-4 p-4 sm:p-5 overflow-hidden">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
               {t("tripCardTitle")}
             </div>
-            {editingTitle ? (
-              <div className="flex gap-2">
-                <Input
-                  value={titleDraft}
-                  onChange={(e) => setTitleDraft(e.target.value)}
-                  className="text-xl font-bold"
-                />
-                <Button size="icon" onClick={saveTitle}>
-                  <Check className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold">{itinerary.title}</h1>
-                <button
-                  onClick={() => {
-                    setTitleDraft(itinerary.title);
-                    setEditingTitle(true);
-                  }}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground mt-1">
-              {itinerary.destination} · {itinerary.durationDays} {t("days")}
-            </p>
-            <div className="mt-3">
+
+            {/* Header */}
+            <div className="space-y-1">
+              {editingTitle ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={titleDraft}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    className="text-lg sm:text-xl font-bold"
+                  />
+                  <Button size="icon" onClick={saveTitle}>
+                    <Check className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2">
+                  <h1 className="text-xl sm:text-2xl font-bold break-words flex-1 min-w-0">
+                    {itinerary.title}
+                  </h1>
+                  <button
+                    onClick={() => {
+                      setTitleDraft(itinerary.title);
+                      setEditingTitle(true);
+                    }}
+                    className="text-muted-foreground hover:text-foreground flex-shrink-0 mt-1"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground break-words">
+                {itinerary.destination} · {itinerary.durationDays} {t("days")}
+              </p>
+            </div>
+
+            <div className="mt-4">
               <WeatherStrip itinerary={itinerary} />
+            </div>
+
+            {/* Sub-cards inside trip card */}
+            <div className="mt-4 grid gap-3 sm:gap-4">
+              <BudgetEstimate
+                itinerary={itinerary}
+                onTravelersChange={(n) => update(id, { travelers: n })}
+                onTierChange={(b) => update(id, { budget: b })}
+              />
+              <PackingChecklist itinerary={itinerary} />
+              <LocalTipsCard itinerary={itinerary} />
             </div>
           </Card>
 
-          <BudgetEstimate
-            itinerary={itinerary}
-            onTravelersChange={(n) => update(id, { travelers: n })}
-            onTierChange={(b) => update(id, { budget: b })}
-          />
-
-          <PackingChecklist itinerary={itinerary} />
-          <LocalTipsCard itinerary={itinerary} />
-          <LodgingCard itinerary={itinerary} />
+          <div className="mb-4">
+            <LodgingCard itinerary={itinerary} />
+          </div>
 
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
-            <div className="flex items-center justify-between mb-2">
+            <div className="mb-2">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 {t("daysLegend")} · {t("showOnMap")}
               </span>
-              <button
-                onClick={showAllDays}
-                className="text-xs text-primary hover:underline"
-              >
-                {t("allDays")}
-              </button>
             </div>
             <div className="flex flex-wrap gap-2">
               {itinerary.days.map((d) => {
@@ -1074,43 +862,6 @@ function ItineraryDetail() {
                 const idx = pendingRegenDay;
                 setPendingRegenDay(null);
                 if (idx !== null) void regenerateDay(idx);
-              }}
-            >
-              {t("regenConfirmAction")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Confirmation: regenerate ALL when any day has pending undo */}
-      <AlertDialog
-        open={pendingRegenAll}
-        onOpenChange={(open) => {
-          if (!open) setPendingRegenAll(false);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("regenAllConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("regenAllConfirmBody").replace(
-                "{days}",
-                Object.entries(historyDepths)
-                  .filter(([, n]) => n > 0)
-                  .map(([idxStr]) => itinerary.days[Number(idxStr)]?.day)
-                  .filter((n): n is number => typeof n === "number")
-                  .sort((a, b) => a - b)
-                  .join(", "),
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                setPendingRegenAll(false);
-                void regenerateAll();
               }}
             >
               {t("regenConfirmAction")}
@@ -1449,13 +1200,6 @@ function SortablePlace({
   const [notesOpen, setNotesOpen] = useState(!!place.notes);
   const [notesDraft, setNotesDraft] = useState(place.notes ?? "");
 
-  const slotMeta: Record<NonNullable<Place["slot"]>, { icon: any; key: string }> = {
-    morning: { icon: Sunrise, key: "slotMorning" },
-    afternoon: { icon: Sun, key: "slotAfternoon" },
-    evening: { icon: Sunset, key: "slotEvening" },
-    night: { icon: Moon, key: "slotNight" },
-  };
-  const slots: Array<NonNullable<Place["slot"]>> = ["morning", "afternoon", "evening", "night"];
 
   return (
     <Card
@@ -1498,16 +1242,6 @@ function SortablePlace({
                 {place.type}
               </span>
             )}
-            {place.slot &&
-              (() => {
-                const Ico = slotMeta[place.slot].icon;
-                return (
-                  <span className="text-[10px] inline-flex items-center gap-1 bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                    <Ico className="h-3 w-3" />
-                    {t(slotMeta[place.slot].key as any)}
-                  </span>
-                );
-              })()}
           </div>
           {place.description && (
             <p className="text-xs text-muted-foreground mt-1">{place.description}</p>
@@ -1517,30 +1251,6 @@ function SortablePlace({
             {place.lat.toFixed(4)}, {place.lng.toFixed(4)}
           </p>
 
-          {/* Time-of-day slot chips */}
-          <div className="flex flex-wrap gap-1 mt-2 print:hidden">
-            {slots.map((s) => {
-              const Ico = slotMeta[s].icon;
-              const active = place.slot === s;
-              return (
-                <button
-                  key={s}
-                  onClick={() => onUpdatePlace({ slot: active ? undefined : s })}
-                  className={
-                    "inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border transition-colors min-h-[28px] " +
-                    (active
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background hover:bg-muted border-border text-muted-foreground")
-                  }
-                  aria-label={t(slotMeta[s].key as any)}
-                  title={t(slotMeta[s].key as any)}
-                >
-                  <Ico className="h-3 w-3" />
-                  {t(slotMeta[s].key as any)}
-                </button>
-              );
-            })}
-          </div>
 
           {/* Notes editor */}
           {notesOpen ? (

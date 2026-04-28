@@ -103,7 +103,7 @@ export default function MapView({
   useEffect(() => {
     renderMarkers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, highlightedType, lodgings]);
+  }, [groups, highlightedType, lodgings, selectedPlaceId]);
 
   // Pan to selected place + open popup when selectedPlaceId changes
   useEffect(() => {
@@ -182,13 +182,19 @@ export default function MapView({
     lodgings.forEach((lod) => {
       if (typeof lod.lat !== "number" || typeof lod.lng !== "number") return;
       const dimmed = highlightedType !== null && highlightedType !== "";
-      const opacity = dimmed ? 0.45 : 1;
-      const html = `<div style="background:#0f766e;color:white;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35);opacity:${opacity}"><span style="transform:rotate(45deg);font-size:14px;line-height:1">🛏️</span></div>`;
+      const isSelected = selectedPlaceId === `lodging:${lod.id}`;
+      const opacity = dimmed && !isSelected ? 0.45 : 1;
+      const bg = isSelected ? "#f59e0b" : "#0f766e";
+      const ring = isSelected
+        ? "box-shadow:0 0 0 5px rgba(245,158,11,0.35), 0 2px 8px rgba(0,0,0,0.4); animation:trip-pulse 1.4s infinite;"
+        : "box-shadow:0 2px 6px rgba(0,0,0,0.35);";
+      const size = isSelected ? 36 : 30;
+      const html = `<div style="background:${bg};color:white;width:${size}px;height:${size}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid white;${ring}opacity:${opacity}"><span style="transform:rotate(45deg);font-size:${isSelected ? 16 : 14}px;line-height:1">🛏️</span></div>`;
       const icon = L.divIcon({
         html,
         className: "trip-lodging-marker",
-        iconSize: [30, 30],
-        iconAnchor: [15, 28],
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size - 2],
       });
       const popupHtml = `<div style="min-width:180px"><strong>${escapeHtml(lod.name)}</strong><br/><small>🛏️ ${escapeHtml(lod.type)}${typeof lod.rating === "number" ? ` · ★ ${lod.rating.toFixed(1)}` : ""}</small>${lod.address ? `<br/><small>${escapeHtml(lod.address)}</small>` : ""}${typeof lod.pricePerNight === "number" ? `<br/><small><b>${lod.pricePerNight.toLocaleString()} ${escapeHtml(lod.currency || "")}</b>/night</small>` : ""}${lod.bookingUrl ? `<br/><a href="${escapeHtml(lod.bookingUrl)}" target="_blank" rel="noopener noreferrer" style="color:#0f766e;font-size:12px">Book →</a>` : ""}</div>`;
       const lm = L.marker([lod.lat, lod.lng], { icon }).bindPopup(popupHtml).addTo(layer);
