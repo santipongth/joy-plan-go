@@ -818,9 +818,9 @@ function ItineraryDetail() {
                 highlightedType={highlightedType}
                 selectedPlaceId={selectedPlaceId}
               />
-              {/* Type filter chips */}
+              {/* Type filter chips — full width across the top */}
               {typeCounts.size > 0 && (
-                <div className="absolute top-3 left-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[calc(100%-220px)] flex flex-wrap gap-1">
+                <div className="absolute top-3 left-3 right-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 flex flex-wrap gap-1">
                   <button
                     onClick={() => setHighlightedType(null)}
                     className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
@@ -848,8 +848,8 @@ function ItineraryDetail() {
                     ))}
                 </div>
               )}
-              {/* Floating legend on map — clickable to toggle */}
-              <div className="absolute top-3 right-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[200px]">
+              {/* Floating day legend — bottom left, clickable to toggle */}
+              <div className="absolute bottom-3 left-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[220px]">
                 <div className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
                   {t("daysLegend")}
                 </div>
