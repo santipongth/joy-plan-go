@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as GalleryRouteImport } from './routes/gallery'
+import { Route as DeviceTestRouteImport } from './routes/device-test'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ItineraryIdRouteImport } from './routes/itinerary.$id'
@@ -17,6 +18,11 @@ import { Route as ItineraryIdRouteImport } from './routes/itinerary.$id'
 const GalleryRoute = GalleryRouteImport.update({
   id: '/gallery',
   path: '/gallery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeviceTestRoute = DeviceTestRouteImport.update({
+  id: '/device-test',
+  path: '/device-test',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -38,12 +44,14 @@ const ItineraryIdRoute = ItineraryIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/device-test': typeof DeviceTestRoute
   '/gallery': typeof GalleryRoute
   '/itinerary/$id': typeof ItineraryIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/device-test': typeof DeviceTestRoute
   '/gallery': typeof GalleryRoute
   '/itinerary/$id': typeof ItineraryIdRoute
 }
@@ -51,20 +59,28 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/device-test': typeof DeviceTestRoute
   '/gallery': typeof GalleryRoute
   '/itinerary/$id': typeof ItineraryIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/gallery' | '/itinerary/$id'
+  fullPaths: '/' | '/auth' | '/device-test' | '/gallery' | '/itinerary/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/gallery' | '/itinerary/$id'
-  id: '__root__' | '/' | '/auth' | '/gallery' | '/itinerary/$id'
+  to: '/' | '/auth' | '/device-test' | '/gallery' | '/itinerary/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/device-test'
+    | '/gallery'
+    | '/itinerary/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
+  DeviceTestRoute: typeof DeviceTestRoute
   GalleryRoute: typeof GalleryRoute
   ItineraryIdRoute: typeof ItineraryIdRoute
 }
@@ -76,6 +92,13 @@ declare module '@tanstack/react-router' {
       path: '/gallery'
       fullPath: '/gallery'
       preLoaderRoute: typeof GalleryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/device-test': {
+      id: '/device-test'
+      path: '/device-test'
+      fullPath: '/device-test'
+      preLoaderRoute: typeof DeviceTestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -105,6 +128,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
+  DeviceTestRoute: DeviceTestRoute,
   GalleryRoute: GalleryRoute,
   ItineraryIdRoute: ItineraryIdRoute,
 }
