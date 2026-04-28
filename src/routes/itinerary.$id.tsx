@@ -742,7 +742,10 @@ function ItineraryDetail() {
             </div>
           )}
 
-          <div className="mb-4">
+          <Card className="mb-4 p-4">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">
+              {t("tripCardTitle")}
+            </div>
             {editingTitle ? (
               <div className="flex gap-2">
                 <Input
@@ -774,7 +777,7 @@ function ItineraryDetail() {
             <div className="mt-3">
               <WeatherStrip itinerary={itinerary} />
             </div>
-          </div>
+          </Card>
 
           <BudgetEstimate
             itinerary={itinerary}
@@ -784,7 +787,7 @@ function ItineraryDetail() {
 
           <PackingChecklist itinerary={itinerary} />
           <LocalTipsCard itinerary={itinerary} />
-          <LodgingList itinerary={itinerary} />
+          <LodgingCard itinerary={itinerary} />
 
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
