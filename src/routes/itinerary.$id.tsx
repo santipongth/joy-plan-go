@@ -456,12 +456,12 @@ function ItineraryDetail() {
       {/* Screen layout */}
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] min-h-screen print:hidden">
         <div className="overflow-auto px-4 sm:px-8 py-6">
-          <header className="flex items-center justify-between mb-6">
+          <header className="flex items-center justify-between gap-2 mb-6 flex-wrap">
             <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
               <ArrowLeft className="h-4 w-4 mr-1" />
               {t("back")}
             </Button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
               <Button variant="outline" size="sm" onClick={exportPdf} title={t("print")}>
                 <Printer className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">{t("print")}</span>
