@@ -253,3 +253,152 @@ export const suggestMeals = createServerFn({ method: "POST" })
       return { meals: [], error: "PARSE_ERROR" };
     }
   });
+
+// ---------- AI Suggest (refine a day) ----------
+
+interface SuggestPlanInput {
+  destination: string;
+  dayNumber: number;
+  dayTitle?: string;
+  currentPlaces: { name: string; lat: number; lng: number; type?: string; time?: string }[];
+  budget: "low" | "medium" | "high";
+  travelTime: "short" | "balanced" | "long";
+  styles: string[];
+  lang: "th" | "en";
+}
+
+export interface SuggestedDayPlace {
+  name: string;
+  description: string;
+  type: string;
+  time: string;
+  lat: number;
+  lng: number;
+}
+
+export interface SuggestPlanResult {
+  title?: string;
+  places: SuggestedDayPlace[];
+  error?: string;
+}
+
+export const aiSuggestPlan = createServerFn({ method: "POST" })
+  .inputValidator((input: SuggestPlanInput) => {
+    if (!input.destination || !input.dayNumber) throw new Error("invalid input");
+    return input;
+  })
+  .handler(async ({ data }): Promise<SuggestPlanResult> => {
+    const langInstr = data.lang === "th" ? "ตอบเป็นภาษาไทย" : "Respond in English.";
+    const styleStr = data.styles.length ? data.styles.join(", ") : "balanced";
+    const tt =
+      data.travelTime === "short"
+        ? "Keep travel time minimal — cluster nearby spots."
+        : data.travelTime === "long"
+          ? "Allow longer travel between spots; reach further/landmark places."
+          : "Balanced pacing.";
+    const sys = `You are a meticulous travel planner. Build a single day's plan with 4-6 places ordered by realistic time. Respect budget tier and travel-style. Keep places clustered geographically as possible. Each place must include accurate lat/lng. ${langInstr}`;
+    const cur = data.currentPlaces.length
+      ? data.currentPlaces.map((p) => `${p.name} (${p.lat.toFixed(4)},${p.lng.toFixed(4)})`).join("; ")
+      : "(none yet)";
+    const user = `Destination: ${data.destination}. Refining Day ${data.dayNumber}${
+      data.dayTitle ? ` — "${data.dayTitle}"` : ""
+    }. Current places to consider keeping: ${cur}. Budget: ${data.budget}. Style: ${styleStr}. ${tt} Produce an improved day plan with concise descriptions and realistic times like "09:00".`;
+    const tool = {
+      type: "function" as const,
+      function: {
+        name: "suggest_day_plan",
+        description: "Refined plan for one day",
+        parameters: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            places: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  type: { type: "string" },
+                  time: { type: "string" },
+                  lat: { type: "number" },
+                  lng: { type: "number" },
+                },
+                required: ["name", "description", "type", "time", "lat", "lng"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["places"],
+          additionalProperties: false,
+        },
+      },
+    };
+    const json = await callGateway({
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: sys },
+        { role: "user", content: user },
+      ],
+      tools: [tool],
+      tool_choice: { type: "function", function: { name: "suggest_day_plan" } },
+    });
+    if (json?.__err) return { places: [], error: json.__err };
+    const call = json.choices?.[0]?.message?.tool_calls?.[0];
+    if (!call?.function?.arguments) return { places: [], error: "NO_TOOL_CALL" };
+    try {
+      const parsed = JSON.parse(call.function.arguments);
+      return {
+        title: parsed.title,
+        places: Array.isArray(parsed.places) ? parsed.places.slice(0, 8) : [],
+      };
+    } catch {
+      return { places: [], error: "PARSE_ERROR" };
+    }
+  });
+
+// ---------- Caption a photo ----------
+
+interface CaptionInput {
+  imageUrl: string;
+  context?: string;
+  lang: "th" | "en";
+}
+
+export interface CaptionResult {
+  caption: string;
+  error?: string;
+}
+
+export const captionPhoto = createServerFn({ method: "POST" })
+  .inputValidator((input: CaptionInput) => {
+    if (!input.imageUrl) throw new Error("imageUrl required");
+    return input;
+  })
+  .handler(async ({ data }): Promise<CaptionResult> => {
+    const langInstr =
+      data.lang === "th"
+        ? "ตอบเป็นภาษาไทย เขียนคำบรรยายหนึ่งประโยค สั้น กระชับ บรรยากาศการท่องเที่ยว"
+        : "Respond in English with a single, vivid one-sentence travel caption.";
+    const sys = `You write short, evocative captions for travel photos. ${langInstr}`;
+    const userText = data.context
+      ? `Context: ${data.context}. Write one short caption for this photo.`
+      : "Write one short caption for this photo.";
+    const json = await callGateway({
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: sys },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: userText },
+            { type: "image_url", image_url: { url: data.imageUrl } },
+          ],
+        },
+      ],
+    });
+    if (json?.__err) return { caption: "", error: json.__err };
+    const text = json.choices?.[0]?.message?.content;
+    const caption = typeof text === "string" ? text.trim().replace(/^["']|["']$/g, "") : "";
+    return { caption };
+  });
