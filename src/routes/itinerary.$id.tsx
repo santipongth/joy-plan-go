@@ -59,7 +59,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Place, DayPlan, TravelMode, Itinerary } from "@/lib/types";
-import { planSingleDay, planTrip } from "@/server/plan-trip.functions";
+import { planSingleDay } from "@/server/plan-trip.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
   DropdownMenu,
@@ -862,43 +862,6 @@ function ItineraryDetail() {
                 const idx = pendingRegenDay;
                 setPendingRegenDay(null);
                 if (idx !== null) void regenerateDay(idx);
-              }}
-            >
-              {t("regenConfirmAction")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Confirmation: regenerate ALL when any day has pending undo */}
-      <AlertDialog
-        open={pendingRegenAll}
-        onOpenChange={(open) => {
-          if (!open) setPendingRegenAll(false);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("regenAllConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("regenAllConfirmBody").replace(
-                "{days}",
-                Object.entries(historyDepths)
-                  .filter(([, n]) => n > 0)
-                  .map(([idxStr]) => itinerary.days[Number(idxStr)]?.day)
-                  .filter((n): n is number => typeof n === "number")
-                  .sort((a, b) => a - b)
-                  .join(", "),
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                setPendingRegenAll(false);
-                void regenerateAll();
               }}
             >
               {t("regenConfirmAction")}
