@@ -52,12 +52,18 @@ export default function MealCard({
   onToggleSelect,
   onAdd,
   compact = false,
+  referencePoint,
+  referenceLabel,
 }: {
   meal: MealSuggestion;
   selected?: boolean;
   onToggleSelect?: () => void;
   onAdd?: () => void;
   compact?: boolean;
+  /** Optional reference point (e.g. lodging or day anchor) for distance + mini-map */
+  referencePoint?: { lat: number; lng: number; name?: string } | null;
+  /** Localized label like "from lodging" or "from day start" */
+  referenceLabel?: string;
 }) {
   const t = useT();
   const [imgErr, setImgErr] = useState(false);
@@ -69,6 +75,15 @@ export default function MealCard({
     dinner: t("mealTypeDinner"),
     snack: t("mealTypeSnack"),
   };
+
+  // Distance from reference point (km)
+  const distanceKm =
+    referencePoint && Number.isFinite(referencePoint.lat) && Number.isFinite(referencePoint.lng)
+      ? haversineMeters(
+          { lat: referencePoint.lat, lng: referencePoint.lng },
+          { lat: meal.lat, lng: meal.lng },
+        ) / 1000
+      : null;
 
   return (
     <div
