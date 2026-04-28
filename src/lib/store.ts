@@ -322,6 +322,26 @@ export const useItineraryStore = create<State>()(
             return touch({ ...i, days });
           }),
         })),
+      setMealPreferences: (id, prefs) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id ? touch({ ...i, mealPreferences: prefs }) : i
+          ),
+        })),
+      replacePlace: (id, dayIndex, oldPlaceId, newPlace) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) => {
+            if (i.id !== id) return i;
+            const days = i.days.map((d, idx) => {
+              if (idx !== dayIndex) return d;
+              return {
+                ...d,
+                places: d.places.map((p) => (p.id === oldPlaceId ? newPlace : p)),
+              };
+            });
+            return touch({ ...i, days });
+          }),
+        })),
     }),
     {
       name: "trip-planner-itineraries",
