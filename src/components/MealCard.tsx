@@ -136,6 +136,15 @@ export default function MealCard({
           >
             {selected ? <Check className="h-4 w-4" /> : <span className="block h-3 w-3 rounded-full border-2 border-current" />}
           </button>
+        {distanceKm !== null && (
+          <Badge
+            variant="secondary"
+            className="absolute bottom-1.5 left-1.5 text-[10px] font-mono backdrop-blur bg-background/80 inline-flex items-center gap-1"
+            title={referenceLabel ? `${distanceKm.toFixed(2)} km ${referenceLabel}` : undefined}
+          >
+            <Navigation className="h-2.5 w-2.5" />
+            {distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`}
+          </Badge>
         )}
       </div>
 
