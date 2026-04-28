@@ -1060,6 +1060,10 @@ function DaySection({
         <PhotoGallery itinerary={itinerary} dayIndex={dayIdx} compact />
       </div>
 
+      {!hasAnyMeal && day.places.length > 0 && (
+        <MealEmptyBanner onClick={() => openMealDialog()} />
+      )}
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext
           items={day.places.map((p) => p.id)}
@@ -1085,7 +1089,6 @@ function DaySection({
                   onMove={(toDayIdx) => onMovePlace(p.id, toDayIdx)}
                   moveLabel={t("moveToDay")}
                   focusLabel={t("focusOnMap")}
-                  
                   onUpdatePlace={(patch) =>
                     updatePlaceField(itineraryId, dayIdx, p.id, patch)
                   }
@@ -1095,6 +1098,17 @@ function DaySection({
                 />
               );
             })}
+            {hasAnyMeal && missingSlots.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                {missingSlots.map((slot) => (
+                  <MealSlotInline
+                    key={slot}
+                    mealType={slot}
+                    onClick={() => openMealDialog([slot])}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </SortableContext>
       </DndContext>
@@ -1104,6 +1118,14 @@ function DaySection({
         dayIdx={dayIdx}
         onFocusLodging={(lodgingId) => onFocusPlace(`lodging:${lodgingId}`)}
         selectedPlaceId={selectedPlaceId}
+      />
+
+      <MealSuggestDialog
+        itinerary={itinerary}
+        dayIdx={dayIdx}
+        open={mealDialog.open}
+        onOpenChange={(v) => setMealDialog((s) => ({ ...s, open: v }))}
+        presetMealTypes={mealDialog.preset}
       />
     </section>
   );
