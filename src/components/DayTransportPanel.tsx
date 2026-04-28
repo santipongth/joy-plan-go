@@ -207,47 +207,77 @@ function LegItem({
 }) {
   const [open, setOpen] = useState(false);
   const Icon = MODE_ICONS[leg.mode] || Car;
+  const fromPlace =
+    leg.fromPlaceId === ""
+      ? undefined
+      : day.places.find((p) => p.id === leg.fromPlaceId);
+  const toPlace = day.places.find((p) => p.id === leg.toPlaceId);
   const fromName =
     leg.fromPlaceId === ""
       ? day.startPoint?.label || t("startPoint")
-      : day.places.find((p) => p.id === leg.fromPlaceId)?.name || "?";
-  const toName = day.places.find((p) => p.id === leg.toPlaceId)?.name || "?";
+      : fromPlace?.name || "?";
+  const toName = toPlace?.name || "?";
+  const fromAnchor =
+    leg.fromPlaceId === ""
+      ? {
+          lat: day.startPoint?.lat,
+          lng: day.startPoint?.lng,
+          label: day.startPoint?.label,
+        }
+      : { lat: fromPlace?.lat, lng: fromPlace?.lng, label: fromPlace?.name };
+  const directionsUrl = toPlace
+    ? buildDirectionsUrl(fromAnchor, { lat: toPlace.lat, lng: toPlace.lng, label: toPlace.name }, leg.mode)
+    : null;
 
   return (
     <li className="rounded-md border bg-background text-xs">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full text-left p-2 flex items-center gap-2"
-      >
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary flex-shrink-0">
-          <Icon className="h-3.5 w-3.5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1 flex-wrap">
-            <span className="font-medium truncate">{fromName}</span>
-            <span className="text-muted-foreground">→</span>
-            <span className="font-medium truncate">{toName}</span>
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex-1 text-left p-2 flex items-center gap-2 min-w-0"
+        >
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary flex-shrink-0">
+            <Icon className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className="font-medium truncate">{fromName}</span>
+              <span className="text-muted-foreground">→</span>
+              <span className="font-medium truncate">{toName}</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-2">
+              <span>{t(`transportMode_${leg.mode}` as any)}</span>
+              {typeof leg.durationMin === "number" && (
+                <span>· {leg.durationMin} {t("transportDuration")}</span>
+              )}
+              {typeof leg.distanceKm === "number" && (
+                <span>· {leg.distanceKm.toFixed(1)} {t("transportDistance")}</span>
+              )}
+              {typeof leg.costEstimate === "number" && (
+                <span>
+                  · {leg.costEstimate.toLocaleString()} {leg.currency || ""}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-2">
-            <span>{t(`transportMode_${leg.mode}` as any)}</span>
-            {typeof leg.durationMin === "number" && (
-              <span>· {leg.durationMin} {t("transportDuration")}</span>
-            )}
-            {typeof leg.distanceKm === "number" && (
-              <span>· {leg.distanceKm.toFixed(1)} {t("transportDistance")}</span>
-            )}
-            {typeof leg.costEstimate === "number" && (
-              <span>
-                · {leg.costEstimate.toLocaleString()} {leg.currency || ""}
-              </span>
-            )}
-          </div>
-        </div>
-        <span className="text-[10px] text-muted-foreground flex-shrink-0">
-          {t("transportLeg")} {index + 1}
-        </span>
-      </button>
+          <span className="text-[10px] text-muted-foreground flex-shrink-0">
+            {t("transportLeg")} {index + 1}
+          </span>
+        </button>
+        {directionsUrl && (
+          <a
+            href={directionsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={t("transportOpenMap")}
+            aria-label={t("transportOpenMap")}
+            className="flex items-center justify-center px-2 border-l text-muted-foreground hover:text-primary hover:bg-muted/50 transition-colors"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+      </div>
       {open && (leg.instructions || (leg.alternatives && leg.alternatives.length > 0)) && (
         <div className="px-2 pb-2 pt-0 space-y-1.5">
           {leg.instructions && (
