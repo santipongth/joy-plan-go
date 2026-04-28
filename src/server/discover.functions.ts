@@ -262,7 +262,7 @@ export const suggestMeals = createServerFn({ method: "POST" })
       .join("; ");
     contextLines.push(`Day's existing places (in order): ${list || "(none)"}`);
 
-    const sys = `You are a local food expert. Suggest restaurant/meal stops that match the user's context exactly. Pick well-rated, popular, AUTHENTIC local spots with accurate lat/lng. Diversify cuisines unless preferences say otherwise. Always respect dietary requirements. Provide realistic times based on meal types (e.g. 8:00 breakfast, 12:30 lunch, 19:00 dinner). For each meal include nearestPlaceName from the itinerary and approximate distanceFromNearestKm. Estimate priceRange ($, $$, $$$) and a plausible rating (3.5-4.8). Provide openHours when typical (e.g. "11:00-22:00"). ${langInstr}`;
+    const sys = `You are a local food expert. Suggest restaurant/meal stops that match the user's context exactly. Pick well-rated, popular, AUTHENTIC local spots with accurate lat/lng. Diversify cuisines unless preferences say otherwise. Always respect dietary requirements. STRICT DEDUPLICATION RULES: (1) Never repeat any name listed under "Do NOT suggest" — also avoid near-duplicates (same brand/branch, only differs by punctuation, spacing, or location suffix). (2) Avoid the cuisines listed under "Avoid repeating these cuisines" unless the user explicitly preferred them. (3) Each suggestion in this batch must be a DIFFERENT cuisine from the others. (4) Never suggest two restaurants within 150m of each other. Provide realistic times based on meal types (e.g. 8:00 breakfast, 12:30 lunch, 19:00 dinner). For each meal include nearestPlaceName from the itinerary and approximate distanceFromNearestKm. Estimate priceRange ($, $$, $$$) and a plausible rating (3.5-4.8). Provide openHours when typical (e.g. "11:00-22:00"). ${langInstr}`;
 
     const tool = {
       type: "function" as const,
@@ -314,8 +314,39 @@ export const suggestMeals = createServerFn({ method: "POST" })
     if (!call?.function?.arguments) return { meals: [], error: "NO_TOOL_CALL" };
     try {
       const parsed = JSON.parse(call.function.arguments);
-      const meals: MealSuggestion[] = Array.isArray(parsed.meals) ? parsed.meals.slice(0, count) : [];
-      return { meals };
+      const raw: MealSuggestion[] = Array.isArray(parsed.meals) ? parsed.meals : [];
+      // Post-filter: enforce strong dedup against excludeNames + within-batch
+      const norm = (s: string) =>
+        s.toLowerCase().replace(/[^a-z0-9ก-๙]+/gi, " ").replace(/\s+/g, " ").trim();
+      const excludedNorm = new Set((data.excludeNames ?? []).map(norm));
+      const excludedCuisinesNorm = new Set(
+        (data.excludeCuisines ?? []).map((c) => c.toLowerCase().trim()),
+      );
+      const seenNames = new Set<string>();
+      const seenCuisines = new Set<string>();
+      const filtered: MealSuggestion[] = [];
+      for (const m of raw) {
+        if (!m?.name) continue;
+        const nn = norm(m.name);
+        if (!nn || excludedNorm.has(nn) || seenNames.has(nn)) continue;
+        // Substring overlap (e.g. "Som Tam Nua" vs "Som Tam Nua Branch 2")
+        let dupSubstring = false;
+        for (const ex of excludedNorm) {
+          if (ex.length >= 4 && (nn.includes(ex) || ex.includes(nn))) {
+            dupSubstring = true;
+            break;
+          }
+        }
+        if (dupSubstring) continue;
+        const cu = (m.cuisine ?? "").toLowerCase().trim();
+        if (cu && excludedCuisinesNorm.has(cu)) continue;
+        if (cu && seenCuisines.has(cu)) continue;
+        seenNames.add(nn);
+        if (cu) seenCuisines.add(cu);
+        filtered.push(m);
+        if (filtered.length >= count) break;
+      }
+      return { meals: filtered };
     } catch {
       return { meals: [], error: "PARSE_ERROR" };
     }

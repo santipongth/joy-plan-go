@@ -395,14 +395,28 @@ export default function MealSuggestDialog({
               </Button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              {results.map((m, i) => (
-                <MealCard
-                  key={`${m.name}-${i}`}
-                  meal={m}
-                  selected={selected.has(i)}
-                  onToggleSelect={() => toggleSel(i)}
-                />
-              ))}
+              {results.map((m, i) => {
+                const ref =
+                  nearLodging && lodgingForDay
+                    ? { lat: lodgingForDay.lat, lng: lodgingForDay.lng, name: lodgingForDay.name }
+                    : day?.places[0]
+                      ? { lat: day.places[0].lat, lng: day.places[0].lng, name: day.places[0].name }
+                      : null;
+                const refLabel =
+                  nearLodging && lodgingForDay
+                    ? t("mealDistanceFromLodging")
+                    : t("mealDistanceFromAnchor");
+                return (
+                  <MealCard
+                    key={`${m.name}-${i}`}
+                    meal={m}
+                    selected={selected.has(i)}
+                    onToggleSelect={() => toggleSel(i)}
+                    referencePoint={ref}
+                    referenceLabel={refLabel}
+                  />
+                );
+              })}
             </div>
             <p className="text-[11px] text-muted-foreground italic">{t("mealDisclaimer")}</p>
           </div>
