@@ -186,10 +186,10 @@ export default function MapView({
       const opacity = dimmed && !isSelected ? 0.45 : 1;
       const bg = isSelected ? "#f59e0b" : "#0f766e";
       const ring = isSelected
-        ? "box-shadow:0 0 0 5px rgba(245,158,11,0.35), 0 2px 8px rgba(0,0,0,0.4); animation:trip-pulse 1.4s infinite;"
+        ? "box-shadow:0 0 0 4px #fff, 0 0 0 9px rgba(245,158,11,0.55), 0 0 0 14px rgba(245,158,11,0.25), 0 4px 14px rgba(0,0,0,0.45); animation:trip-pulse 1.2s infinite;"
         : "box-shadow:0 2px 6px rgba(0,0,0,0.35);";
-      const size = isSelected ? 36 : 30;
-      const html = `<div style="background:${bg};color:white;width:${size}px;height:${size}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid white;${ring}opacity:${opacity}"><span style="transform:rotate(45deg);font-size:${isSelected ? 16 : 14}px;line-height:1">🛏️</span></div>`;
+      const size = isSelected ? 42 : 30;
+      const html = `<div style="background:${bg};color:white;width:${size}px;height:${size}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:3px solid white;${ring}opacity:${opacity}"><span style="transform:rotate(45deg);font-size:${isSelected ? 18 : 14}px;line-height:1">🛏️</span></div>`;
       const icon = L.divIcon({
         html,
         className: "trip-lodging-marker",
