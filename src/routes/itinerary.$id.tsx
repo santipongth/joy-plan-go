@@ -95,7 +95,6 @@ import DayMiniMap from "@/components/DayMiniMap";
 import BudgetEstimate from "@/components/BudgetEstimate";
 import WeatherStrip from "@/components/WeatherStrip";
 import PackingChecklist from "@/components/PackingChecklist";
-import SpendingTracker from "@/components/SpendingTracker";
 import LocalTipsCard from "@/components/LocalTipsCard";
 import SimilarPopover from "@/components/SimilarPopover";
 import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
@@ -1669,48 +1668,6 @@ function SortablePlace({
         </div>
       </div>
     </Card>
-  );
-}
-
-const MODE_KEYS: TravelMode[] = ["any", "walking", "transit", "mixed"];
-
-function modeLabel(t: (k: keyof typeof dict.en) => string, m: TravelMode): string {
-  return t(("mode" + m.charAt(0).toUpperCase() + m.slice(1)) as keyof typeof dict.en);
-}
-
-function TripModeBar({
-  mode,
-  onChange,
-  onApplyAll,
-  t,
-}: {
-  mode: TravelMode;
-  onChange: (m: TravelMode) => void;
-  onApplyAll: () => void;
-  t: (k: any) => string;
-}) {
-  return (
-    <div className="mb-6 p-3 rounded-lg bg-card/60 border flex flex-wrap items-center gap-2">
-      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-2">
-        {t("tripMode")}
-      </span>
-      <div className="flex flex-wrap gap-1">
-        {MODE_KEYS.map((m) => (
-          <Button
-            key={m}
-            type="button"
-            size="sm"
-            variant={mode === m ? "default" : "outline"}
-            onClick={() => onChange(m)}
-          >
-            {modeLabel(t, m)}
-          </Button>
-        ))}
-      </div>
-      <Button type="button" size="sm" variant="ghost" onClick={onApplyAll} className="ml-auto">
-        {t("applyToAll")}
-      </Button>
-    </div>
   );
 }
 
