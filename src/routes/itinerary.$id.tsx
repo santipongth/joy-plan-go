@@ -1743,71 +1743,9 @@ function DayRoutePanel({
     () => resolveAnchor(day.startPoint, day.places),
     [day.startPoint, day.places],
   );
-  const est = useMemo(
-    () => estimateDayTravel(day.places, effectiveMode, anchor),
-    [day.places, effectiveMode, anchor],
-  );
-  const km = (est.totalMeters / 1000).toFixed(1);
-  const longestKm = (est.longestLegMeters / 1000).toFixed(1);
   const startLabel =
     day.startPoint?.label ||
     (anchor ? t("startPoint") : tripOriginLabel || t("tripOrigin"));
-
-  let reasoning: string;
-  if (effectiveMode === "any") {
-    reasoning = t("reasonNoMode");
-  } else if (day.startPoint?.label) {
-    reasoning = t("reasonNearestFrom")
-      .replace("{start}", day.startPoint.label)
-      .replace("{km}", longestKm);
-  } else {
-    reasoning = t("reasonNearestNoStart").replace("{km}", longestKm);
-  }
-
-  const [startOpen, setStartOpen] = useState(false);
-  const [startQuery, setStartQuery] = useState("");
-
-  const otherDayPlaces = useMemo(
-    () =>
-      allDays
-        .map((d, idx) => ({ d, idx }))
-        .filter(({ idx }) => idx !== dayIdx)
-        .flatMap(({ d }) => d.places.map((p) => ({ p, dayNum: d.day }))),
-    [allDays, dayIdx],
-  );
-
-  // Debounce store writes so rapid keyboard navigation doesn't thrash persisted state.
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-  const debouncedSetStart = (sp: DayStartPoint | undefined) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => onSetDayStart(sp), 120);
-  };
-
-  function chooseInherit() {
-    debouncedSetStart(undefined);
-    setStartOpen(false);
-  }
-  function chooseTripOrigin() {
-    if (tripOriginLabel) debouncedSetStart({ label: tripOriginLabel });
-    else debouncedSetStart(undefined);
-    setStartOpen(false);
-  }
-  function choosePlace(p: Place) {
-    debouncedSetStart({ label: p.name, lat: p.lat, lng: p.lng, placeId: p.id });
-    setStartOpen(false);
-  }
-  function chooseCustom() {
-    const label = startQuery.trim();
-    if (!label) return;
-    debouncedSetStart({ label });
-    setStartOpen(false);
-    setStartQuery("");
-  }
 
   const anchorForMap = useMemo(
     () => (anchor ? { lat: anchor.lat, lng: anchor.lng, label: startLabel } : null),
