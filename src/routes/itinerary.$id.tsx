@@ -940,9 +940,13 @@ function ItineraryDetail() {
               {/* Floating day legend — slides off-screen when collapsed */}
               <div
                 aria-hidden={overlaysCollapsed}
+                {...stopMapEvents}
+                {...(isMobile
+                  ? makeSwipeHandlers("horizontal", () => setOverlaysCollapsed(true))
+                  : {})}
                 className={`absolute z-[1100] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 transition-all duration-300 ease-out ${
                   isMobile
-                    ? `top-14 right-3 max-w-[200px] ${
+                    ? `top-14 right-3 max-w-[220px] ${
                         overlaysCollapsed
                           ? "translate-x-[120%] opacity-0 pointer-events-none"
                           : "translate-x-0 opacity-100"
@@ -965,12 +969,16 @@ function ItineraryDetail() {
                         key={d.day}
                         onClick={() => toggleDay(d.day)}
                         title={t("clickToToggle")}
-                        className={`flex items-center gap-1.5 text-xs w-full text-left px-1.5 py-1 rounded hover:bg-muted transition-colors ${
-                          visible ? "" : "opacity-40"
-                        }`}
+                        className={`flex items-center gap-1.5 w-full text-left rounded hover:bg-muted transition-colors ${
+                          isMobile
+                            ? "text-sm px-2 py-2 min-h-[40px]"
+                            : "text-xs px-1.5 py-1"
+                        } ${visible ? "" : "opacity-40"}`}
                       >
                         <span
-                          className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                          className={`rounded-full flex-shrink-0 ${
+                            isMobile ? "h-3 w-3" : "h-2.5 w-2.5"
+                          }`}
                           style={{ background: dayColor(d.day - 1) }}
                         />
                         <span className="truncate flex-1">
@@ -978,9 +986,9 @@ function ItineraryDetail() {
                           {d.title ? ` — ${d.title}` : ""}
                         </span>
                         {visible ? (
-                          <Eye className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <Eye className={`text-muted-foreground flex-shrink-0 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
                         ) : (
-                          <EyeOff className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <EyeOff className={`text-muted-foreground flex-shrink-0 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
                         )}
                       </button>
                     );
