@@ -50,12 +50,29 @@ export default function MealReplacePopover({
 
   const day = itinerary.days[dayIdx];
 
+  // Validation: this popover only operates on meal places
+  const isMeal = place.kind === "meal";
+
+  // Aggregate names + cuisines across the entire trip for dedup
+  const allMealNames = itinerary.days
+    .flatMap((d) => d.places)
+    .filter((p) => p.kind === "meal")
+    .map((p) => p.name);
+  const allMealCuisines = Array.from(
+    new Set(
+      itinerary.days
+        .flatMap((d) => d.places)
+        .filter((p) => p.kind === "meal" && p.cuisine)
+        .map((p) => p.cuisine!.toLowerCase()),
+    ),
+  );
+
   async function load(getMore = false) {
-    if (!day) return;
+    if (!day || !isMeal) return;
     setPhase("loading");
     setError(null);
     try {
-      const mt = timeToMealType(place.time);
+      const mt = timeToMealType(place.time) ?? place.mealType;
       const res = await suggestFn({
         data: {
           destination: itinerary.destination,
@@ -79,8 +96,11 @@ export default function MealReplacePopover({
           budget: itinerary.budget,
           travelers: itinerary.travelers,
           excludeNames: getMore
-            ? [place.name, ...results.map((r) => r.name)]
-            : [place.name],
+            ? Array.from(new Set([place.name, ...allMealNames, ...results.map((r) => r.name)]))
+            : Array.from(new Set([place.name, ...allMealNames])),
+          excludeCuisines: place.cuisine
+            ? Array.from(new Set([place.cuisine.toLowerCase(), ...allMealCuisines]))
+            : allMealCuisines,
           nearLat: place.lat,
           nearLng: place.lng,
         },
@@ -104,6 +124,10 @@ export default function MealReplacePopover({
   }
 
   function handleOpen(v: boolean) {
+    if (v && !isMeal) {
+      toast.error(t("mealReplaceOnlyMeals"));
+      return;
+    }
     setOpen(v);
     if (v && phase === "idle") void load(false);
     if (!v) {
@@ -115,21 +139,29 @@ export default function MealReplacePopover({
   }
 
   function pick(m: MealSuggestion) {
+    // Validation: ensure the suggestion is a usable meal record
+    if (!m?.name || typeof m.lat !== "number" || typeof m.lng !== "number") {
+      toast.error(t("mealReplaceInvalid"));
+      return;
+    }
+    // Preserve original timeline slot consistency: keep slot, time, and kind=meal
     const replacement: Place = {
       id: makeId(),
       name: m.name,
       description: m.description,
-      time: place.time ?? m.time,
-      type: m.cuisine || "food",
+      time: place.time ?? m.time, // keep original time slot
+      type: m.cuisine || place.type || "food",
       lat: m.lat,
       lng: m.lng,
-      kind: "meal",
+      kind: "meal", // ALWAYS meal — never let a non-meal item replace
       cuisine: m.cuisine,
       priceRange: m.priceRange,
       rating: m.rating,
       openHours: m.openHours,
-      mealType: m.mealType,
-      slot: place.slot,
+      mealType: m.mealType ?? place.mealType ?? timeToMealType(place.time),
+      slot: place.slot, // preserve day slot (morning/afternoon/evening/night)
+      bookmarked: place.bookmarked, // preserve user marks
+      notes: place.notes,
     };
     replacePlace(itinerary.id, dayIdx, place.id, replacement);
     toast.success(t("mealReplaceConfirm"));
