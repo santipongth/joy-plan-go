@@ -27,7 +27,14 @@ interface State {
   setDayMode: (id: string, dayIndex: number, mode: TravelMode | undefined) => void;
   setDayStart: (id: string, dayIndex: number, sp: DayStartPoint | undefined) => void;
   applyModeToAllDays: (id: string, mode: TravelMode | undefined) => void;
-}
+  updatePlace: (id: string, dayIndex: number, placeId: string, patch: Partial<Place>) => void;
+  addPackingItem: (id: string, item: PackingItem) => void;
+  updatePackingItem: (id: string, itemId: string, patch: Partial<PackingItem>) => void;
+  removePackingItem: (id: string, itemId: string) => void;
+  setPacking: (id: string, items: PackingItem[]) => void;
+  addExpense: (id: string, exp: Expense) => void;
+  updateExpense: (id: string, expId: string, patch: Partial<Expense>) => void;
+  removeExpense: (id: string, expId: string) => void;
 
 const touch = (it: Itinerary): Itinerary => ({ ...it, updatedAt: Date.now() });
 
