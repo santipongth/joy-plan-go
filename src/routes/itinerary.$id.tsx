@@ -761,6 +761,9 @@ function ItineraryDetail() {
             <p className="text-sm text-muted-foreground mt-1">
               {itinerary.destination} · {itinerary.durationDays} {t("days")}
             </p>
+            <div className="mt-3">
+              <WeatherStrip itinerary={itinerary} />
+            </div>
           </div>
 
           <BudgetEstimate
