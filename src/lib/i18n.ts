@@ -69,6 +69,8 @@ export const dict = {
     linkCopied: "คัดลอกลิงก์แล้ว",
     dragToReorder: "ลากเพื่อจัดเรียง",
     daysLegend: "สีแต่ละวัน",
+    hideOverlays: "ซ่อนแถบควบคุม",
+    showOverlays: "แสดงแถบควบคุม",
     retry: "ลองอีกครั้ง",
     regenFailed: "สร้างวันนี้ใหม่ไม่สำเร็จ",
     clickToToggle: "คลิกเพื่อแสดง/ซ่อน",
