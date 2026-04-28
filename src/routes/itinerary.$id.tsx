@@ -89,7 +89,7 @@ import PackingChecklist from "@/components/PackingChecklist";
 import LocalTipsCard from "@/components/LocalTipsCard";
 import SimilarPopover from "@/components/SimilarPopover";
 import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
-import { haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
+import { haversineMeters, modeProfile, resolveAnchor } from "@/lib/route-utils";
 
 import { suggestMeals } from "@/server/discover.functions";
 import ShareTripDialog from "@/components/ShareTripDialog";
@@ -130,8 +130,6 @@ function ItineraryDetail() {
   const duplicateTrip = useItineraryStore((s) => s.duplicate);
   const replaceDay = useItineraryStore((s) => s.replaceDay);
   const movePlace = useItineraryStore((s) => s.movePlace);
-  const setDayMode = useItineraryStore((s) => s.setDayMode);
-  const setDayStart = useItineraryStore((s) => s.setDayStart);
   const pushHistory = useReorderHistoryStore((s) => s.push);
   const popHistory = useReorderHistoryStore((s) => s.pop);
   const clearHistory = useReorderHistoryStore((s) => s.clear);
@@ -851,22 +849,6 @@ function ItineraryDetail() {
                   onRegenerate={() => requestRegenerateDay(dayIdx)}
                   onMovePlace={(placeId, toDayIdx) => handleMovePlace(placeId, dayIdx, toDayIdx)}
                   onFocusPlace={focusPlace}
-                  onSetDayMode={(m) => setDayMode(id, dayIdx, m)}
-                  onSetDayStart={(sp) => setDayStart(id, dayIdx, sp)}
-                  onReorderByMode={() => {
-                    const anchor = resolveAnchor(d.startPoint, d.places);
-                    const newOrder = reorderPlacesFromAnchor(d.places, anchor, effectiveMode);
-                    const prev = d.places;
-                    pushHistory(id, dayIdx, prev);
-                    reorderPlaces(id, dayIdx, newOrder);
-                    toast.success(t("dayReordered").replace("{n}", String(d.day)), {
-                      duration: 5000,
-                      action: {
-                        label: t("undo"),
-                        onClick: () => undoReorder(dayIdx, d.day, prev),
-                      },
-                    });
-                  }}
                   regenerating={regenLoading === d.day}
                   errorMessage={regenErrors[d.day]}
                   onDismissError={() => clearRegenError(d.day)}
@@ -1141,16 +1123,12 @@ interface DaySectionProps {
   allDays: DayPlan[];
   tripOriginLabel?: string;
   effectiveMode: TravelMode;
-  inheritedMode: TravelMode;
   onAddPlace: () => void;
   onRemovePlace: (placeId: string) => void;
   onReorder: (places: Place[]) => void;
   onRegenerate: () => void;
   onMovePlace: (placeId: string, toDayIdx: number) => void;
   onFocusPlace: (placeId: string) => void;
-  onSetDayMode: (mode: TravelMode | undefined) => void;
-  onSetDayStart: (sp: DayStartPoint | undefined) => void;
-  onReorderByMode: () => void;
   onPushHistory: (prev: Place[]) => void;
   onUndoReorder: () => void;
   historyDepth: number;
@@ -1169,16 +1147,12 @@ function DaySection({
   allDays,
   tripOriginLabel,
   effectiveMode,
-  inheritedMode,
   onAddPlace,
   onRemovePlace,
   onReorder,
   onRegenerate,
   onMovePlace,
   onFocusPlace,
-  onSetDayMode,
-  onSetDayStart,
-  onReorderByMode,
   onPushHistory,
   onUndoReorder,
   historyDepth,
@@ -1366,15 +1340,9 @@ function DaySection({
 
       <DayRoutePanel
         day={day}
-        dayIdx={dayIdx}
-        allDays={allDays}
         color={color}
         effectiveMode={effectiveMode}
-        inheritedMode={inheritedMode}
         tripOriginLabel={tripOriginLabel}
-        onSetDayMode={onSetDayMode}
-        onSetDayStart={onSetDayStart}
-        onReorderByMode={onReorderByMode}
         t={t}
       />
 
@@ -1434,7 +1402,7 @@ function SortablePlace({
   onMove,
   moveLabel,
   focusLabel,
-  dayLabel,
+  
   onUpdatePlace,
   itinerary,
   dayIdx,
@@ -1449,7 +1417,7 @@ function SortablePlace({
   onMove: (toDayIdx: number) => void;
   moveLabel: string;
   focusLabel: string;
-  dayLabel: string;
+  
   onUpdatePlace: (patch: Partial<Place>) => void;
   itinerary: Itinerary;
   dayIdx: number;
@@ -1662,27 +1630,15 @@ function SortablePlace({
 
 function DayRoutePanel({
   day,
-  dayIdx,
-  allDays,
   color,
   effectiveMode,
-  inheritedMode,
   tripOriginLabel,
-  onSetDayMode,
-  onSetDayStart,
-  onReorderByMode,
   t,
 }: {
   day: DayPlan;
-  dayIdx: number;
-  allDays: DayPlan[];
   color: string;
   effectiveMode: TravelMode;
-  inheritedMode: TravelMode;
   tripOriginLabel?: string;
-  onSetDayMode: (m: TravelMode | undefined) => void;
-  onSetDayStart: (sp: DayStartPoint | undefined) => void;
-  onReorderByMode: () => void;
   t: (k: any) => string;
 }) {
   const anchor = useMemo(
