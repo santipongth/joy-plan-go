@@ -858,7 +858,7 @@ interface DaySectionProps {
   allDays: DayPlan[];
   tripOriginLabel?: string;
   effectiveMode: TravelMode;
-  onAddPlace: () => void;
+  
   onRemovePlace: (placeId: string) => void;
   onReorder: (places: Place[]) => void;
   onRegenerate: () => void;
@@ -883,7 +883,7 @@ function DaySection({
   allDays,
   tripOriginLabel,
   effectiveMode,
-  onAddPlace,
+  
   onRemovePlace,
   onReorder,
   onRegenerate,
