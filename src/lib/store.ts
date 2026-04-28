@@ -10,6 +10,7 @@ import type {
   Expense,
   Lodging,
   TransportLeg,
+  MealPreferences,
 } from "./types";
 
 interface State {
