@@ -842,7 +842,7 @@ function ItineraryDetail() {
                   allDays={itinerary.days}
                   tripOriginLabel={itinerary.origin}
                   effectiveMode={effectiveMode}
-                  inheritedMode={itinerary.travelMode ?? "any"}
+                  
                   onAddPlace={() => onAddPlace(dayIdx)}
                   onRemovePlace={(placeId) => removePlace(id, dayIdx, placeId)}
                   onReorder={(places) => reorderPlaces(id, dayIdx, places)}
@@ -1375,7 +1375,7 @@ function DaySection({
                   onMove={(toDayIdx) => onMovePlace(p.id, toDayIdx)}
                   moveLabel={t("moveToDay")}
                   focusLabel={t("focusOnMap")}
-                  dayLabel={t("day")}
+                  
                   onUpdatePlace={(patch) =>
                     updatePlaceField(itineraryId, dayIdx, p.id, patch)
                   }
