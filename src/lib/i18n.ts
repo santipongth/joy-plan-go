@@ -254,6 +254,8 @@ export const dict = {
     linkCopied: "Link copied",
     dragToReorder: "Drag to reorder",
     daysLegend: "Day colors",
+    hideOverlays: "Hide controls",
+    showOverlays: "Show controls",
     retry: "Retry",
     regenFailed: "Failed to regenerate this day",
     clickToToggle: "Click to show/hide",
