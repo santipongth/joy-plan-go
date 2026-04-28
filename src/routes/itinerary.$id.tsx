@@ -12,7 +12,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft,
   Trash2,
-  Plus,
   Compass,
   MapPin,
   Clock,
@@ -87,8 +86,6 @@ import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-tri
 import { haversineMeters, modeProfile, resolveAnchor } from "@/lib/route-utils";
 
 import { suggestMeals } from "@/server/discover.functions";
-import ShareTripDialog from "@/components/ShareTripDialog";
-import ThemeToggle from "@/components/ThemeToggle";
 import AuthButton from "@/components/AuthButton";
 
 import PhotoGallery from "@/components/PhotoGallery";
@@ -123,7 +120,7 @@ function ItineraryDetail() {
   const update = useItineraryStore((s) => s.update);
   const removeItin = useItineraryStore((s) => s.remove);
   const removePlace = useItineraryStore((s) => s.removePlace);
-  const addPlace = useItineraryStore((s) => s.addPlace);
+  
   const reorderPlaces = useItineraryStore((s) => s.reorderPlaces);
   const duplicateTrip = useItineraryStore((s) => s.duplicate);
   const replaceDay = useItineraryStore((s) => s.replaceDay);
@@ -282,24 +279,6 @@ function ItineraryDetail() {
     setEditingTitle(false);
   }
 
-  function onAddPlace(dayIdx: number) {
-    const name = prompt(t("placeName"));
-    if (!name) return;
-    const latStr = prompt("Latitude (e.g. 13.7563)");
-    const lngStr = prompt("Longitude (e.g. 100.5018)");
-    const lat = Number(latStr);
-    const lng = Number(lngStr);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    addPlace(id, dayIdx, {
-      id: makeId(),
-      name,
-      lat,
-      lng,
-      time: "",
-      description: "",
-      type: "landmark",
-    });
-  }
 
   function toggleDay(day: number) {
     toggleVisible(id, day);
