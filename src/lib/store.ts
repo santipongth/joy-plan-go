@@ -43,6 +43,8 @@ interface State {
   removeLodging: (id: string, lodgingId: string) => void;
   setLodgingDays: (id: string, lodgingId: string, dayIndexes: number[]) => void;
   setDayTransport: (id: string, dayIndex: number, legs: TransportLeg[] | undefined) => void;
+  setMealPreferences: (id: string, prefs: MealPreferences) => void;
+  replacePlace: (id: string, dayIndex: number, oldPlaceId: string, newPlace: Place) => void;
 }
 
 const touch = (it: Itinerary): Itinerary => ({ ...it, updatedAt: Date.now() });
