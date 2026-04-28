@@ -1,6 +1,9 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import CommandPalette from "@/components/CommandPalette";
+import OnboardingHint from "@/components/OnboardingHint";
+import { useApplyTheme } from "@/lib/theme-store";
 
 function NotFoundComponent() {
   return (
@@ -64,5 +67,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  return <Outlet />;
+  useApplyTheme();
+  return (
+    <>
+      <Outlet />
+      <CommandPalette />
+      <OnboardingHint />
+    </>
+  );
 }
