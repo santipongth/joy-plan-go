@@ -136,6 +136,7 @@ export default function MealCard({
           >
             {selected ? <Check className="h-4 w-4" /> : <span className="block h-3 w-3 rounded-full border-2 border-current" />}
           </button>
+        )}
         {distanceKm !== null && (
           <Badge
             variant="secondary"
