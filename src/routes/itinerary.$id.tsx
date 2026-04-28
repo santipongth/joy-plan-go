@@ -614,8 +614,6 @@ function ItineraryDetail() {
                   allDays={itinerary.days}
                   tripOriginLabel={itinerary.origin}
                   effectiveMode={effectiveMode}
-                  
-                  onAddPlace={() => onAddPlace(dayIdx)}
                   onRemovePlace={(placeId) => removePlace(id, dayIdx, placeId)}
                   onReorder={(places) => reorderPlaces(id, dayIdx, places)}
                   onRegenerate={() => requestRegenerateDay(dayIdx)}
