@@ -1392,13 +1392,6 @@ function SortablePlace({
   const [notesOpen, setNotesOpen] = useState(!!place.notes);
   const [notesDraft, setNotesDraft] = useState(place.notes ?? "");
 
-  const slotMeta: Record<NonNullable<Place["slot"]>, { icon: any; key: string }> = {
-    morning: { icon: Sunrise, key: "slotMorning" },
-    afternoon: { icon: Sun, key: "slotAfternoon" },
-    evening: { icon: Sunset, key: "slotEvening" },
-    night: { icon: Moon, key: "slotNight" },
-  };
-  const slots: Array<NonNullable<Place["slot"]>> = ["morning", "afternoon", "evening", "night"];
 
   return (
     <Card
