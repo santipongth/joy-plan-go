@@ -116,17 +116,43 @@ export default function LodgingList({ itinerary }: { itinerary: Itinerary }) {
                     })}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                {l.bookingUrl && (
-                  <a
-                    href={l.bookingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] inline-flex items-center gap-1 text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    {t("lodgingBookOn")}
-                  </a>
-                )}
+                {(() => {
+                  const bookingHref = l.bookingUrl || buildBookingUrl(l.name, l.lat, l.lng);
+                  const airbnbHref = buildAirbnbUrl(l.name);
+                  const mapHref = buildMapUrl(l.lat, l.lng, l.name);
+                  return (
+                    <div className="flex items-center gap-1 flex-wrap justify-end">
+                      <a
+                        href={mapHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border bg-background text-[11px] hover:bg-muted transition-colors"
+                        title={t("lodgingViewMap")}
+                      >
+                        <MapPin className="h-3 w-3" />
+                        {t("lodgingViewMap")}
+                      </a>
+                      <a
+                        href={airbnbHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border bg-background text-[11px] hover:bg-muted transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {t("lodgingBookAirbnb")}
+                      </a>
+                      <a
+                        href={bookingHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-primary text-primary-foreground text-[11px] font-medium hover:bg-primary/90 transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {t("lodgingBookOn")}
+                      </a>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           );
