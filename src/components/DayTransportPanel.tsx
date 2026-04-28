@@ -20,6 +20,7 @@ import {
   X,
   Bike,
   Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import { resolveAnchor } from "@/lib/route-utils";
 import { toast } from "sonner";
