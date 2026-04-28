@@ -786,6 +786,7 @@ function ItineraryDetail() {
 
           <PackingChecklist itinerary={itinerary} />
           <SpendingTracker itinerary={itinerary} />
+          <LocalTipsCard itinerary={itinerary} />
 
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
