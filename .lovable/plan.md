@@ -1,49 +1,93 @@
-# Core Budget Estimate — Enhancements
+## สรุปสิ่งที่มีอยู่แล้ว
 
-Five upgrades to `BudgetEstimate`: currency selector, per-day breakdown chart, info tooltip for paid attractions, hardened traveler validation, and confirmed persistence of preferences.
+Trip Planner เป็นเว็บแอปวางแผนทริปด้วย AI — มี: AI สร้างแผนทั้งทริป/รายวัน, drag-drop จัดเรียง + undo history, แผนที่ Leaflet พร้อม legend/filter, travel mode + anchor ต่อวัน, budget estimate หลายสกุล + per-day chart, print/share, i18n (ไทย/อังกฤษ), ทุกอย่างเก็บใน localStorage (Zustand persist) — ยังไม่มี backend/auth
 
-## What you'll see
+---
 
-1. **Currency selector** (THB / USD / EUR / JPY / GBP) sits next to the "Estimate" badge in the card header. Switching currency instantly reformats every number in the card and the new chart. Choice is remembered after refresh.
-2. **Per-day breakdown chart** appears just under the totals. A compact stacked horizontal bar per day shows Stay / Attractions / Transportation portions with a legend, plus the day total. Bars scale to the largest day so days are visually comparable. Collapsible (default open) to keep the card compact.
-3. **Info tooltip** — a small "i" icon next to the "Attractions" row. Hover/tap reveals the list of place types counted as paid attractions (museum, landmark, temple, zoo, etc.) plus the per-attraction rate, so the calculation is transparent.
-4. **Travelers stepper validation** — typed/clamped to 1–20, +/- buttons disabled at limits (already partly implemented), plus an inline numeric input so users can type a value directly; out-of-range entries are clamped and a brief toast is shown.
-5. **Persistence** — `budget`, `travelers`, and the new `currency` survive browser refresh.
+## ฟีเจอร์ใหม่ที่แนะนำ (จัดกลุ่ม)
 
-## Technical details
+### กลุ่ม A — เพิ่มคุณค่าให้ทริป (เริ่มได้ทันที, ไม่ต้องใช้ Cloud)
 
-### Currency
-- New file `src/lib/currency-store.ts`: zustand-persist store holding `currency: "THB" | "USD" | "EUR" | "JPY" | "GBP"` (default `"USD"`) under key `budget-currency-v1`. Currency is a per-user preference, not per-itinerary, so it lives outside the itinerary store.
-- New helper in `src/lib/budget.ts`:
-  - `CURRENCIES` constant with `{code, symbol, rate}` (rates are static fallbacks relative to USD; e.g., THB 36, EUR 0.92, JPY 155, GBP 0.79).
-  - Replace `formatUSD(n)` with `formatMoney(n, currency)` that converts USD → target currency and formats with `Intl.NumberFormat`. Keep a thin `formatUSD` re-export for any legacy callers.
-- `BudgetEstimate.tsx` reads currency from the store and passes it to all formatters.
+**A1. Packing Checklist อัตโนมัติ**
+สร้างเช็กลิสต์ของที่ต้องเตรียม โดยอ้างอิงจาก destination, จำนวนวัน, ฤดูกาล (จาก startDate), travel style, accommodation, companions
 
-### Per-day breakdown chart
-- Add `estimateBudgetByDay(itinerary, travelers, tier)` to `src/lib/budget.ts` that returns `Array<{ day: number; stay: number; attractions: number; transportation: number; total: number }>`. Reuses the existing per-category logic but scoped to one day:
-  - Stay portion: `(nights/durationDays)` share allocated evenly across days, or 0 on the last day if we treat nights = days-1 (we'll spread evenly across `durationDays-1` nights and assign 0 to last day).
-  - Attractions: count paid attractions in `day.places` only.
-  - Transportation: that day's mode rate × travelers × tier multiplier; inter-city allowance is added to day 1 only.
-- New component `src/components/BudgetByDayChart.tsx`: renders a list of rows, each with day label, a stacked bar (CSS flex with width % per category using brand colors that match the existing icons), and the per-day total formatted in the selected currency. Includes a small legend (color swatch + label) at the top.
-- Inserted in `BudgetEstimate.tsx` directly under the totals block, inside a collapsible `<details>` with a "Per-day breakdown" summary so the card stays compact when not needed.
+- รายการ default แบ่งหมวด: เอกสาร / เสื้อผ้า / สุขภาพ / อิเล็กทรอนิกส์ / กิจกรรมเฉพาะ
+- ติ๊กเพื่อ mark เสร็จ, เพิ่มรายการเอง, persist ต่อทริป
+- ปุ่ม "AI suggest extras" เรียก server function ขอแนะนำเพิ่มตามบริบท
 
-### Paid-attractions tooltip
-- Export `PAID_ATTRACTION_TYPES` from `src/lib/budget.ts` (currently a local const).
-- In `BudgetEstimate.tsx`, render an `Info` lucide icon next to the "Attractions" label wrapped in shadcn `Tooltip` (already available under `@/components/ui/tooltip`). Tooltip content lists the types (sorted, comma-separated) plus the line "≈ $15 per paid attraction per traveler (adjusted by tier)".
+**A2. Notes / Bookmarks ต่อสถานที่**
+ปัจจุบัน Place เก็บแค่ description จาก AI — เพิ่ม:
 
-### Travelers validation
-- In `BudgetEstimate.tsx`, replace the static span showing the count with a small `<input type="number" min={1} max={20}>` styled like the current span. On blur/Enter, clamp to `[1, 20]`; if user typed an out-of-range value, call `onTravelersChange(clamped)` and show `sonner` toast `t("travelersClamped")` ("Travelers must be between 1 and 20").
-- Constants `MIN_TRAVELERS = 1`, `MAX_TRAVELERS = 20` exported from `src/lib/budget.ts` and reused by both stepper buttons and the input.
+- โน้ตส่วนตัวต่อ place (เวลาจริงที่จอง, เบอร์ติดต่อ, ลิงก์)
+- ⭐ บุ๊กมาร์กเป็น must-visit
+- 🚫 mark visited/skipped
+- ไอคอนสถานะแสดงบน map marker และในรายการ
 
-### Persistence
-- `budget` and `travelers` are already saved through `update(id, { ... })` into the zustand-persisted itinerary store — no change needed; verified in `src/lib/store.ts`.
-- `currency` persists via the new `currency-store.ts` (zustand `persist` middleware).
+**A3. Day Cost Override + Actual Spending Tracker**
+ต่อยอดจาก budget estimate:
 
-### i18n
-Add to `src/lib/i18n.ts` (en + th):
-- `currency`, `perDayBreakdown`, `paidAttractionsInfo`, `travelersClamped`, `day` (if missing).
+- ผู้ใช้กรอกค่าใช้จ่ายจริงต่อวัน (Stay/Food/Transport/Other) ทับค่าประมาณ
+- เปรียบเทียบ budget ประมาณ vs จริง พร้อม % เกิน/เหลือ
+- บันทึกใบเสร็จแบบ text (จำนวน + คำอธิบาย)
 
-### Files
-- **Created**: `src/lib/currency-store.ts`, `src/components/BudgetByDayChart.tsx`
-- **Edited**: `src/lib/budget.ts` (export types list, add `formatMoney`, `estimateBudgetByDay`, constants), `src/components/BudgetEstimate.tsx` (currency selector, tooltip, input validation, embed chart), `src/lib/i18n.ts` (new keys)
-- **Unchanged**: `src/routes/itinerary.$id.tsx` — existing `update(id, { travelers })` / `update(id, { budget })` calls already persist via zustand.
+**A4. Trip Templates / Duplicate Trip**
+
+- "Save as template" จากทริปเก่าเพื่อสร้างใหม่โดย reset วันที่/places แต่คงค่า preferences
+- "Duplicate trip" คัดลอกทั้งทริปสำหรับลองเวอร์ชันอื่น
+- Built-in templates: "Weekend in Bangkok", "Tokyo 5 days" ฯลฯ (JSON ฝังไว้)
+
+**A5. Time-of-day Slotting**
+ปัจจุบัน places มีฟิลด์ `time` แต่เป็น string อิสระ — ทำให้ structured:
+
+- แบ่งเป็นช่วง morning / afternoon / evening / night
+- แสดง timeline แนวตั้งคล้าย Google Calendar
+- เตือนเมื่อเวลารวม + leg minutes เกิน 24 ชม.หรือ overlap
+
+**A6. Weather Forecast ต่อวัน**
+ใช้ Open-Meteo API (ฟรี, ไม่ต้อง key) ตาม destination lat/lng + startDate
+
+- แสดง icon + อุณหภูมิที่ header แต่ละวัน
+- เตือนถ้าวันที่มี outdoor activity เจอฝนหนัก
+  &nbsp;
+
+---
+
+### กลุ่ม B — Discovery & Recommendation (ใช้ AI server functions ที่มีอยู่ หรือใช้ Lovable AI)
+
+**B1. "More like this" — แนะนำสถานที่เพิ่มต่อวัน**
+ปุ่มที่ place card → AI เสนอ 3 สถานที่คล้าย ๆ ในละแวกเดียวกัน (ใช้ pattern เดียวกับ planSingleDay แต่จำกัดรัศมี)
+
+**B2. Restaurant / Food แยกหมวด**
+ปัจจุบัน places ปนกัน — เพิ่ม `kind: "attraction" | "meal" | "transit" | "stay"`
+
+- AI สอดแทรกร้านอาหาร 2-3 มื้อต่อวันโดยอัตโนมัติเมื่อ kind ไม่ครอบคลุม
+- แสดง icon ต่างกันบน map (ส้อม/ดาว/บ้าน)
+
+**B3. Local Tips / Cultural Notes (ใช้** Lovable AI**)**  
+หลัง generate แล้วเพิ่มกล่อง "What to know" — AI สรุปเรื่อง dress code, tipping, ภาษา, เวลาเปิด-ปิดทั่วไป, เทศกาลในช่วงนั้น
+
+---
+
+---
+
+### กลุ่ม D — UX polish เล็ก ๆ
+
+- D1. **Onboarding tour** (ใช้ shepherd.js หรือ custom popover) — ครั้งแรกที่เข้าหน้าทริป
+- D2. **Keyboard shortcuts** — `⌘K` command palette (สลับวัน, regenerate, undo, ค้น place)
+- D3. **Dark mode toggle** + persist (`map-style-store` มี style เก็บแล้ว ต่อยอดได้ง่าย)
+- D4. **Currency auto-detect** จาก browser locale ครั้งแรก
+- D5. **Map clustering** เมื่อ marker เยอะ (leaflet.markercluster) — ช่วยทริป >7 วัน
+
+---
+
+
+
+---
+
+## ขั้นตอนต่อไป
+
+ให้เริ่มทำทั้งหมด: A1 ถึง A6, B1 ถึง B3, D1 ถึง D5  
+หลังจากนั้นเปิด Lovable Cloud แล้วทำ **C1 Auth + Sync** เป็นก้าวกระโดดไปสู่ multi-device ให้เปิด Lovable Cloud และ Lovable AI ด้วย   
+
+
+แล้วผมจะวาง plan รายฟีเจอร์ที่ละเอียดสำหรับ implementation
