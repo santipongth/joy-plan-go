@@ -841,16 +841,6 @@ function ItineraryDetail() {
             </div>
           </div>
 
-          <TripModeBar
-            mode={itinerary.travelMode ?? "any"}
-            onChange={(m) => setItineraryMode(id, m)}
-            onApplyAll={() => {
-              applyModeToAllDays(id, itinerary.travelMode ?? "any");
-              toast.success(t("applyToAll"));
-            }}
-            t={t}
-          />
-
           <div className="space-y-6">
             {itinerary.days.map((d, dayIdx) => {
               const color = dayColor(d.day - 1);
