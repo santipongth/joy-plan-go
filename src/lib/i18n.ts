@@ -257,6 +257,8 @@ export const dict = {
     dragToReorder: "Drag to reorder",
     daysLegend: "Day colors",
     hideOverlays: "Hide controls",
+    swipeToCollapseV: "Swipe up to collapse",
+    swipeToCollapseH: "Swipe to collapse",
     showOverlays: "Show controls",
     retry: "Retry",
     regenFailed: "Failed to regenerate this day",
