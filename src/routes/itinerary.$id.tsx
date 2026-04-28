@@ -914,6 +914,7 @@ function DaySection({
   onRegenerate,
   onMovePlace,
   onFocusPlace,
+  selectedPlaceId,
   onPushHistory,
   onUndoReorder,
   historyDepth,
