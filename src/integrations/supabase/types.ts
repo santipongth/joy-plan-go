@@ -73,6 +73,47 @@ export type Database = {
           },
         ]
       }
+      trip_photos: {
+        Row: {
+          caption: string | null
+          created_at: string
+          day_index: number | null
+          id: string
+          owner_id: string
+          storage_path: string
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          day_index?: number | null
+          id?: string
+          owner_id: string
+          storage_path: string
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          day_index?: number | null
+          id?: string
+          owner_id?: string
+          storage_path?: string
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_photos_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trips: {
         Row: {
           client_id: string | null

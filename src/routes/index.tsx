@@ -1,5 +1,8 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { fetchMyTrips } from "@/lib/cloud-sync";
+import { Globe, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +80,31 @@ function HomePage() {
   const addItinerary = useItineraryStore((s) => s.add);
   const removeItinerary = useItineraryStore((s) => s.remove);
   const planFn = useServerFn(planTrip);
+  const { user } = useAuth();
+  const [tripBadges, setTripBadges] = useState<Record<string, { isPublic: boolean; isShared: boolean }>>({});
+
+  useEffect(() => {
+    if (!user) {
+      setTripBadges({});
+      return;
+    }
+    let cancelled = false;
+    fetchMyTrips(user.id)
+      .then(({ owned, shared }) => {
+        if (cancelled) return;
+        const map: Record<string, { isPublic: boolean; isShared: boolean }> = {};
+        owned.forEach((r) => {
+          if (r.client_id) map[r.client_id] = { isPublic: r.is_public, isShared: false };
+        });
+        shared.forEach((r) => {
+          if (r.client_id) map[r.client_id] = { isPublic: r.is_public, isShared: true };
+        });
+        setTripBadges(map);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
 
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
@@ -568,6 +596,7 @@ function HomePage() {
               <div className="grid sm:grid-cols-2 gap-4">
                 {itineraries.map((it) => {
                   const totalPlaces = it.days.reduce((sum, d) => sum + d.places.length, 0);
+                  const badge = tripBadges[it.id];
                   return (
                     <Card
                       key={it.id}
@@ -579,6 +608,20 @@ function HomePage() {
                       </div>
                       <div className="p-4">
                         <h3 className="font-semibold text-sm line-clamp-2 mb-1">{it.title || t("untitled")}</h3>
+                        {badge && (badge.isShared || badge.isPublic) && (
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {badge.isShared && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                <Users className="h-3 w-3" /> {t("badgeShared")}
+                              </span>
+                            )}
+                            {badge.isPublic && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                <Globe className="h-3 w-3" /> {t("badgePublic")}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {it.durationDays} {t("days")} · {totalPlaces} {t("places")} · {it.citiesCount} {t("cities")}
                         </p>

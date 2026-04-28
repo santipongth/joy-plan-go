@@ -1,39 +1,78 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Itinerary } from "@/lib/types";
 import { fetchWeather, isForecastable, weatherIcon, type DailyWeather } from "@/lib/weather";
-import { useT } from "@/lib/i18n";
-import { Cloud } from "lucide-react";
+import { useT, useLangStore } from "@/lib/i18n";
+import { Cloud, MapPin } from "lucide-react";
+import { useWeatherAnchorStore } from "@/lib/weather-anchor-store";
+import { format, addDays, parseISO } from "date-fns";
+import { th, enUS } from "date-fns/locale";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Props {
   itinerary: Itinerary;
 }
 
-/** Picks the lat/lng of the itinerary's first place as the destination anchor. */
-function pickAnchor(it: Itinerary): { lat: number; lng: number } | null {
-  for (const d of it.days) {
-    for (const p of d.places) {
-      if (typeof p.lat === "number" && typeof p.lng === "number") return { lat: p.lat, lng: p.lng };
-    }
-  }
-  return null;
+interface AnchorOption {
+  id: string; // place id
+  label: string;
+  dayLabel: string;
+  lat: number;
+  lng: number;
+}
+
+function buildOptions(it: Itinerary): AnchorOption[] {
+  const out: AnchorOption[] = [];
+  it.days.forEach((d) => {
+    d.places.forEach((p) => {
+      if (typeof p.lat === "number" && typeof p.lng === "number") {
+        out.push({
+          id: p.id,
+          label: p.name,
+          dayLabel: `Day ${d.day}`,
+          lat: p.lat,
+          lng: p.lng,
+        });
+      }
+    });
+  });
+  return out;
 }
 
 export default function WeatherStrip({ itinerary }: Props) {
   const t = useT();
+  const lang = useLangStore((s) => s.lang);
+  const locale = lang === "th" ? th : enUS;
   const [data, setData] = useState<DailyWeather[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const anchors = useWeatherAnchorStore((s) => s.anchors);
+  const setAnchor = useWeatherAnchorStore((s) => s.setAnchor);
+
+  const options = useMemo(() => buildOptions(itinerary), [itinerary]);
+  const selected = anchors[itinerary.id] ?? "auto";
+  const active =
+    selected === "auto"
+      ? options[0] ?? null
+      : options.find((o) => o.id === selected) ?? options[0] ?? null;
 
   useEffect(() => {
     if (!itinerary.startDate) return;
     if (!isForecastable(itinerary.startDate, itinerary.durationDays)) return;
-    const anchor = pickAnchor(itinerary);
-    if (!anchor) return;
+    if (!active) return;
     let cancelled = false;
     setLoading(true);
+    setError(null);
     fetchWeather({
-      lat: anchor.lat,
-      lng: anchor.lng,
+      lat: active.lat,
+      lng: active.lng,
       startDate: itinerary.startDate,
       days: itinerary.durationDays,
     })
@@ -43,45 +82,85 @@ export default function WeatherStrip({ itinerary }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [itinerary.id, itinerary.startDate, itinerary.durationDays]);
+  }, [itinerary.id, itinerary.startDate, itinerary.durationDays, active?.lat, active?.lng]);
 
   if (!itinerary.startDate) return null;
   if (!isForecastable(itinerary.startDate, itinerary.durationDays)) return null;
-  if (loading && !data) {
-    return (
-      <div className="text-xs text-muted-foreground flex items-center gap-2 px-1 py-2">
-        <Cloud className="h-3 w-3 animate-pulse" /> {t("loadingWeather")}
-      </div>
-    );
-  }
-  if (error || !data) return null;
+  if (!active) return null;
+
+  const dateFmt = lang === "th" ? "d MMM" : "MMM d";
+  const startD = (() => {
+    try {
+      return parseISO(itinerary.startDate!);
+    } catch {
+      return null;
+    }
+  })();
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" aria-label={t("weatherForecast")}>
-      {data.map((w, i) => {
-        const wi = weatherIcon(w.weatherCode);
-        const wet = w.precipProb >= 60;
-        return (
-          <div
-            key={w.date}
-            className={`min-w-[88px] rounded-lg border px-2 py-1.5 text-center bg-card ${
-              wet ? "border-primary/60" : "border-border/60"
-            }`}
-            title={`${wi.label} · ${Math.round(w.tempMin)}° – ${Math.round(w.tempMax)}° · ${w.precipProb}%`}
-          >
-            <div className="text-[10px] text-muted-foreground font-medium">
-              {t("day")} {i + 1}
-            </div>
-            <div className="text-xl leading-tight">{wi.icon}</div>
-            <div className="text-[11px] font-medium">
-              {Math.round(w.tempMin)}° / {Math.round(w.tempMax)}°
-            </div>
-            <div className={`text-[10px] ${wet ? "text-primary font-semibold" : "text-muted-foreground"}`}>
-              💧 {w.precipProb}%
-            </div>
-          </div>
-        );
-      })}
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2 px-1">
+        <MapPin className="h-3 w-3 text-muted-foreground" />
+        <span className="text-[11px] text-muted-foreground">{t("weatherAnchor")}:</span>
+        <Select
+          value={selected}
+          onValueChange={(v) => setAnchor(itinerary.id, v)}
+        >
+          <SelectTrigger className="h-7 text-xs px-2 w-auto min-w-[140px] max-w-[260px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">{t("weatherAnchorAuto")}</SelectItem>
+            {options.length > 0 && (
+              <SelectGroup>
+                <SelectLabel className="text-[10px]">{t("places")}</SelectLabel>
+                {options.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    <span className="text-muted-foreground mr-1">{o.dayLabel}·</span>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
+          </SelectContent>
+        </Select>
+      </div>
+      {loading && !data ? (
+        <div className="text-xs text-muted-foreground flex items-center gap-2 px-1 py-2">
+          <Cloud className="h-3 w-3 animate-pulse" /> {t("loadingWeather")}
+        </div>
+      ) : error || !data ? null : (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" aria-label={t("weatherForecast")}>
+          {data.map((w, i) => {
+            const wi = weatherIcon(w.weatherCode);
+            const wet = w.precipProb >= 60;
+            const dateLabel = startD
+              ? format(addDays(startD, i), dateFmt, { locale })
+              : `${t("day")} ${i + 1}`;
+            return (
+              <div
+                key={w.date}
+                className={`min-w-[88px] rounded-lg border px-2 py-1.5 text-center bg-card ${
+                  wet ? "border-primary/60" : "border-border/60"
+                }`}
+                title={`${wi.label} · ${Math.round(w.tempMin)}° – ${Math.round(w.tempMax)}° · ${w.precipProb}%`}
+              >
+                <div className="text-[11px] font-semibold text-foreground">{dateLabel}</div>
+                <div className="text-[10px] text-muted-foreground -mt-0.5">
+                  {t("day")} {i + 1}
+                </div>
+                <div className="text-xl leading-tight">{wi.icon}</div>
+                <div className="text-[11px] font-medium">
+                  {Math.round(w.tempMin)}° / {Math.round(w.tempMax)}°
+                </div>
+                <div className={`text-[10px] ${wet ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+                  💧 {w.precipProb}%
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
