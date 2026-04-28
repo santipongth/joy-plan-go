@@ -162,6 +162,51 @@ function ItineraryDetail() {
   const [pendingRegenDay, setPendingRegenDay] = useState<number | null>(null);
   const [pendingRegenAll, setPendingRegenAll] = useState(false);
 
+  // ESC closes overlays on mobile
+  useEffect(() => {
+    if (!isMobile || overlaysCollapsed) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOverlaysCollapsed(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isMobile, overlaysCollapsed]);
+
+  // Swipe gesture helper for overlay panels
+  function makeSwipeHandlers(direction: "horizontal" | "vertical", onDismiss: () => void) {
+    const start = { x: 0, y: 0, t: 0 };
+    return {
+      onTouchStart: (e: React.TouchEvent) => {
+        const tch = e.touches[0];
+        start.x = tch.clientX;
+        start.y = tch.clientY;
+        start.t = Date.now();
+      },
+      onTouchEnd: (e: React.TouchEvent) => {
+        const tch = e.changedTouches[0];
+        const dx = tch.clientX - start.x;
+        const dy = tch.clientY - start.y;
+        const dt = Date.now() - start.t;
+        if (dt > 600) return;
+        if (direction === "horizontal") {
+          if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) onDismiss();
+        } else {
+          if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx) * 1.5) onDismiss();
+        }
+      },
+    };
+  }
+
+  // Stop map drag/zoom while interacting with overlay panels
+  const stopMapEvents = {
+    onPointerDownCapture: (e: React.PointerEvent) => e.stopPropagation(),
+    onMouseDownCapture: (e: React.MouseEvent) => e.stopPropagation(),
+    onTouchStartCapture: (e: React.TouchEvent) => e.stopPropagation(),
+    onTouchMoveCapture: (e: React.TouchEvent) => e.stopPropagation(),
+    onWheelCapture: (e: React.WheelEvent) => e.stopPropagation(),
+    onDoubleClickCapture: (e: React.MouseEvent) => e.stopPropagation(),
+  };
+
   // initialize / sync visible days when itinerary loads or day numbers change
   const dayNumbersKey = itinerary?.days.map((d) => d.day).join(",") ?? "";
   useEffect(() => {
@@ -841,9 +886,14 @@ function ItineraryDetail() {
               {typeCounts.size > 0 && (
                 <div
                   aria-hidden={overlaysCollapsed}
+                  {...stopMapEvents}
+                  {...(isMobile
+                    ? makeSwipeHandlers("vertical", () => setOverlaysCollapsed(true))
+                    : {})}
+                  style={{ touchAction: isMobile ? "pan-x" : undefined }}
                   className={`absolute top-3 left-3 right-14 z-[1100] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 gap-1 transition-all duration-300 ease-out ${
                     isMobile
-                      ? "flex flex-nowrap overflow-x-auto"
+                      ? "flex flex-nowrap overflow-x-auto overscroll-x-contain"
                       : "flex flex-wrap"
                   } ${
                     overlaysCollapsed
@@ -853,7 +903,11 @@ function ItineraryDetail() {
                 >
                   <button
                     onClick={() => setHighlightedType(null)}
-                    className={`text-[11px] px-2 py-1 rounded-full border transition-colors flex-shrink-0 ${
+                    className={`rounded-full border transition-colors flex-shrink-0 ${
+                      isMobile
+                        ? "text-xs px-3 py-2 min-h-[36px]"
+                        : "text-[11px] px-2 py-1"
+                    } ${
                       highlightedType === null
                         ? "bg-primary text-primary-foreground border-primary"
                         : "bg-background hover:bg-muted"
@@ -867,7 +921,11 @@ function ItineraryDetail() {
                       <button
                         key={tp}
                         onClick={() => setHighlightedType(highlightedType === tp ? null : tp)}
-                        className={`text-[11px] px-2 py-1 rounded-full border transition-colors capitalize flex-shrink-0 ${
+                        className={`rounded-full border transition-colors capitalize flex-shrink-0 ${
+                          isMobile
+                            ? "text-xs px-3 py-2 min-h-[36px]"
+                            : "text-[11px] px-2 py-1"
+                        } ${
                           highlightedType === tp
                             ? "bg-primary text-primary-foreground border-primary"
                             : "bg-background hover:bg-muted"
@@ -882,9 +940,13 @@ function ItineraryDetail() {
               {/* Floating day legend — slides off-screen when collapsed */}
               <div
                 aria-hidden={overlaysCollapsed}
+                {...stopMapEvents}
+                {...(isMobile
+                  ? makeSwipeHandlers("horizontal", () => setOverlaysCollapsed(true))
+                  : {})}
                 className={`absolute z-[1100] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 transition-all duration-300 ease-out ${
                   isMobile
-                    ? `top-14 right-3 max-w-[200px] ${
+                    ? `top-14 right-3 max-w-[220px] ${
                         overlaysCollapsed
                           ? "translate-x-[120%] opacity-0 pointer-events-none"
                           : "translate-x-0 opacity-100"
@@ -907,12 +969,16 @@ function ItineraryDetail() {
                         key={d.day}
                         onClick={() => toggleDay(d.day)}
                         title={t("clickToToggle")}
-                        className={`flex items-center gap-1.5 text-xs w-full text-left px-1.5 py-1 rounded hover:bg-muted transition-colors ${
-                          visible ? "" : "opacity-40"
-                        }`}
+                        className={`flex items-center gap-1.5 w-full text-left rounded hover:bg-muted transition-colors ${
+                          isMobile
+                            ? "text-sm px-2 py-2 min-h-[40px]"
+                            : "text-xs px-1.5 py-1"
+                        } ${visible ? "" : "opacity-40"}`}
                       >
                         <span
-                          className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                          className={`rounded-full flex-shrink-0 ${
+                            isMobile ? "h-3 w-3" : "h-2.5 w-2.5"
+                          }`}
                           style={{ background: dayColor(d.day - 1) }}
                         />
                         <span className="truncate flex-1">
@@ -920,9 +986,9 @@ function ItineraryDetail() {
                           {d.title ? ` — ${d.title}` : ""}
                         </span>
                         {visible ? (
-                          <Eye className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <Eye className={`text-muted-foreground flex-shrink-0 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
                         ) : (
-                          <EyeOff className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <EyeOff className={`text-muted-foreground flex-shrink-0 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
                         )}
                       </button>
                     );
