@@ -568,7 +568,7 @@ function ItineraryDetail() {
             </div>
 
             {/* Sub-cards inside trip card */}
-            <div className="mt-4 grid gap-3 sm:gap-4">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:gap-4 [&>*]:w-full [&>*]:max-w-full [&>*]:min-w-0">
               <BudgetEstimate
                 itinerary={itinerary}
                 onTravelersChange={(n) => update(id, { travelers: n })}
