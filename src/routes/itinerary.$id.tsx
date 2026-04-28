@@ -34,6 +34,13 @@ import {
   Undo2,
   Maximize2,
   Minimize2,
+  Bookmark,
+  BookmarkCheck,
+  StickyNote,
+  Sunrise,
+  Sun,
+  Sunset,
+  Moon,
 } from "lucide-react";
 import MapView, { dayColor } from "@/components/MapView";
 import { useIsMobile } from "@/hooks/use-mobile";
