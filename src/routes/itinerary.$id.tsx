@@ -676,6 +676,7 @@ function ItineraryDetail() {
                     : t("regenerateAll")}
                 </span>
               </Button>
+              <AISuggestDialog itinerary={itinerary} />
               <Button variant="outline" size="sm" onClick={exportPdf} title={t("print")}>
                 <Printer className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">{t("print")}</span>
