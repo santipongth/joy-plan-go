@@ -63,8 +63,9 @@ export default function MapView({
           center: [20, 20],
           zoom: 2,
           worldCopyJump: true,
-          zoomControl: true,
+          zoomControl: false,
         });
+        L.control.zoom({ position: "bottomright" }).addTo(mapRef.current);
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "© OpenStreetMap",
           maxZoom: 19,
