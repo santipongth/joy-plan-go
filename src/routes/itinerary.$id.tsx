@@ -794,15 +794,7 @@ function ItineraryDetail() {
           />
 
           <PackingChecklist itinerary={itinerary} />
-          <SpendingTracker itinerary={itinerary} />
           <LocalTipsCard itinerary={itinerary} />
-
-          <div className="mb-6 p-3 rounded-lg bg-card/60 border">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              {t("photosTitle")}
-            </h3>
-            <PhotoGallery itinerary={itinerary} dayIndex={null} />
-          </div>
 
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
@@ -848,16 +840,6 @@ function ItineraryDetail() {
               })}
             </div>
           </div>
-
-          <TripModeBar
-            mode={itinerary.travelMode ?? "any"}
-            onChange={(m) => setItineraryMode(id, m)}
-            onApplyAll={() => {
-              applyModeToAllDays(id, itinerary.travelMode ?? "any");
-              toast.success(t("applyToAll"));
-            }}
-            t={t}
-          />
 
           <div className="space-y-6">
             {itinerary.days.map((d, dayIdx) => {
@@ -1761,71 +1743,9 @@ function DayRoutePanel({
     () => resolveAnchor(day.startPoint, day.places),
     [day.startPoint, day.places],
   );
-  const est = useMemo(
-    () => estimateDayTravel(day.places, effectiveMode, anchor),
-    [day.places, effectiveMode, anchor],
-  );
-  const km = (est.totalMeters / 1000).toFixed(1);
-  const longestKm = (est.longestLegMeters / 1000).toFixed(1);
   const startLabel =
     day.startPoint?.label ||
     (anchor ? t("startPoint") : tripOriginLabel || t("tripOrigin"));
-
-  let reasoning: string;
-  if (effectiveMode === "any") {
-    reasoning = t("reasonNoMode");
-  } else if (day.startPoint?.label) {
-    reasoning = t("reasonNearestFrom")
-      .replace("{start}", day.startPoint.label)
-      .replace("{km}", longestKm);
-  } else {
-    reasoning = t("reasonNearestNoStart").replace("{km}", longestKm);
-  }
-
-  const [startOpen, setStartOpen] = useState(false);
-  const [startQuery, setStartQuery] = useState("");
-
-  const otherDayPlaces = useMemo(
-    () =>
-      allDays
-        .map((d, idx) => ({ d, idx }))
-        .filter(({ idx }) => idx !== dayIdx)
-        .flatMap(({ d }) => d.places.map((p) => ({ p, dayNum: d.day }))),
-    [allDays, dayIdx],
-  );
-
-  // Debounce store writes so rapid keyboard navigation doesn't thrash persisted state.
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-  const debouncedSetStart = (sp: DayStartPoint | undefined) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => onSetDayStart(sp), 120);
-  };
-
-  function chooseInherit() {
-    debouncedSetStart(undefined);
-    setStartOpen(false);
-  }
-  function chooseTripOrigin() {
-    if (tripOriginLabel) debouncedSetStart({ label: tripOriginLabel });
-    else debouncedSetStart(undefined);
-    setStartOpen(false);
-  }
-  function choosePlace(p: Place) {
-    debouncedSetStart({ label: p.name, lat: p.lat, lng: p.lng, placeId: p.id });
-    setStartOpen(false);
-  }
-  function chooseCustom() {
-    const label = startQuery.trim();
-    if (!label) return;
-    debouncedSetStart({ label });
-    setStartOpen(false);
-    setStartQuery("");
-  }
 
   const anchorForMap = useMemo(
     () => (anchor ? { lat: anchor.lat, lng: anchor.lng, label: startLabel } : null),
@@ -1834,142 +1754,6 @@ function DayRoutePanel({
 
   return (
     <div className="mb-3 rounded-lg border bg-muted/30 p-3 text-xs space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold text-muted-foreground uppercase tracking-wide">
-          {t("routePanel")}
-        </span>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline" className="h-7 text-xs">
-              {t("travelMode")}: {day.travelMode ? modeLabel(t, day.travelMode) : `${t("inherit")} (${modeLabel(t, inheritedMode)})`}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => onSetDayMode(undefined)}>
-              {t("inherit")} ({modeLabel(t, inheritedMode)})
-            </DropdownMenuItem>
-            {MODE_KEYS.map((m) => (
-              <DropdownMenuItem key={m} onClick={() => onSetDayMode(m)}>
-                {modeLabel(t, m)}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Popover open={startOpen} onOpenChange={setStartOpen}>
-          <PopoverTrigger asChild>
-            <Button size="sm" variant="outline" className="h-7 text-xs max-w-[260px] truncate">
-              {t("startPoint")}: {startLabel}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="p-0 w-[300px]" align="start">
-            <Command shouldFilter={true}>
-              <CommandInput
-                autoFocus
-                placeholder={t("searchStartPoint")}
-                value={startQuery}
-                onValueChange={setStartQuery}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    e.stopPropagation();
-                    setStartOpen(false);
-                    return;
-                  }
-                  if (e.key === "Enter" && startQuery.trim()) {
-                    // If cmdk has no selected item (no matches), use the typed text as a custom label.
-                    const root = (e.currentTarget.closest("[cmdk-root]") as HTMLElement) || null;
-                    const selected = root?.querySelector('[cmdk-item][data-selected="true"]');
-                    if (!selected) {
-                      e.preventDefault();
-                      chooseCustom();
-                    }
-                  }
-                }}
-              />
-              <CommandList>
-                <CommandEmpty>
-                  {startQuery.trim() ? (
-                    <button
-                      type="button"
-                      onClick={chooseCustom}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-accent"
-                    >
-                      {t("useCustomLabel").replace("{q}", startQuery.trim())}
-                    </button>
-                  ) : (
-                    <span className="px-3 py-2 text-xs text-muted-foreground block">—</span>
-                  )}
-                </CommandEmpty>
-                <CommandGroup heading={t("tripOrigin")}>
-                  <CommandItem onSelect={chooseInherit} value="__inherit__">
-                    {tripOriginLabel ? `${t("tripOrigin")} (${tripOriginLabel})` : t("inherit")}
-                  </CommandItem>
-                  {tripOriginLabel && (
-                    <CommandItem onSelect={chooseTripOrigin} value={`origin:${tripOriginLabel}`}>
-                      {tripOriginLabel}
-                    </CommandItem>
-                  )}
-                </CommandGroup>
-                {day.places.length > 0 && (
-                  <CommandGroup heading={t("pickFromDay")}>
-                    {day.places.map((p) => (
-                      <CommandItem
-                        key={p.id}
-                        value={`day:${p.name}`}
-                        onSelect={() => choosePlace(p)}
-                      >
-                        {p.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-                {otherDayPlaces.length > 0 && (
-                  <CommandGroup heading={t("otherDays")}>
-                    {otherDayPlaces.map(({ p, dayNum }) => (
-                      <CommandItem
-                        key={`${dayNum}-${p.id}`}
-                        value={`other:${dayNum}:${p.name}`}
-                        onSelect={() => choosePlace(p)}
-                      >
-                        <span className="text-muted-foreground mr-2">D{dayNum}</span>
-                        {p.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-                {startQuery.trim() && (
-                  <CommandGroup heading=" ">
-                    <CommandItem
-                      value={`__custom__:${startQuery}`}
-                      onSelect={chooseCustom}
-                    >
-                      {t("useCustomLabel").replace("{q}", startQuery.trim())}
-                    </CommandItem>
-                  </CommandGroup>
-                )}
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-
-        <Button
-          size="sm"
-          variant="default"
-          className="h-7 text-xs ml-auto"
-          onClick={onReorderByMode}
-          disabled={effectiveMode === "any" || day.places.length < 2}
-          title={effectiveMode === "any" ? t("reasonNoMode") : t("updateDayOrder")}
-        >
-          <RefreshCw className="h-3 w-3 mr-1" />
-          {t("updateDayOrder")}
-        </Button>
-      </div>
-      <div className="flex flex-wrap items-center gap-3 text-muted-foreground">
-        <span className="tabular-nums">
-          ~{km} km · ~{est.totalMinutes} min · {modeLabel(t, effectiveMode)}
-        </span>
-        <span className="text-foreground/80">{reasoning}</span>
-      </div>
       <DayMiniMap
         places={day.places}
         anchor={anchorForMap}
