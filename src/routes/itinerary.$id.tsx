@@ -154,17 +154,8 @@ function ItineraryDetail() {
   const toggleVisible = useVisibilityStore((s) => s.toggle);
   const [regenLoading, setRegenLoading] = useState<number | null>(null);
   const [regenErrors, setRegenErrors] = useState<Record<number, string>>({});
-  const [regenAllProgress, setRegenAllProgress] = useState<{
-    current: number;
-    total: number;
-    startedAt: number;
-    etaSec: number | null;
-  } | null>(null);
-  const planTripFn = useServerFn(planTrip);
-
   // Pending regenerate confirmations when undo stack is non-empty
   const [pendingRegenDay, setPendingRegenDay] = useState<number | null>(null);
-  const [pendingRegenAll, setPendingRegenAll] = useState(false);
 
   // ESC closes overlays on any screen size
   useEffect(() => {
