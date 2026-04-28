@@ -394,6 +394,8 @@ export const dict = {
     lodgingDayHeading: "ที่พักของวันนี้",
     lodgingDayEmpty: "ยังไม่ได้เลือกที่พักสำหรับวันนี้",
     lodgingFocusOnMap: "โฟกัสบนแผนที่",
+    lodgingFocusBtn: "โฟกัสที่พัก",
+    lodgingSelected: "เลือกอยู่",
     tripCardTitle: "ทริป",
     transportSuggest: "แนะนำการเดินทาง",
     transportSuggesting: "กำลังหาวิธีเดินทาง...",
