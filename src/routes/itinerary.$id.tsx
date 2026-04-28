@@ -1397,6 +1397,11 @@ function DaySection({
         </SortableContext>
       </DndContext>
       <DayTransportPanel itinerary={itinerary} day={day} dayIdx={dayIdx} />
+      <DayLodgingPanel
+        itinerary={itinerary}
+        dayIdx={dayIdx}
+        onFocusLodging={(lodgingId) => onFocusPlace(`lodging:${lodgingId}`)}
+      />
     </section>
   );
 }
