@@ -41,6 +41,7 @@ export function dayColor(i: number) {
 
 export default function MapView({
   groups,
+  lodgings = [],
   height = "100%",
   fitBounds = true,
   onMarkerClick,
