@@ -823,12 +823,32 @@ function ItineraryDetail() {
                 highlightedType={highlightedType}
                 selectedPlaceId={selectedPlaceId}
               />
+              {/* Collapse/expand overlays toggle (top-right, above zoom) */}
+              <button
+                onClick={() => setOverlaysCollapsed((v) => !v)}
+                title={overlaysCollapsed ? t("showOverlays") : t("hideOverlays")}
+                aria-label={overlaysCollapsed ? t("showOverlays") : t("hideOverlays")}
+                className="absolute top-3 right-3 z-[450] h-8 w-8 flex items-center justify-center bg-background/95 backdrop-blur rounded-md shadow-md border hover:bg-muted transition-colors"
+              >
+                {overlaysCollapsed ? (
+                  <Maximize2 className="h-4 w-4" />
+                ) : (
+                  <Minimize2 className="h-4 w-4" />
+                )}
+              </button>
+
               {/* Type filter chips — full width across the top */}
-              {typeCounts.size > 0 && (
-                <div className="absolute top-3 left-3 right-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 flex flex-wrap gap-1">
+              {!overlaysCollapsed && typeCounts.size > 0 && (
+                <div
+                  className={`absolute top-3 left-3 right-14 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 gap-1 ${
+                    isMobile
+                      ? "flex flex-nowrap overflow-x-auto"
+                      : "flex flex-wrap"
+                  }`}
+                >
                   <button
                     onClick={() => setHighlightedType(null)}
-                    className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                    className={`text-[11px] px-2 py-1 rounded-full border transition-colors flex-shrink-0 ${
                       highlightedType === null
                         ? "bg-primary text-primary-foreground border-primary"
                         : "bg-background hover:bg-muted"
@@ -842,7 +862,7 @@ function ItineraryDetail() {
                       <button
                         key={tp}
                         onClick={() => setHighlightedType(highlightedType === tp ? null : tp)}
-                        className={`text-[11px] px-2 py-1 rounded-full border transition-colors capitalize ${
+                        className={`text-[11px] px-2 py-1 rounded-full border transition-colors capitalize flex-shrink-0 ${
                           highlightedType === tp
                             ? "bg-primary text-primary-foreground border-primary"
                             : "bg-background hover:bg-muted"
@@ -853,41 +873,50 @@ function ItineraryDetail() {
                     ))}
                 </div>
               )}
-              {/* Floating day legend — bottom left, clickable to toggle */}
-              <div className="absolute bottom-3 left-3 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 max-w-[220px]">
-                <div className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
-                  {t("daysLegend")}
+
+              {/* Floating day legend — bottom-left (desktop) / top-right under toggle (mobile) */}
+              {!overlaysCollapsed && (
+                <div
+                  className={`absolute z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 ${
+                    isMobile
+                      ? "top-14 right-3 max-w-[200px]"
+                      : "bottom-3 left-3 max-w-[220px]"
+                  }`}
+                >
+                  <div className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
+                    {t("daysLegend")}
+                  </div>
+                  <div className="space-y-0.5">
+                    {itinerary.days.map((d) => {
+                      const visible = visibleDays.has(d.day);
+                      return (
+                        <button
+                          key={d.day}
+                          onClick={() => toggleDay(d.day)}
+                          title={t("clickToToggle")}
+                          className={`flex items-center gap-1.5 text-xs w-full text-left px-1.5 py-1 rounded hover:bg-muted transition-colors ${
+                            visible ? "" : "opacity-40"
+                          }`}
+                        >
+                          <span
+                            className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                            style={{ background: dayColor(d.day - 1) }}
+                          />
+                          <span className="truncate flex-1">
+                            {t("day")} {d.day}
+                            {d.title ? ` — ${d.title}` : ""}
+                          </span>
+                          {visible ? (
+                            <Eye className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          ) : (
+                            <EyeOff className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  {itinerary.days.map((d) => {
-                    const visible = visibleDays.has(d.day);
-                    return (
-                      <button
-                        key={d.day}
-                        onClick={() => toggleDay(d.day)}
-                        title={t("clickToToggle")}
-                        className={`flex items-center gap-1.5 text-xs w-full text-left px-1.5 py-1 rounded hover:bg-muted transition-colors ${
-                          visible ? "" : "opacity-40"
-                        }`}
-                      >
-                        <span
-                          className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                          style={{ background: dayColor(d.day - 1) }}
-                        />
-                        <span className="truncate flex-1">
-                          {t("day")} {d.day}
-                          {d.title ? ` — ${d.title}` : ""}
-                        </span>
-                        {visible ? (
-                          <Eye className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        ) : (
-                          <EyeOff className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>
