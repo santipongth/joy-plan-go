@@ -889,6 +889,7 @@ interface DaySectionProps {
   onRegenerate: () => void;
   onMovePlace: (placeId: string, toDayIdx: number) => void;
   onFocusPlace: (placeId: string) => void;
+  selectedPlaceId?: string | null;
   onPushHistory: (prev: Place[]) => void;
   onUndoReorder: () => void;
   historyDepth: number;
