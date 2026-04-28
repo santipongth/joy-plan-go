@@ -99,7 +99,7 @@ import LocalTipsCard from "@/components/LocalTipsCard";
 import SimilarPopover from "@/components/SimilarPopover";
 import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
 import { estimateDayTravel, haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
-import { dict } from "@/lib/i18n";
+
 import { suggestMeals } from "@/server/discover.functions";
 import ShareTripDialog from "@/components/ShareTripDialog";
 import ThemeToggle from "@/components/ThemeToggle";
