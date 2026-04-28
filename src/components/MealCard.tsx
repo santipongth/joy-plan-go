@@ -235,4 +235,72 @@ export default function MealCard({
   );
 }
 
+/**
+ * Lightweight inline-SVG mini-map showing the relative position of two points
+ * (reference vs. meal). Zero network — uses simple equirectangular projection.
+ */
+function MiniMapPreview({
+  from,
+  to,
+  distanceKm,
+  referenceLabel,
+}: {
+  from: { lat: number; lng: number; label?: string };
+  to: { lat: number; lng: number; label?: string };
+  distanceKm: number;
+  referenceLabel?: string;
+}) {
+  const W = 100;
+  const H = 60;
+  const PAD = 12;
+  const cosLat = Math.cos(((from.lat + to.lat) / 2) * (Math.PI / 180));
+  const dx = (to.lng - from.lng) * cosLat;
+  const dy = -(to.lat - from.lat);
+  const span = Math.max(Math.abs(dx), Math.abs(dy)) || 0.0001;
+  const scale = (Math.min(W, H) - PAD * 2) / (span * 2);
+  const fx = W / 2 - (dx / 2) * scale;
+  const fy = H / 2 - (dy / 2) * scale;
+  const tx = W / 2 + (dx / 2) * scale;
+  const ty = H / 2 + (dy / 2) * scale;
+
+  return (
+    <div className="rounded-md border bg-muted/30 overflow-hidden">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full h-14 block"
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label={`Mini map: ${distanceKm.toFixed(2)} km ${referenceLabel ?? ""}`}
+      >
+        <defs>
+          <pattern id="mini-grid" width="10" height="10" patternUnits="userSpaceOnUse">
+            <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" strokeOpacity="0.08" strokeWidth="0.5" />
+          </pattern>
+        </defs>
+        <rect width={W} height={H} fill="url(#mini-grid)" className="text-foreground" />
+        <line
+          x1={fx}
+          y1={fy}
+          x2={tx}
+          y2={ty}
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="2 2"
+          className="text-primary/60"
+        />
+        <circle cx={fx} cy={fy} r="3.2" className="fill-muted-foreground" />
+        <circle cx={fx} cy={fy} r="1.2" className="fill-background" />
+        <circle cx={tx} cy={ty} r="3.8" className="fill-primary" />
+        <circle cx={tx} cy={ty} r="1.4" className="fill-background" />
+      </svg>
+      <div className="px-2 py-1 text-[10px] text-muted-foreground flex items-center justify-between gap-2">
+        <span className="truncate">{from.label ? `📍 ${from.label}` : "📍"}</span>
+        <span className="font-mono whitespace-nowrap">
+          {distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(2)} km`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export { cuisineEmoji, unsplashUrl, mapsUrl };
