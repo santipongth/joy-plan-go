@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { Itinerary } from "@/lib/types";
 import { fetchWeather, isForecastable, weatherIcon, type DailyWeather } from "@/lib/weather";
 import { useT, useLangStore } from "@/lib/i18n";
-import { Cloud, MapPin } from "lucide-react";
+import { Cloud, MapPin, Search } from "lucide-react";
 import { useWeatherAnchorStore } from "@/lib/weather-anchor-store";
+import { useMapBoundsStore } from "@/lib/map-bounds-store";
+import { searchInBounds, type NominatimPlace } from "@/lib/nominatim";
 import { format, addDays, parseISO } from "date-fns";
 import { th, enUS } from "date-fns/locale";
 import {
@@ -15,13 +17,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface Props {
   itinerary: Itinerary;
 }
 
 interface AnchorOption {
-  id: string; // place id
+  id: string;
   label: string;
   dayLabel: string;
   lat: number;
@@ -55,13 +60,23 @@ export default function WeatherStrip({ itinerary }: Props) {
   const [loading, setLoading] = useState(false);
   const anchors = useWeatherAnchorStore((s) => s.anchors);
   const setAnchor = useWeatherAnchorStore((s) => s.setAnchor);
+  const bounds = useMapBoundsStore((s) => s.bounds);
+
+  // map-pin nearby state (custom anchor)
+  const [customAnchor, setCustomAnchor] = useState<{ id: string; label: string; lat: number; lng: number } | null>(null);
+  const [nearbyOpen, setNearbyOpen] = useState(false);
+  const [nearbyQuery, setNearbyQuery] = useState("");
+  const [nearbyResults, setNearbyResults] = useState<NominatimPlace[]>([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
 
   const options = useMemo(() => buildOptions(itinerary), [itinerary]);
   const selected = anchors[itinerary.id] ?? "auto";
-  const active =
-    selected === "auto"
-      ? options[0] ?? null
-      : options.find((o) => o.id === selected) ?? options[0] ?? null;
+
+  const active = useMemo(() => {
+    if (selected === "custom" && customAnchor) return customAnchor;
+    if (selected === "auto") return options[0] ?? null;
+    return options.find((o) => o.id === selected) ?? options[0] ?? null;
+  }, [selected, options, customAnchor]);
 
   useEffect(() => {
     if (!itinerary.startDate) return;
@@ -84,6 +99,27 @@ export default function WeatherStrip({ itinerary }: Props) {
     };
   }, [itinerary.id, itinerary.startDate, itinerary.durationDays, active?.lat, active?.lng]);
 
+  async function runNearbySearch() {
+    if (!bounds) return;
+    setNearbyLoading(true);
+    try {
+      const results = await searchInBounds(nearbyQuery, bounds, lang);
+      setNearbyResults(results);
+    } finally {
+      setNearbyLoading(false);
+    }
+  }
+
+  function pickNearby(p: NominatimPlace) {
+    const lat = parseFloat(p.lat);
+    const lng = parseFloat(p.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const label = p.name || p.display_name.split(",")[0];
+    setCustomAnchor({ id: `custom-${p.place_id}`, label, lat, lng });
+    setAnchor(itinerary.id, "custom");
+    setNearbyOpen(false);
+  }
+
   if (!itinerary.startDate) return null;
   if (!isForecastable(itinerary.startDate, itinerary.durationDays)) return null;
   if (!active) return null;
@@ -99,7 +135,7 @@ export default function WeatherStrip({ itinerary }: Props) {
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-2 px-1">
+      <div className="flex items-center gap-2 px-1 flex-wrap">
         <MapPin className="h-3 w-3 text-muted-foreground" />
         <span className="text-[11px] text-muted-foreground">{t("weatherAnchor")}:</span>
         <Select
@@ -107,10 +143,15 @@ export default function WeatherStrip({ itinerary }: Props) {
           onValueChange={(v) => setAnchor(itinerary.id, v)}
         >
           <SelectTrigger className="h-7 text-xs px-2 w-auto min-w-[140px] max-w-[260px]">
-            <SelectValue />
+            <SelectValue>
+              {selected === "custom" && customAnchor ? customAnchor.label : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="auto">{t("weatherAnchorAuto")}</SelectItem>
+            {customAnchor && (
+              <SelectItem value="custom">📍 {customAnchor.label}</SelectItem>
+            )}
             {options.length > 0 && (
               <SelectGroup>
                 <SelectLabel className="text-[10px]">{t("places")}</SelectLabel>
@@ -124,6 +165,58 @@ export default function WeatherStrip({ itinerary }: Props) {
             )}
           </SelectContent>
         </Select>
+        <Popover open={nearbyOpen} onOpenChange={setNearbyOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-7 text-xs px-2 gap-1">
+              <Search className="h-3 w-3" />
+              {t("weatherAnchorNearby")}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-2 space-y-2" align="start">
+            {!bounds ? (
+              <p className="text-xs text-muted-foreground p-2">{t("weatherAnchorMoveMap")}</p>
+            ) : (
+              <>
+                <div className="flex gap-1">
+                  <Input
+                    value={nearbyQuery}
+                    onChange={(e) => setNearbyQuery(e.target.value)}
+                    placeholder={t("weatherAnchorSearch")}
+                    className="h-7 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") runNearbySearch();
+                    }}
+                  />
+                  <Button size="sm" className="h-7" onClick={runNearbySearch} disabled={nearbyLoading}>
+                    <Search className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="max-h-64 overflow-y-auto space-y-0.5">
+                  {nearbyLoading && (
+                    <p className="text-xs text-muted-foreground p-2">…</p>
+                  )}
+                  {!nearbyLoading && nearbyResults.length === 0 && (
+                    <p className="text-xs text-muted-foreground p-2">—</p>
+                  )}
+                  {nearbyResults.map((p) => (
+                    <button
+                      key={p.place_id}
+                      type="button"
+                      onClick={() => pickNearby(p)}
+                      className="w-full text-left text-xs p-1.5 rounded hover:bg-muted line-clamp-2"
+                      title={p.display_name}
+                    >
+                      <span className="font-medium">{p.name || p.display_name.split(",")[0]}</span>
+                      <span className="block text-[10px] text-muted-foreground line-clamp-1">
+                        {p.display_name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
       {loading && !data ? (
         <div className="text-xs text-muted-foreground flex items-center gap-2 px-1 py-2">

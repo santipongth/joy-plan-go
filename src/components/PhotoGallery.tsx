@@ -9,14 +9,15 @@ import {
   deleteTripPhoto,
   type TripPhoto,
 } from "@/lib/photos";
-import { pushTrip } from "@/lib/cloud-sync";
+import { pushTrip, fetchTripByCloudId, updateTripMeta } from "@/lib/cloud-sync";
 import { useServerFn } from "@tanstack/react-start";
 import { captionPhoto } from "@/server/discover.functions";
 import type { Itinerary } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { ImagePlus, Loader2, Trash2, Sparkles, X } from "lucide-react";
+import { ImagePlus, Loader2, Trash2, Sparkles, X, Globe, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -34,6 +35,9 @@ export default function PhotoGallery({ itinerary, dayIndex, compact }: Props) {
   const [photos, setPhotos] = useState<TripPhoto[]>([]);
   const [busy, setBusy] = useState(false);
   const [lightbox, setLightbox] = useState<TripPhoto | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [ownerId, setOwnerId] = useState<string | null>(null);
+  const [savingPublic, setSavingPublic] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -43,6 +47,8 @@ export default function PhotoGallery({ itinerary, dayIndex, compact }: Props) {
         const row = await pushTrip(itinerary, user.id);
         if (cancelled) return;
         setCloudId(row.id);
+        setIsPublic(!!row.is_public);
+        setOwnerId(row.owner_id);
         const all = await listTripPhotos(row.id);
         if (cancelled) return;
         const filtered =
@@ -66,6 +72,22 @@ export default function PhotoGallery({ itinerary, dayIndex, compact }: Props) {
     );
   }
 
+  const isOwner = !!(ownerId && user && ownerId === user.id);
+
+  async function togglePublic(next: boolean) {
+    if (!cloudId || !isOwner) return;
+    setSavingPublic(true);
+    try {
+      await updateTripMeta(cloudId, { is_public: next });
+      setIsPublic(next);
+      toast.success(next ? t("photosVisibilityPublic") : t("photosVisibilityPrivate"));
+    } catch (e: any) {
+      toast.error(e?.message || "Failed");
+    } finally {
+      setSavingPublic(false);
+    }
+  }
+
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -79,7 +101,6 @@ export default function PhotoGallery({ itinerary, dayIndex, compact }: Props) {
         file,
       });
       setPhotos((ps) => [photo, ...ps]);
-      // AI caption (non-blocking errors)
       try {
         const url = publicUrlFor(photo.storage_path);
         const ctx =
@@ -126,6 +147,23 @@ export default function PhotoGallery({ itinerary, dayIndex, compact }: Props) {
 
   return (
     <div>
+      <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
+        <Badge
+          variant={isPublic ? "default" : "secondary"}
+          className="text-[10px] gap-1"
+          title={t("photosVisibilityHint")}
+        >
+          {isPublic ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+          {isPublic ? t("photosVisibilityPublic") : t("photosVisibilityPrivate")}
+        </Badge>
+        {isOwner && !compact && (
+          <label className="flex items-center gap-2 text-[11px] text-muted-foreground cursor-pointer">
+            <span>{t("photosMakePublic")}</span>
+            <Switch checked={isPublic} disabled={savingPublic} onCheckedChange={togglePublic} />
+          </label>
+        )}
+      </div>
+
       <div className="flex gap-2 overflow-x-auto pb-1">
         <label
           className={`shrink-0 ${compact ? "h-20 w-20" : "h-24 w-24"} rounded-md border-2 border-dashed border-border/60 flex flex-col items-center justify-center text-muted-foreground cursor-pointer hover:bg-muted/50 hover:border-primary/50 transition-colors`}

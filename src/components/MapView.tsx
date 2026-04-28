@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Place } from "@/lib/types";
+import { useMapBoundsStore } from "@/lib/map-bounds-store";
 
 interface DayMarkers {
   day: number;
@@ -70,6 +71,24 @@ export default function MapView({
           attribution: "© OpenStreetMap",
           maxZoom: 19,
         }).addTo(mapRef.current);
+        const updateBounds = () => {
+          const m = mapRef.current;
+          if (!m) return;
+          const b = m.getBounds();
+          const c = m.getCenter();
+          useMapBoundsStore.getState().setBounds({
+            north: b.getNorth(),
+            south: b.getSouth(),
+            east: b.getEast(),
+            west: b.getWest(),
+            centerLat: c.lat,
+            centerLng: c.lng,
+          });
+        };
+        mapRef.current.on("moveend", updateBounds);
+        mapRef.current.on("zoomend", updateBounds);
+        // initial
+        setTimeout(updateBounds, 0);
       }
       renderMarkers();
     })();
