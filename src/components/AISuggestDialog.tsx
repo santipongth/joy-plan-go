@@ -161,15 +161,17 @@ export default function AISuggestDialog({ itinerary }: { itinerary: Itinerary })
       replaceDay(itinerary.id, prop.dayIdx, {
         day: day.day,
         title: prop.proposedTitle || day.title,
-        places: prop.proposedPlaces.map((p) => ({
-          id: makeId(),
-          name: p.name,
-          description: p.description,
-          type: p.type,
-          time: p.time,
-          lat: p.lat,
-          lng: p.lng,
-        })),
+        places: prop.proposedPlaces
+          .filter((p) => typeof p.lat === "number" && typeof p.lng === "number")
+          .map((p) => ({
+            id: makeId(),
+            name: p.name,
+            description: p.description,
+            type: p.type,
+            time: p.time,
+            lat: p.lat as number,
+            lng: p.lng as number,
+          })),
         travelMode: day.travelMode,
         startPoint: day.startPoint,
       });
