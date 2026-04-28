@@ -217,6 +217,8 @@ export default function MealReplacePopover({
                 meal={m}
                 compact
                 onAdd={() => pick(m)}
+                referencePoint={{ lat: place.lat, lng: place.lng, name: place.name }}
+                referenceLabel={t("mealNearPlace")}
               />
             ))}
           </div>
