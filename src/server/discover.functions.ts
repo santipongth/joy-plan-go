@@ -174,8 +174,24 @@ export const getLocalTips = createServerFn({ method: "POST" })
 
 interface MealsInput {
   destination: string;
-  dayPlaces: { name: string; lat: number; lng: number; kind?: string }[];
+  dayPlaces: { name: string; lat: number; lng: number; kind?: string; time?: string }[];
   lang: "th" | "en";
+  mealTypes?: ("breakfast" | "lunch" | "dinner" | "snack")[];
+  count?: number;
+  preferences?: {
+    cuisines?: string[];
+    diet?: string[];
+    priceTier?: "low" | "medium" | "high";
+    avoidIngredients?: string[];
+  };
+  budget?: "low" | "medium" | "high";
+  travelers?: number;
+  lodgingLocation?: { lat: number; lng: number; name?: string };
+  weather?: { condition?: string; tempC?: number; rain?: boolean };
+  excludeNames?: string[];
+  excludeCuisines?: string[];
+  nearLat?: number;
+  nearLng?: number;
 }
 
 export interface MealSuggestion {
@@ -185,6 +201,12 @@ export interface MealSuggestion {
   lat: number;
   lng: number;
   cuisine?: string;
+  mealType?: "breakfast" | "lunch" | "dinner" | "snack";
+  priceRange?: "$" | "$$" | "$$$";
+  rating?: number;
+  openHours?: string;
+  nearestPlaceName?: string;
+  distanceFromNearestKm?: number;
 }
 
 export interface MealsResult {
@@ -199,16 +221,54 @@ export const suggestMeals = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }): Promise<MealsResult> => {
     const langInstr = data.lang === "th" ? "ตอบเป็นภาษาไทย" : "Respond in English.";
-    const sys = `You are a local food expert. Suggest 2-3 meal stops (lunch and dinner, optionally breakfast) along the day's route. Pick well-rated, popular local spots near the existing places with accurate lat/lng. ${langInstr}`;
+    const mealTypes = data.mealTypes && data.mealTypes.length ? data.mealTypes : ["lunch", "dinner"];
+    const count = Math.max(1, Math.min(8, data.count ?? 4));
+
+    const contextLines: string[] = [];
+    contextLines.push(`Destination: ${data.destination}`);
+    contextLines.push(`Meal types to suggest: ${mealTypes.join(", ")}`);
+    contextLines.push(`Number of suggestions wanted: ${count}`);
+    if (data.budget) contextLines.push(`Trip budget tier: ${data.budget}`);
+    if (data.travelers) contextLines.push(`Travelers: ${data.travelers}`);
+    if (data.preferences?.cuisines?.length)
+      contextLines.push(`Preferred cuisines: ${data.preferences.cuisines.join(", ")}`);
+    if (data.preferences?.diet?.length)
+      contextLines.push(`Dietary requirements (MUST respect): ${data.preferences.diet.join(", ")}`);
+    if (data.preferences?.priceTier)
+      contextLines.push(`Preferred price tier: ${data.preferences.priceTier}`);
+    if (data.preferences?.avoidIngredients?.length)
+      contextLines.push(`Avoid ingredients: ${data.preferences.avoidIngredients.join(", ")}`);
+    if (data.lodgingLocation)
+      contextLines.push(
+        `Lodging location: ${data.lodgingLocation.name ?? "hotel"} at (${data.lodgingLocation.lat.toFixed(4)},${data.lodgingLocation.lng.toFixed(4)}). Prefer breakfast/dinner near this point.`,
+      );
+    if (data.weather) {
+      const w = data.weather;
+      contextLines.push(
+        `Weather: ${w.condition ?? "unknown"}${typeof w.tempC === "number" ? `, ${w.tempC}°C` : ""}. ${w.rain ? "RAINING — strongly prefer indoor restaurants, malls, or covered food courts." : ""}`,
+      );
+    }
+    if (data.excludeNames?.length)
+      contextLines.push(`Do NOT suggest these (already in itinerary): ${data.excludeNames.join("; ")}`);
+    if (data.excludeCuisines?.length)
+      contextLines.push(`Avoid repeating these cuisines: ${data.excludeCuisines.join(", ")}`);
+    if (typeof data.nearLat === "number" && typeof data.nearLng === "number")
+      contextLines.push(
+        `Find restaurants within ~1.5km of point (${data.nearLat.toFixed(4)},${data.nearLng.toFixed(4)}).`,
+      );
+
     const list = data.dayPlaces
-      .map((p) => `${p.name} (${p.lat.toFixed(4)},${p.lng.toFixed(4)})`)
+      .map((p) => `${p.name} (${p.lat.toFixed(4)},${p.lng.toFixed(4)}${p.time ? `, ${p.time}` : ""})`)
       .join("; ");
-    const user = `Destination: ${data.destination}. The day's existing places (in order): ${list}. Suggest meals near these, with realistic times (e.g. 12:30 lunch, 19:00 dinner).`;
+    contextLines.push(`Day's existing places (in order): ${list || "(none)"}`);
+
+    const sys = `You are a local food expert. Suggest restaurant/meal stops that match the user's context exactly. Pick well-rated, popular, AUTHENTIC local spots with accurate lat/lng. Diversify cuisines unless preferences say otherwise. Always respect dietary requirements. Provide realistic times based on meal types (e.g. 8:00 breakfast, 12:30 lunch, 19:00 dinner). For each meal include nearestPlaceName from the itinerary and approximate distanceFromNearestKm. Estimate priceRange ($, $$, $$$) and a plausible rating (3.5-4.8). Provide openHours when typical (e.g. "11:00-22:00"). ${langInstr}`;
+
     const tool = {
       type: "function" as const,
       function: {
         name: "suggest_meals",
-        description: "Meal suggestions for the day",
+        description: "Context-aware meal suggestions",
         parameters: {
           type: "object",
           properties: {
@@ -223,6 +283,12 @@ export const suggestMeals = createServerFn({ method: "POST" })
                   lat: { type: "number" },
                   lng: { type: "number" },
                   cuisine: { type: "string" },
+                  mealType: { type: "string", enum: ["breakfast", "lunch", "dinner", "snack"] },
+                  priceRange: { type: "string", enum: ["$", "$$", "$$$"] },
+                  rating: { type: "number" },
+                  openHours: { type: "string" },
+                  nearestPlaceName: { type: "string" },
+                  distanceFromNearestKm: { type: "number" },
                 },
                 required: ["name", "description", "time", "lat", "lng"],
                 additionalProperties: false,
@@ -238,7 +304,7 @@ export const suggestMeals = createServerFn({ method: "POST" })
       model: "google/gemini-3-flash-preview",
       messages: [
         { role: "system", content: sys },
-        { role: "user", content: user },
+        { role: "user", content: contextLines.join("\n") },
       ],
       tools: [tool],
       tool_choice: { type: "function", function: { name: "suggest_meals" } },
@@ -248,7 +314,8 @@ export const suggestMeals = createServerFn({ method: "POST" })
     if (!call?.function?.arguments) return { meals: [], error: "NO_TOOL_CALL" };
     try {
       const parsed = JSON.parse(call.function.arguments);
-      return { meals: Array.isArray(parsed.meals) ? parsed.meals : [] };
+      const meals: MealSuggestion[] = Array.isArray(parsed.meals) ? parsed.meals.slice(0, count) : [];
+      return { meals };
     } catch {
       return { meals: [], error: "PARSE_ERROR" };
     }
