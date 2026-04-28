@@ -596,6 +596,7 @@ function HomePage() {
               <div className="grid sm:grid-cols-2 gap-4">
                 {itineraries.map((it) => {
                   const totalPlaces = it.days.reduce((sum, d) => sum + d.places.length, 0);
+                  const badge = tripBadges[it.id];
                   return (
                     <Card
                       key={it.id}
@@ -607,6 +608,20 @@ function HomePage() {
                       </div>
                       <div className="p-4">
                         <h3 className="font-semibold text-sm line-clamp-2 mb-1">{it.title || t("untitled")}</h3>
+                        {badge && (badge.isShared || badge.isPublic) && (
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {badge.isShared && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                <Users className="h-3 w-3" /> {t("badgeShared")}
+                              </span>
+                            )}
+                            {badge.isPublic && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                <Globe className="h-3 w-3" /> {t("badgePublic")}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {it.durationDays} {t("days")} · {totalPlaces} {t("places")} · {it.citiesCount} {t("cities")}
                         </p>
