@@ -52,7 +52,7 @@ export async function pushTrip(it: Itinerary, ownerId: string, opts?: { isPublic
   };
   const { data, error } = await supabase
     .from("trips")
-    .upsert(payload, { onConflict: "owner_id,client_id" })
+    .upsert([payload as any], { onConflict: "owner_id,client_id" })
     .select()
     .single();
   if (error) throw error;
