@@ -70,6 +70,8 @@ export const dict = {
     dragToReorder: "ลากเพื่อจัดเรียง",
     daysLegend: "สีแต่ละวัน",
     hideOverlays: "ซ่อนแถบควบคุม",
+    swipeToCollapseV: "ปัดขึ้นเพื่อซ่อน",
+    swipeToCollapseH: "ปัดเพื่อซ่อน",
     showOverlays: "แสดงแถบควบคุม",
     retry: "ลองอีกครั้ง",
     regenFailed: "สร้างวันนี้ใหม่ไม่สำเร็จ",
