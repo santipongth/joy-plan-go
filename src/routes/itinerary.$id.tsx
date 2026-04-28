@@ -162,6 +162,51 @@ function ItineraryDetail() {
   const [pendingRegenDay, setPendingRegenDay] = useState<number | null>(null);
   const [pendingRegenAll, setPendingRegenAll] = useState(false);
 
+  // ESC closes overlays on mobile
+  useEffect(() => {
+    if (!isMobile || overlaysCollapsed) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOverlaysCollapsed(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isMobile, overlaysCollapsed]);
+
+  // Swipe gesture helper for overlay panels
+  function makeSwipeHandlers(direction: "horizontal" | "vertical", onDismiss: () => void) {
+    const start = { x: 0, y: 0, t: 0 };
+    return {
+      onTouchStart: (e: React.TouchEvent) => {
+        const tch = e.touches[0];
+        start.x = tch.clientX;
+        start.y = tch.clientY;
+        start.t = Date.now();
+      },
+      onTouchEnd: (e: React.TouchEvent) => {
+        const tch = e.changedTouches[0];
+        const dx = tch.clientX - start.x;
+        const dy = tch.clientY - start.y;
+        const dt = Date.now() - start.t;
+        if (dt > 600) return;
+        if (direction === "horizontal") {
+          if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) onDismiss();
+        } else {
+          if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx) * 1.5) onDismiss();
+        }
+      },
+    };
+  }
+
+  // Stop map drag/zoom while interacting with overlay panels
+  const stopMapEvents = {
+    onPointerDownCapture: (e: React.PointerEvent) => e.stopPropagation(),
+    onMouseDownCapture: (e: React.MouseEvent) => e.stopPropagation(),
+    onTouchStartCapture: (e: React.TouchEvent) => e.stopPropagation(),
+    onTouchMoveCapture: (e: React.TouchEvent) => e.stopPropagation(),
+    onWheelCapture: (e: React.WheelEvent) => e.stopPropagation(),
+    onDoubleClickCapture: (e: React.MouseEvent) => e.stopPropagation(),
+  };
+
   // initialize / sync visible days when itinerary loads or day numbers change
   const dayNumbersKey = itinerary?.days.map((d) => d.day).join(",") ?? "";
   useEffect(() => {
