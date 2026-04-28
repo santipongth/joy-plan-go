@@ -116,7 +116,18 @@ export default function MapView({
           !dimmed && highlightedType
             ? `box-shadow:0 0 0 4px ${g.color}33, 0 2px 6px rgba(0,0,0,0.3); animation:trip-pulse 1.4s infinite;`
             : `box-shadow:0 2px 6px rgba(0,0,0,0.3);`;
-        const html = `<div style="background:${g.color};color:white;width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:${dimmed ? 11 : 13}px;border:2px solid white;opacity:${opacity};${ring}">${idx + 1}</div>`;
+        const kindGlyph =
+          (p as any).kind === "meal"
+            ? "🍴"
+            : (p as any).kind === "stay"
+              ? "🏨"
+              : (p as any).kind === "transit"
+                ? "🚆"
+                : "";
+        const inner = kindGlyph
+          ? `<span style="font-size:${dimmed ? 11 : 14}px;line-height:1">${kindGlyph}</span>`
+          : `${idx + 1}`;
+        const html = `<div style="background:${g.color};color:white;width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:${dimmed ? 11 : 13}px;border:2px solid white;opacity:${opacity};${ring}">${inner}</div>`;
         const icon = L.divIcon({
           html,
           className: "trip-marker",
