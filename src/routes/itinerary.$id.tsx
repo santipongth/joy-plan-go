@@ -892,6 +892,7 @@ function ItineraryDetail() {
             <div className="relative h-full">
               <MapView
                 groups={groups}
+                lodgings={itinerary.lodgings ?? []}
                 highlightedType={highlightedType}
                 selectedPlaceId={selectedPlaceId}
               />
