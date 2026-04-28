@@ -1387,6 +1387,8 @@ function SortablePlace({
   focusLabel,
   dayLabel,
   onUpdatePlace,
+  itinerary,
+  dayIdx,
   t,
 }: {
   place: Place;
@@ -1400,6 +1402,8 @@ function SortablePlace({
   focusLabel: string;
   dayLabel: string;
   onUpdatePlace: (patch: Partial<Place>) => void;
+  itinerary: Itinerary;
+  dayIdx: number;
   t: (k: any) => string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
