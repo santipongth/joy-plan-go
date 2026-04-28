@@ -87,6 +87,7 @@ export interface Itinerary {
   travelers?: number;
   packing?: PackingItem[];
   expenses?: Expense[];
+  localTips?: LocalTips;
   createdAt: number;
   updatedAt: number;
 }
