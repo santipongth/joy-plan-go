@@ -43,7 +43,7 @@ export function buildIcs(it: Itinerary): string {
     const dayDate = new Date(start);
     dayDate.setDate(dayDate.getDate() + dayIdx);
     let cursor = 9 * 60; // default start 09:00 if no time
-    d.places.forEach((p, i) => {
+    d.places.forEach((p) => {
       const m = parseTimeToMinutes(p.time);
       const startMin = m ?? cursor;
       const endMin = startMin + 60;

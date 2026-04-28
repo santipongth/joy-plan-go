@@ -16,7 +16,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
 import { toast } from "sonner";
 import {
-  fetchTripByCloudId,
   updateTripMeta,
   fetchCollaborators,
   addCollaboratorByEmail,

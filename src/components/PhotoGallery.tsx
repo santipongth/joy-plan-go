@@ -9,7 +9,7 @@ import {
   deleteTripPhoto,
   type TripPhoto,
 } from "@/lib/photos";
-import { pushTrip, fetchTripByCloudId, updateTripMeta } from "@/lib/cloud-sync";
+import { pushTrip, updateTripMeta } from "@/lib/cloud-sync";
 import { useServerFn } from "@tanstack/react-start";
 import { captionPhoto } from "@/server/discover.functions";
 import type { Itinerary } from "@/lib/types";
