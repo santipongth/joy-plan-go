@@ -86,6 +86,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import DayMiniMap from "@/components/DayMiniMap";
 import BudgetEstimate from "@/components/BudgetEstimate";
+import WeatherStrip from "@/components/WeatherStrip";
+import { buildIcs, buildGpx, downloadFile, safeFilename } from "@/lib/export-trip";
 import { estimateDayTravel, haversineMeters, modeProfile, reorderPlacesFromAnchor, resolveAnchor } from "@/lib/route-utils";
 import { dict } from "@/lib/i18n";
 
@@ -118,6 +120,7 @@ function ItineraryDetail() {
   const removePlace = useItineraryStore((s) => s.removePlace);
   const addPlace = useItineraryStore((s) => s.addPlace);
   const reorderPlaces = useItineraryStore((s) => s.reorderPlaces);
+  const duplicateTrip = useItineraryStore((s) => s.duplicate);
   const replaceDay = useItineraryStore((s) => s.replaceDay);
   const movePlace = useItineraryStore((s) => s.movePlace);
   const setItineraryMode = useItineraryStore((s) => s.setItineraryMode);
