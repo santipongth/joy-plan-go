@@ -1293,6 +1293,9 @@ function SortablePlace({
             <MapPin className="h-4 w-4" />
           </button>
           <SimilarPopover itinerary={itinerary} dayIdx={dayIdx} place={place} />
+          {place.kind === "meal" && (
+            <MealReplacePopover itinerary={itinerary} dayIdx={dayIdx} place={place} />
+          )}
           {otherDays.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
