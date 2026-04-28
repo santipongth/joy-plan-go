@@ -4,6 +4,17 @@ export type DaySlot = "morning" | "afternoon" | "evening" | "night";
 
 export type PlaceKind = "attraction" | "meal" | "transit" | "stay";
 
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
+export type DietTag = "vegetarian" | "vegan" | "halal" | "gluten-free";
+
+export interface MealPreferences {
+  cuisines?: string[];
+  diet?: DietTag[];
+  priceTier?: BudgetTier;
+  avoidIngredients?: string[];
+}
+
 export interface Place {
   id: string;
   name: string;
@@ -16,6 +27,13 @@ export interface Place {
   bookmarked?: boolean;
   slot?: DaySlot;
   kind?: PlaceKind;
+  // Meal-specific (kind === "meal")
+  cuisine?: string;
+  priceRange?: "$" | "$$" | "$$$";
+  rating?: number;
+  openHours?: string;
+  imageUrl?: string;
+  mealType?: MealType;
 }
 
 export interface LocalTips {
