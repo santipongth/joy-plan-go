@@ -675,6 +675,18 @@ function ItineraryDetail() {
                     <FileDown className="h-4 w-4 mr-2" />
                     {t("exportPdf")}
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportIcs}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    {t("exportIcs")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportGpx}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    {t("exportGpx")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onDuplicate}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    {t("duplicateTrip")}
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={copyShareLink}>
                     <Share2 className="h-4 w-4 mr-2" />
                     {t("shareLink")}
