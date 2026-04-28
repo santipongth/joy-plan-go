@@ -162,7 +162,7 @@ export default function LodgingSuggestDialog({ itinerary }: { itinerary: Itinera
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">{t("travelers")}</Label>
+            <Label className="text-xs">{lang === "th" ? "จำนวนผู้เดินทาง" : "Travelers"}</Label>
             <Input
               type="number" min={1} max={20}
               value={travelers}
