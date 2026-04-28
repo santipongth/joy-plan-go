@@ -1155,6 +1155,7 @@ function DaySection({
         itinerary={itinerary}
         dayIdx={dayIdx}
         onFocusLodging={(lodgingId) => onFocusPlace(`lodging:${lodgingId}`)}
+        selectedPlaceId={selectedPlaceId}
       />
     </section>
   );
