@@ -1408,6 +1408,10 @@ function DaySection({
         t={t}
       />
 
+      <div className="my-2">
+        <PhotoGallery itinerary={itinerary} dayIndex={dayIdx} compact />
+      </div>
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext
           items={day.places.map((p) => p.id)}
