@@ -823,12 +823,12 @@ function ItineraryDetail() {
                 highlightedType={highlightedType}
                 selectedPlaceId={selectedPlaceId}
               />
-              {/* Collapse/expand overlays toggle (top-right, above zoom) */}
+              {/* Collapse/expand overlays toggle (top-right, above zoom + overlays) */}
               <button
                 onClick={() => setOverlaysCollapsed((v) => !v)}
                 title={overlaysCollapsed ? t("showOverlays") : t("hideOverlays")}
                 aria-label={overlaysCollapsed ? t("showOverlays") : t("hideOverlays")}
-                className="absolute top-3 right-3 z-[450] h-8 w-8 flex items-center justify-center bg-background/95 backdrop-blur rounded-md shadow-md border hover:bg-muted transition-colors"
+                className="absolute top-3 right-3 z-[1200] h-8 w-8 flex items-center justify-center bg-background/95 backdrop-blur rounded-md shadow-md border hover:bg-muted transition-colors"
               >
                 {overlaysCollapsed ? (
                   <Maximize2 className="h-4 w-4" />
@@ -837,13 +837,18 @@ function ItineraryDetail() {
                 )}
               </button>
 
-              {/* Type filter chips — full width across the top */}
-              {!overlaysCollapsed && typeCounts.size > 0 && (
+              {/* Type filter chips — slides up off-screen when collapsed */}
+              {typeCounts.size > 0 && (
                 <div
-                  className={`absolute top-3 left-3 right-14 z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 gap-1 ${
+                  aria-hidden={overlaysCollapsed}
+                  className={`absolute top-3 left-3 right-14 z-[1100] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 gap-1 transition-all duration-300 ease-out ${
                     isMobile
                       ? "flex flex-nowrap overflow-x-auto"
                       : "flex flex-wrap"
+                  } ${
+                    overlaysCollapsed
+                      ? "-translate-y-[150%] opacity-0 pointer-events-none"
+                      : "translate-y-0 opacity-100"
                   }`}
                 >
                   <button
@@ -874,49 +879,56 @@ function ItineraryDetail() {
                 </div>
               )}
 
-              {/* Floating day legend — bottom-left (desktop) / top-right under toggle (mobile) */}
-              {!overlaysCollapsed && (
-                <div
-                  className={`absolute z-[400] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 ${
-                    isMobile
-                      ? "top-14 right-3 max-w-[200px]"
-                      : "bottom-3 left-3 max-w-[220px]"
-                  }`}
-                >
-                  <div className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
-                    {t("daysLegend")}
-                  </div>
-                  <div className="space-y-0.5">
-                    {itinerary.days.map((d) => {
-                      const visible = visibleDays.has(d.day);
-                      return (
-                        <button
-                          key={d.day}
-                          onClick={() => toggleDay(d.day)}
-                          title={t("clickToToggle")}
-                          className={`flex items-center gap-1.5 text-xs w-full text-left px-1.5 py-1 rounded hover:bg-muted transition-colors ${
-                            visible ? "" : "opacity-40"
-                          }`}
-                        >
-                          <span
-                            className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                            style={{ background: dayColor(d.day - 1) }}
-                          />
-                          <span className="truncate flex-1">
-                            {t("day")} {d.day}
-                            {d.title ? ` — ${d.title}` : ""}
-                          </span>
-                          {visible ? (
-                            <Eye className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                          ) : (
-                            <EyeOff className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+              {/* Floating day legend — slides off-screen when collapsed */}
+              <div
+                aria-hidden={overlaysCollapsed}
+                className={`absolute z-[1100] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 transition-all duration-300 ease-out ${
+                  isMobile
+                    ? `top-14 right-3 max-w-[200px] ${
+                        overlaysCollapsed
+                          ? "translate-x-[120%] opacity-0 pointer-events-none"
+                          : "translate-x-0 opacity-100"
+                      }`
+                    : `bottom-3 left-3 max-w-[220px] ${
+                        overlaysCollapsed
+                          ? "-translate-x-[120%] opacity-0 pointer-events-none"
+                          : "translate-x-0 opacity-100"
+                      }`
+                }`}
+              >
+                <div className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
+                  {t("daysLegend")}
                 </div>
-              )}
+                <div className="space-y-0.5">
+                  {itinerary.days.map((d) => {
+                    const visible = visibleDays.has(d.day);
+                    return (
+                      <button
+                        key={d.day}
+                        onClick={() => toggleDay(d.day)}
+                        title={t("clickToToggle")}
+                        className={`flex items-center gap-1.5 text-xs w-full text-left px-1.5 py-1 rounded hover:bg-muted transition-colors ${
+                          visible ? "" : "opacity-40"
+                        }`}
+                      >
+                        <span
+                          className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                          style={{ background: dayColor(d.day - 1) }}
+                        />
+                        <span className="truncate flex-1">
+                          {t("day")} {d.day}
+                          {d.title ? ` — ${d.title}` : ""}
+                        </span>
+                        {visible ? (
+                          <Eye className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        ) : (
+                          <EyeOff className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </div>
