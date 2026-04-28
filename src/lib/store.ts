@@ -8,6 +8,8 @@ import type {
   DayStartPoint,
   PackingItem,
   Expense,
+  Lodging,
+  TransportLeg,
 } from "./types";
 
 interface State {
@@ -35,6 +37,11 @@ interface State {
   addExpense: (id: string, exp: Expense) => void;
   updateExpense: (id: string, expId: string, patch: Partial<Expense>) => void;
   removeExpense: (id: string, expId: string) => void;
+  addLodging: (id: string, lodging: Lodging) => void;
+  updateLodging: (id: string, lodgingId: string, patch: Partial<Lodging>) => void;
+  removeLodging: (id: string, lodgingId: string) => void;
+  setLodgingDays: (id: string, lodgingId: string, dayIndexes: number[]) => void;
+  setDayTransport: (id: string, dayIndex: number, legs: TransportLeg[] | undefined) => void;
 }
 
 const touch = (it: Itinerary): Itinerary => ({ ...it, updatedAt: Date.now() });
@@ -261,6 +268,56 @@ export const useItineraryStore = create<State>()(
               ? touch({ ...i, expenses: (i.expenses ?? []).filter((e) => e.id !== expId) })
               : i
           ),
+        })),
+      addLodging: (id, lodging) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id ? touch({ ...i, lodgings: [...(i.lodgings ?? []), lodging] }) : i
+          ),
+        })),
+      updateLodging: (id, lodgingId, patch) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({
+                  ...i,
+                  lodgings: (i.lodgings ?? []).map((l) =>
+                    l.id === lodgingId ? { ...l, ...patch } : l
+                  ),
+                })
+              : i
+          ),
+        })),
+      removeLodging: (id, lodgingId) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({ ...i, lodgings: (i.lodgings ?? []).filter((l) => l.id !== lodgingId) })
+              : i
+          ),
+        })),
+      setLodgingDays: (id, lodgingId, dayIndexes) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) =>
+            i.id === id
+              ? touch({
+                  ...i,
+                  lodgings: (i.lodgings ?? []).map((l) =>
+                    l.id === lodgingId ? { ...l, dayIndexes } : l
+                  ),
+                })
+              : i
+          ),
+        })),
+      setDayTransport: (id, dayIndex, legs) =>
+        set((s) => ({
+          itineraries: s.itineraries.map((i) => {
+            if (i.id !== id) return i;
+            const days = i.days.map((d, idx) =>
+              idx === dayIndex ? { ...d, transport: legs } : d
+            );
+            return touch({ ...i, days });
+          }),
         })),
     }),
     {

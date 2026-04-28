@@ -1,104 +1,128 @@
-# Plan — 5 New Features
 
-Implement five enhancements to the trip planner. All work happens after plan approval.
+# แผน: แนะนำที่พัก & การคมนาคมขนส่ง
 
----
+## เป้าหมาย
+เพิ่มสองฟีเจอร์ AI ใหม่ให้กับหน้า itinerary:
+1. **แนะนำที่พัก/โรงแรม** — แนะนำโรงแรม/โฮสเทล/รีสอร์ตที่ใกล้เคียงกับสถานที่ในแต่ละวันหรือทั้งทริป
+2. **แนะนำการคมนาคมขนส่ง** — แนะนำวิธีเดินทาง (รถไฟ, BTS/MRT, แท็กซี่, เดิน, เช่ารถ) ระหว่างจุดต่อจุดในแต่ละวัน พร้อมเวลา/ค่าใช้จ่ายโดยประมาณ
 
-## A. "AI Suggest" mode — refine an existing trip per day
+## 1. ขยาย Data Model (`src/lib/types.ts`)
 
-A new button **"AI Suggest"** opens a dialog where the user picks **Budget**, **Travel time per day** (short / balanced / long), and **Style** chips (relaxing / sightseeing / foodie / adventurous / shopping…). The AI then rewrites each day's `places` array, respecting current places when possible and producing a coherent, time-ordered plan. Each suggested place keeps `lat/lng` so map pins update automatically and clicking a place in the day list flies the map to its pin.
+เพิ่ม type ใหม่และขยาย `Itinerary`/`DayPlan`:
 
-**Where it appears**: Itinerary header (`/itinerary/$id`), next to "Regenerate all".
+```ts
+export interface Lodging {
+  id: string;
+  name: string;
+  type: "hotel" | "hostel" | "resort" | "guesthouse" | "apartment";
+  lat: number;
+  lng: number;
+  priceTier?: BudgetTier;          // low/medium/high
+  pricePerNight?: number;          // ประมาณการ
+  currency?: string;
+  rating?: number;                 // 0-5
+  description?: string;
+  bookingUrl?: string;             // deep link ไป Booking/Agoda search
+  amenities?: string[];            // wifi, pool, breakfast...
+  dayIndexes?: number[];           // วันที่ใช้พักโรงแรมนี้
+}
 
-**Behavior**:
-- Modal collects preferences, shows current day count, lets user choose "all days" or one specific day.
-- Calls a new server function `aiSuggestPlan` (Lovable AI Gateway, `gemini-3-flash-preview`, tool-calling for strict JSON).
-- On success, replaces the targeted day(s) via the existing `replaceDay` store action so undo/history still works.
-- Each place card already shows on the map; we add a small "Show on map" pin button that scrolls the right panel and pulses the marker.
+export type TransportMode =
+  | "walk" | "transit" | "taxi" | "rideshare"
+  | "train" | "bus" | "subway" | "ferry" | "bike" | "car";
 
----
+export interface TransportLeg {
+  id: string;
+  fromPlaceId: string;
+  toPlaceId: string;
+  mode: TransportMode;
+  durationMin?: number;
+  distanceKm?: number;
+  costEstimate?: number;
+  currency?: string;
+  instructions?: string;          // เช่น "BTS อโศก → สยาม (3 สถานี)"
+  alternatives?: Array<{ mode: TransportMode; durationMin?: number; costEstimate?: number; note?: string }>;
+}
 
-## B. Weather anchor picker
+// ขยาย DayPlan
+export interface DayPlan {
+  // ...เดิม
+  transport?: TransportLeg[];     // ตามลำดับ leg ระหว่าง places
+}
 
-`WeatherStrip` currently auto-picks the first place with coordinates. Add a small **dropdown selector** above the strip listing every place in the trip (grouped by day, "Day 1 · Wat Pho", etc.) plus an **"Auto (first place)"** option. Selection persists per itinerary in `localStorage` (key includes itinerary id). The forecast refetches when the anchor changes.
-
----
-
-## C. Real dates in WeatherStrip
-
-Each card currently shows "Day 1 / Day 2…". Change to localized real dates derived from `itinerary.startDate + i` using `date-fns` `format`:
-- Thai: `"12 เม.ย."` (`d MMM` with `th` locale)
-- English: `"Apr 12"` (`MMM d`)
-
-Day number remains visible as a small subtitle ("Day 1") so context is preserved. Falls back to "Day N" when `startDate` is missing.
-
----
-
-## D. Photo gallery per trip/day with AI captioning
-
-Add a per-day photo strip + a "Trip gallery" section. Photos upload to Supabase Storage; AI auto-suggests a caption using the Lovable AI Gateway (image input → text).
-
-**Storage**: New public bucket `trip-photos` with RLS so only the trip owner / collaborators can upload, but anyone can read (so public trips display photos).
-
-**Schema**: New `trip_photos` table:
-- `id uuid pk`, `trip_id uuid fk → trips.id`, `owner_id uuid`, `day_index int null` (null = trip-level), `storage_path text`, `caption text`, `created_at`.
-- RLS:
-  - `SELECT`: trip owner, collaborators, OR trip is public.
-  - `INSERT/UPDATE/DELETE`: trip owner OR collaborator.
-
-**Server function** `captionPhoto`: takes a public image URL, returns a 1-sentence caption (Thai or English).
-
-**UI**:
-- New `PhotoGallery.tsx` component embedded in each day (compact horizontal strip with "+ Add photo" tile) and a "Trip Gallery" card in the sidebar.
-- Lightbox on click (existing `Dialog`).
-- Upload flow: pick file → upload to bucket under `<trip_id>/<uuid>.jpg` → insert row → call `captionPhoto` → patch `caption`.
-- Photos only show when the user is signed in AND the trip exists in the cloud (we already auto-push via ShareTripDialog; we add the same `pushTrip` ensure step inside the gallery upload handler).
-
----
-
-## E. Trip card badges (Public / Shared with me)
-
-On the home page card grid, show small badges beneath the title:
-- **"Public"** (Globe icon) — when the cloud copy of this trip has `is_public = true` and the user is the owner.
-- **"Shared with me"** (Users icon) — when the trip belongs to another user but appears via `trip_collaborators`.
-
-**Wiring**: On home mount (when signed in) we already have access to `useAuth`. Fetch the user's cloud trips with `fetchMyTrips(user.id)` once and build a map keyed by `client_id`:
+// ขยาย Itinerary
+export interface Itinerary {
+  // ...เดิม
+  lodgings?: Lodging[];           // เก็บโรงแรมที่ผู้ใช้บันทึก
+}
 ```
-{ [client_id]: { isPublic: boolean, isShared: boolean } }
+
+## 2. Server Functions (`src/server/`)
+
+ไฟล์ใหม่ `suggest-lodging.functions.ts` และ `suggest-transport.functions.ts` ใช้รูปแบบเดียวกับ `plan-trip.functions.ts` (Lovable AI Gateway + tool calling, model `google/gemini-3-flash-preview`).
+
+**`suggestLodging`** — input: `destination`, `centerLat/Lng` (เช่น centroid ของ places วันนั้น หรือ destination), `budget`, `travelers`, `nights`, `preferences` (style, amenities), `lang`. Output: array ของ `Lodging` (4–6 ตัวเลือก) ที่มี lat/lng จริง พร้อม `bookingUrl` ที่ build เป็น Booking.com search URL จาก name+lat/lng (ไม่มี API จริง — ใช้ deep link search เพื่อให้ผู้ใช้กดต่อเอง)
+
+**`suggestTransport`** — input: `dayPlaces` (เรียงตามลำดับ), `travelMode` ที่ผู้ใช้ตั้ง, `destination`, `lang`. Output: array `TransportLeg` หนึ่ง leg ต่อช่วง place→place โดยให้ AI เลือกโหมดที่เหมาะที่สุดในเมืองนั้น (เช่น กรุงเทพ → BTS/MRT, เกียวโต → รถไฟ/เดิน) พร้อมเวลา ค่าใช้จ่ายประมาณ และคำอธิบายสั้น + ทางเลือก 1–2 ตัว
+
+ทั้งสองฟังก์ชันจัดการ `RATE_LIMIT` / `PAYMENT_REQUIRED` แบบเดียวกับฟังก์ชันที่มีอยู่
+
+## 3. Store actions (`src/lib/store.ts`)
+
+```ts
+addLodging(itineraryId, lodging)
+removeLodging(itineraryId, lodgingId)
+assignLodgingToDays(itineraryId, lodgingId, dayIndexes)
+setDayTransport(itineraryId, dayIndex, legs: TransportLeg[])
+clearDayTransport(itineraryId, dayIndex)
 ```
-Render the badge from that map; cards without a cloud match show no badge.
 
-For trips that exist only in the shared list (not in local store yet), also show them in the grid as "cloud-only" cards, opening them via their `client_id`.
+## 4. UI Components
+
+### a) `src/components/LodgingSuggestDialog.tsx`
+ปุ่มเปิด dialog ที่ header ของ itinerary (อยู่ใกล้ปุ่ม AI Suggest เดิม) ไอคอน `BedDouble`
+- Configure: เลือก budget tier, จำนวนคน, จำนวนคืน, วันที่ใช้โรงแรมนี้ (multi-select day chips), preferences (สระว่ายน้ำ/อาหารเช้า/ใกล้รถไฟฟ้า)
+- Running: เรียก `suggestLodging`
+- Preview: card list แสดงแต่ละโรงแรม → ชื่อ, type badge, rating, ราคา/คืน, amenity chips, ปุ่ม "Book on Booking.com" (เปิด tab ใหม่), checkbox "Add to trip"
+- Apply → `addLodging` + `assignLodgingToDays`
+
+### b) `src/components/LodgingList.tsx`
+แสดงในหน้า itinerary (ใต้ trip header หรือใน sidebar) — list โรงแรมที่ save ไว้พร้อม day chips, ปุ่มลบ, ปุ่มเปิด booking link, แสดงหมุดบนแผนที่หลัก (ใช้สี/ไอคอนพิเศษ — แก้ `MapView.tsx` ให้รับ `lodgings` prop)
+
+### c) `src/components/DayTransportPanel.tsx`
+แสดงภายใน day card ใน `itinerary.$id.tsx` ระหว่างรายการ places
+- ปุ่ม "Suggest transport" — เรียก `suggestTransport` สำหรับวันนั้น
+- หลังได้ผล แสดง timeline: place A — [icon mode + duration + cost] — place B
+- คลิก leg เพื่อ expand ดู instructions + alternatives
+- ปุ่มเปลี่ยนโหมดด้วยตัวเอง (dropdown) → update store
+- รีเฟรช/ล้างได้
+
+### d) Map enhancements (`MapView.tsx` + `DayMiniMap.tsx`)
+- รับ prop `lodgings` แสดง marker ไอคอนเตียง
+- (Optional ถ้าง่าย) วาดเส้นระหว่าง legs ด้วยสีตาม mode
+
+## 5. i18n (`src/lib/i18n.ts`)
+keys ใหม่ทั้ง th/en: `lodgingSuggest`, `lodgingTitle`, `lodgingBookOn`, `lodgingPriceNight`, `lodgingNights`, `lodgingApplyToDays`, `transportSuggest`, `transportLeg`, `transportAlternatives`, `transportMode_*`, `transportDuration`, `transportCost`, `noTransportYet`, ฯลฯ
+
+## 6. Booking deep link (no API key)
+ในฝั่ง client/server ประกอบ URL:
+```
+https://www.booking.com/searchresults.html?ss={encodeURIComponent(name)}&latitude={lat}&longitude={lng}
+```
+เก็บไว้ใน `lodging.bookingUrl` ตอน save
+
+## 7. ไฟล์ที่จะแก้/สร้าง
+- สร้าง: `src/server/suggest-lodging.functions.ts`, `src/server/suggest-transport.functions.ts`, `src/components/LodgingSuggestDialog.tsx`, `src/components/LodgingList.tsx`, `src/components/DayTransportPanel.tsx`
+- แก้: `src/lib/types.ts`, `src/lib/store.ts`, `src/lib/i18n.ts`, `src/routes/itinerary.$id.tsx` (ติดตั้งปุ่ม + panel), `src/components/MapView.tsx`, `src/components/DayMiniMap.tsx`
+
+## 8. Out of scope (รอบนี้)
+- ดึงราคา/ห้องว่างจริงจาก Booking/Agoda (ต้องการ API + business account)
+- เส้นทาง routing จริงจาก Google Directions / Mapbox (ต้องการ API key — ปัจจุบันใช้ Nominatim/Leaflet ฟรีเท่านั้น)
+- การจองตรงในแอป
+หากต้องการของจริงในอนาคต ค่อยเพิ่ม connector หรือ API key
 
 ---
 
-## Technical Notes
-
-**New / changed files**
-
-| File | Purpose |
-|---|---|
-| `src/server/discover.functions.ts` | Add `aiSuggestPlan` and `captionPhoto` server fns |
-| `src/components/AISuggestDialog.tsx` | Feature A modal |
-| `src/components/WeatherStrip.tsx` | Add anchor picker + real dates |
-| `src/lib/weather-anchor-store.ts` | Per-trip anchor preference (zustand + localStorage) |
-| `src/components/PhotoGallery.tsx` | Feature D component |
-| `src/lib/photos.ts` | Upload + list + caption helpers |
-| `src/lib/cloud-sync.ts` | Add `fetchMyTripsBadges` helper |
-| `src/routes/index.tsx` | Render badges on cards |
-| `src/routes/itinerary.$id.tsx` | Mount AISuggestDialog + PhotoGallery |
-| `src/lib/i18n.ts` | New keys (suggest, gallery, badges, weather anchor) |
-| Supabase migration | `trip-photos` bucket + `trip_photos` table + RLS |
-
-**Map pin link** (Feature A): we expose a small zustand store `useFocusedPlaceStore` with `setFocused(placeId)`. `MapView` listens and animates `flyTo` + pulses the marker. Place cards get a tiny map-pin button.
-
-**AI captioning approach**: upload first → get public URL via `supabase.storage.from('trip-photos').getPublicUrl()` → server fn fetches the image and sends it as `image_url` content to Gemini Flash with a short instruction. Caption is editable inline.
-
-**No breaking changes** to existing data shape. New fields are additive and optional.
-
----
-
-## Out of scope
-- Photo reordering / albums.
-- AI suggestions that re-fetch external place metadata (we trust the model's lat/lng like existing flows).
-- Translating photo captions on language change (caption is generated in current UI language at upload time).
+**ขอยืนยัน 2 จุดก่อนลงมือ:**
+1. ใช้ deep link ไปยัง Booking.com (ไม่ดึงราคาจริง) สำหรับเริ่มต้น — โอเคไหม หรืออยากเชื่อมต่อ API จริง (ต้องเพิ่ม API key)
+2. แสดง "Lodging" เป็น **section ใหม่ที่ระดับทริป** (หนึ่ง list สำหรับทั้งทริป + ผูกกับวัน) ตามที่เสนอ หรืออยากให้แต่ละวันมีโรงแรมของตัวเองแยกกัน
