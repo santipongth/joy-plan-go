@@ -886,9 +886,14 @@ function ItineraryDetail() {
               {typeCounts.size > 0 && (
                 <div
                   aria-hidden={overlaysCollapsed}
+                  {...stopMapEvents}
+                  {...(isMobile
+                    ? makeSwipeHandlers("vertical", () => setOverlaysCollapsed(true))
+                    : {})}
+                  style={{ touchAction: isMobile ? "pan-x" : undefined }}
                   className={`absolute top-3 left-3 right-14 z-[1100] bg-background/95 backdrop-blur rounded-lg shadow-md border p-2 gap-1 transition-all duration-300 ease-out ${
                     isMobile
-                      ? "flex flex-nowrap overflow-x-auto"
+                      ? "flex flex-nowrap overflow-x-auto overscroll-x-contain"
                       : "flex flex-wrap"
                   } ${
                     overlaysCollapsed
@@ -898,7 +903,11 @@ function ItineraryDetail() {
                 >
                   <button
                     onClick={() => setHighlightedType(null)}
-                    className={`text-[11px] px-2 py-1 rounded-full border transition-colors flex-shrink-0 ${
+                    className={`rounded-full border transition-colors flex-shrink-0 ${
+                      isMobile
+                        ? "text-xs px-3 py-2 min-h-[36px]"
+                        : "text-[11px] px-2 py-1"
+                    } ${
                       highlightedType === null
                         ? "bg-primary text-primary-foreground border-primary"
                         : "bg-background hover:bg-muted"
@@ -912,7 +921,11 @@ function ItineraryDetail() {
                       <button
                         key={tp}
                         onClick={() => setHighlightedType(highlightedType === tp ? null : tp)}
-                        className={`text-[11px] px-2 py-1 rounded-full border transition-colors capitalize flex-shrink-0 ${
+                        className={`rounded-full border transition-colors capitalize flex-shrink-0 ${
+                          isMobile
+                            ? "text-xs px-3 py-2 min-h-[36px]"
+                            : "text-[11px] px-2 py-1"
+                        } ${
                           highlightedType === tp
                             ? "bg-primary text-primary-foreground border-primary"
                             : "bg-background hover:bg-muted"
