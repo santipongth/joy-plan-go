@@ -1179,6 +1179,7 @@ function DaySection({
   dayIdx,
   color,
   itineraryId,
+  itinerary,
   allDays,
   tripOriginLabel,
   effectiveMode,
