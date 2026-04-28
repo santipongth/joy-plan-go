@@ -347,15 +347,6 @@ function ItineraryDetail() {
     void regenerateDay(dayIdx);
   }
 
-  /** Wrap regenerateAll with a confirmation when any day has undo entries. */
-  function requestRegenerateAll() {
-    const hasAny = Object.values(historyDepths).some((n) => n > 0);
-    if (hasAny) {
-      setPendingRegenAll(true);
-      return;
-    }
-    void regenerateAll();
-  }
 
   async function regenerateDay(dayIdx: number) {
     if (!itinerary) return;
