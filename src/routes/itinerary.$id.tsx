@@ -934,6 +934,11 @@ function ItineraryDetail() {
                         {tp} <span className="opacity-60">({n})</span>
                       </button>
                     ))}
+                  {isMobile && !overlaysCollapsed && (
+                    <span className="ml-auto self-center text-[10px] text-muted-foreground italic flex-shrink-0 pl-2">
+                      ↑ {t("swipeToCollapseV")}
+                    </span>
+                  )}
                 </div>
               )}
 
