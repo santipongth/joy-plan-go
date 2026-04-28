@@ -8,6 +8,8 @@ import type {
   DayStartPoint,
   PackingItem,
   Expense,
+  Lodging,
+  TransportLeg,
 } from "./types";
 
 interface State {
