@@ -794,15 +794,7 @@ function ItineraryDetail() {
           />
 
           <PackingChecklist itinerary={itinerary} />
-          <SpendingTracker itinerary={itinerary} />
           <LocalTipsCard itinerary={itinerary} />
-
-          <div className="mb-6 p-3 rounded-lg bg-card/60 border">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              {t("photosTitle")}
-            </h3>
-            <PhotoGallery itinerary={itinerary} dayIndex={null} />
-          </div>
 
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
