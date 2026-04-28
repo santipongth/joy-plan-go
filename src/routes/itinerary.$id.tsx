@@ -1007,16 +1007,11 @@ function DaySection({
           <Button
             size="sm"
             variant="ghost"
-            onClick={handleSuggestMeals}
-            disabled={mealsLoading || day.places.length === 0}
+            onClick={() => openMealDialog()}
             title={t("suggestMeals")}
           >
-            {mealsLoading ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4 mr-1" />
-            )}
-            🍴 {t("suggestMeals")}
+            <Utensils className="h-4 w-4 mr-1" />
+            {t("suggestMeals")}
           </Button>
         </div>
       </div>
