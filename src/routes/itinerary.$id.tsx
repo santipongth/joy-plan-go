@@ -679,100 +679,71 @@ function ItineraryDetail() {
             </div>
           </header>
 
-          {regenAllProgress !== null && (
-            <div className="mb-4">
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                <span>
-                  {t("regeneratingDay")
-                    .replace("{n}", String(Math.max(1, regenAllProgress.current)))
-                    .replace("{total}", String(regenAllProgress.total))}
-                </span>
-                <span className="flex items-center gap-3">
-                  {regenAllProgress.etaSec !== null && (
-                    <span className="tabular-nums">
-                      {t("timeLeft")} {regenAllProgress.etaSec}{t("seconds").startsWith(" ") ? "" : " "}{t("seconds")}
-                    </span>
-                  )}
-                  <span className="tabular-nums">
-                    {Math.round(
-                      (regenAllProgress.current / Math.max(1, regenAllProgress.total)) * 100
-                    )}
-                    %
-                  </span>
-                </span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{
-                    width: `${
-                      (regenAllProgress.current / Math.max(1, regenAllProgress.total)) * 100
-                    }%`,
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          <Card className="mb-4 p-4">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">
+          <Card className="mb-4 p-4 sm:p-5 overflow-hidden">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
               {t("tripCardTitle")}
             </div>
-            {editingTitle ? (
-              <div className="flex gap-2">
-                <Input
-                  value={titleDraft}
-                  onChange={(e) => setTitleDraft(e.target.value)}
-                  className="text-xl font-bold"
-                />
-                <Button size="icon" onClick={saveTitle}>
-                  <Check className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold">{itinerary.title}</h1>
-                <button
-                  onClick={() => {
-                    setTitleDraft(itinerary.title);
-                    setEditingTitle(true);
-                  }}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground mt-1">
-              {itinerary.destination} · {itinerary.durationDays} {t("days")}
-            </p>
-            <div className="mt-3">
+
+            {/* Header */}
+            <div className="space-y-1">
+              {editingTitle ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={titleDraft}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    className="text-lg sm:text-xl font-bold"
+                  />
+                  <Button size="icon" onClick={saveTitle}>
+                    <Check className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2">
+                  <h1 className="text-xl sm:text-2xl font-bold break-words flex-1 min-w-0">
+                    {itinerary.title}
+                  </h1>
+                  <button
+                    onClick={() => {
+                      setTitleDraft(itinerary.title);
+                      setEditingTitle(true);
+                    }}
+                    className="text-muted-foreground hover:text-foreground flex-shrink-0 mt-1"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground break-words">
+                {itinerary.destination} · {itinerary.durationDays} {t("days")}
+              </p>
+            </div>
+
+            <div className="mt-4">
               <WeatherStrip itinerary={itinerary} />
+            </div>
+
+            {/* Sub-cards inside trip card */}
+            <div className="mt-4 grid gap-3 sm:gap-4">
+              <BudgetEstimate
+                itinerary={itinerary}
+                onTravelersChange={(n) => update(id, { travelers: n })}
+                onTierChange={(b) => update(id, { budget: b })}
+              />
+              <PackingChecklist itinerary={itinerary} />
+              <LocalTipsCard itinerary={itinerary} />
             </div>
           </Card>
 
-          <BudgetEstimate
-            itinerary={itinerary}
-            onTravelersChange={(n) => update(id, { travelers: n })}
-            onTierChange={(b) => update(id, { budget: b })}
-          />
-
-          <PackingChecklist itinerary={itinerary} />
-          <LocalTipsCard itinerary={itinerary} />
-          <LodgingCard itinerary={itinerary} />
+          <div className="mb-4">
+            <LodgingCard itinerary={itinerary} />
+          </div>
 
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
-            <div className="flex items-center justify-between mb-2">
+            <div className="mb-2">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 {t("daysLegend")} · {t("showOnMap")}
               </span>
-              <button
-                onClick={showAllDays}
-                className="text-xs text-primary hover:underline"
-              >
-                {t("allDays")}
-              </button>
             </div>
             <div className="flex flex-wrap gap-2">
               {itinerary.days.map((d) => {
