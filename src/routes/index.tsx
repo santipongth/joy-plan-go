@@ -80,6 +80,31 @@ function HomePage() {
   const addItinerary = useItineraryStore((s) => s.add);
   const removeItinerary = useItineraryStore((s) => s.remove);
   const planFn = useServerFn(planTrip);
+  const { user } = useAuth();
+  const [tripBadges, setTripBadges] = useState<Record<string, { isPublic: boolean; isShared: boolean }>>({});
+
+  useEffect(() => {
+    if (!user) {
+      setTripBadges({});
+      return;
+    }
+    let cancelled = false;
+    fetchMyTrips(user.id)
+      .then(({ owned, shared }) => {
+        if (cancelled) return;
+        const map: Record<string, { isPublic: boolean; isShared: boolean }> = {};
+        owned.forEach((r) => {
+          if (r.client_id) map[r.client_id] = { isPublic: r.is_public, isShared: false };
+        });
+        shared.forEach((r) => {
+          if (r.client_id) map[r.client_id] = { isPublic: r.is_public, isShared: true };
+        });
+        setTripBadges(map);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
 
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
