@@ -1325,6 +1325,20 @@ function DaySection({
             )}
             {regenerating ? t("regenerating") : t("regenerateDay")}
           </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleSuggestMeals}
+            disabled={mealsLoading || day.places.length === 0}
+            title={t("suggestMeals")}
+          >
+            {mealsLoading ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-1" />
+            )}
+            🍴 {t("suggestMeals")}
+          </Button>
           <Button size="sm" variant="ghost" onClick={onAddPlace}>
             <Plus className="h-4 w-4 mr-1" />
             {t("addPlace")}
