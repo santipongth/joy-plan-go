@@ -638,29 +638,6 @@ function ItineraryDetail() {
               {t("back")}
             </Button>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={requestRegenerateAll}
-                disabled={regenAllProgress !== null}
-                title={t("regenerateAll")}
-              >
-                {regenAllProgress !== null ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <Wand2 className="h-4 w-4 mr-1" />
-                )}
-                <span className="hidden sm:inline">
-                  {regenAllProgress !== null
-                    ? regenAllProgress.current === 0
-                      ? t("regeneratingAll")
-                      : t("regeneratingDay")
-                          .replace("{n}", String(regenAllProgress.current))
-                          .replace("{total}", String(regenAllProgress.total))
-                    : t("regenerateAll")}
-                </span>
-              </Button>
-              <AISuggestDialog itinerary={itinerary} />
               <Button variant="outline" size="sm" onClick={exportPdf} title={t("print")}>
                 <Printer className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">{t("print")}</span>
