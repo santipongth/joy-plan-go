@@ -154,31 +154,70 @@ export default function AISuggestDialog({ itinerary }: { itinerary: Itinerary })
     }
   }
 
+  function buildDay(prop: ProposedDay): DayPlan | null {
+    if (prop.error || !prop.proposedPlaces.length) return null;
+    const day = itinerary.days[prop.dayIdx];
+    return {
+      day: day.day,
+      title: prop.proposedTitle || day.title,
+      places: prop.proposedPlaces
+        .filter((p) => typeof p.lat === "number" && typeof p.lng === "number")
+        .map((p) => ({
+          id: makeId(),
+          name: p.name,
+          description: p.description,
+          type: p.type,
+          time: p.time,
+          lat: p.lat as number,
+          lng: p.lng as number,
+        })),
+      travelMode: day.travelMode,
+      startPoint: day.startPoint,
+    };
+  }
+
+  function showUndoToast(snapshot: DayPlan[]) {
+    toast.success(t("suggestApplied"), {
+      action: {
+        label: t("undo"),
+        onClick: () => {
+          updateDays(itinerary.id, snapshot);
+          toast.success(t("aiSuggestUndone"));
+        },
+      },
+      duration: 8000,
+    });
+  }
+
+  function applyOne(idx: number) {
+    const prop = proposals[idx];
+    const newDay = buildDay(prop);
+    if (!newDay) return;
+    const snapshot = itinerary.days.map((d) => ({
+      ...d,
+      places: d.places.map((p) => ({ ...p })),
+      startPoint: d.startPoint ? { ...d.startPoint } : undefined,
+    }));
+    replaceDay(itinerary.id, prop.dayIdx, newDay);
+    setProposals((ps) => ps.filter((_, j) => j !== idx));
+    showUndoToast(snapshot);
+  }
+
   function applySelected() {
+    const snapshot = itinerary.days.map((d) => ({
+      ...d,
+      places: d.places.map((p) => ({ ...p })),
+      startPoint: d.startPoint ? { ...d.startPoint } : undefined,
+    }));
     let count = 0;
     for (const prop of proposals) {
-      if (!prop.selected || prop.error || !prop.proposedPlaces.length) continue;
-      const day = itinerary.days[prop.dayIdx];
-      replaceDay(itinerary.id, prop.dayIdx, {
-        day: day.day,
-        title: prop.proposedTitle || day.title,
-        places: prop.proposedPlaces
-          .filter((p) => typeof p.lat === "number" && typeof p.lng === "number")
-          .map((p) => ({
-            id: makeId(),
-            name: p.name,
-            description: p.description,
-            type: p.type,
-            time: p.time,
-            lat: p.lat as number,
-            lng: p.lng as number,
-          })),
-        travelMode: day.travelMode,
-        startPoint: day.startPoint,
-      });
+      if (!prop.selected) continue;
+      const newDay = buildDay(prop);
+      if (!newDay) continue;
+      replaceDay(itinerary.id, prop.dayIdx, newDay);
       count++;
     }
-    if (count > 0) toast.success(t("suggestApplied"));
+    if (count > 0) showUndoToast(snapshot);
     setOpen(false);
     reset();
   }
