@@ -32,6 +32,8 @@ import {
   Printer,
   Wand2,
   Undo2,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import MapView, { dayColor } from "@/components/MapView";
 import { useIsMobile } from "@/hooks/use-mobile";
