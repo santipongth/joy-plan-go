@@ -145,6 +145,7 @@ export interface Itinerary {
   travelers?: number;
   packing?: PackingItem[];
   expenses?: Expense[];
+  lodgings?: Lodging[];
   localTips?: LocalTips;
   createdAt: number;
   updatedAt: number;
