@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import MapView, { dayColor } from "@/components/MapView";
 import AuthButton from "@/components/AuthButton";
+import ThemeToggle from "@/components/ThemeToggle";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/")({
@@ -277,6 +278,7 @@ function HomePage() {
                 {t("galleryTitle")}
               </Link>
               <LangSwitch />
+              <ThemeToggle />
               <AuthButton />
             </div>
           </header>
