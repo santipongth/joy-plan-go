@@ -137,6 +137,8 @@ function ItineraryDetail() {
 
   const [highlightedType, setHighlightedType] = useState<string | null>(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [overlaysCollapsed, setOverlaysCollapsed] = useState(false);
+  const isMobile = useIsMobile();
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(itinerary?.title ?? "");
