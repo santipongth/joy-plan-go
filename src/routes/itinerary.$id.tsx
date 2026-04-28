@@ -1359,6 +1359,8 @@ function DaySection({
                   onUpdatePlace={(patch) =>
                     updatePlaceField(itineraryId, dayIdx, p.id, patch)
                   }
+                  itinerary={itinerary}
+                  dayIdx={dayIdx}
                   t={t}
                 />
               );
