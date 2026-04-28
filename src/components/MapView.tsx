@@ -191,7 +191,8 @@ export default function MapView({
         iconAnchor: [15, 28],
       });
       const popupHtml = `<div style="min-width:180px"><strong>${escapeHtml(lod.name)}</strong><br/><small>🛏️ ${escapeHtml(lod.type)}${typeof lod.rating === "number" ? ` · ★ ${lod.rating.toFixed(1)}` : ""}</small>${lod.address ? `<br/><small>${escapeHtml(lod.address)}</small>` : ""}${typeof lod.pricePerNight === "number" ? `<br/><small><b>${lod.pricePerNight.toLocaleString()} ${escapeHtml(lod.currency || "")}</b>/night</small>` : ""}${lod.bookingUrl ? `<br/><a href="${escapeHtml(lod.bookingUrl)}" target="_blank" rel="noopener noreferrer" style="color:#0f766e;font-size:12px">Book →</a>` : ""}</div>`;
-      L.marker([lod.lat, lod.lng], { icon }).bindPopup(popupHtml).addTo(layer);
+      const lm = L.marker([lod.lat, lod.lng], { icon }).bindPopup(popupHtml).addTo(layer);
+      if (lod.id) markersByPlaceIdRef.current.set(`lodging:${lod.id}`, lm);
       allLatLngs.push([lod.lat, lod.lng]);
     });
 
