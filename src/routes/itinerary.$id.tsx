@@ -999,6 +999,11 @@ function ItineraryDetail() {
                     );
                   })}
                 </div>
+                {isMobile && !overlaysCollapsed && (
+                  <div className="mt-1.5 pt-1.5 border-t text-[10px] text-muted-foreground italic text-center">
+                    {t("swipeToCollapseH")} →
+                  </div>
+                )}
               </div>
             </div>
           )}
