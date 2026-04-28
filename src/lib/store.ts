@@ -35,6 +35,7 @@ interface State {
   addExpense: (id: string, exp: Expense) => void;
   updateExpense: (id: string, expId: string, patch: Partial<Expense>) => void;
   removeExpense: (id: string, expId: string) => void;
+}
 
 const touch = (it: Itinerary): Itinerary => ({ ...it, updatedAt: Date.now() });
 
