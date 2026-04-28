@@ -37,6 +37,11 @@ interface State {
   addExpense: (id: string, exp: Expense) => void;
   updateExpense: (id: string, expId: string, patch: Partial<Expense>) => void;
   removeExpense: (id: string, expId: string) => void;
+  addLodging: (id: string, lodging: Lodging) => void;
+  updateLodging: (id: string, lodgingId: string, patch: Partial<Lodging>) => void;
+  removeLodging: (id: string, lodgingId: string) => void;
+  setLodgingDays: (id: string, lodgingId: string, dayIndexes: number[]) => void;
+  setDayTransport: (id: string, dayIndex: number, legs: TransportLeg[] | undefined) => void;
 }
 
 const touch = (it: Itinerary): Itinerary => ({ ...it, updatedAt: Date.now() });
