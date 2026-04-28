@@ -524,7 +524,7 @@ function ItineraryDetail() {
             </div>
           </header>
 
-          <Card className="mb-4 p-4 sm:p-5 overflow-hidden">
+          <Card className="mb-4 p-4 sm:p-5 w-full max-w-full overflow-hidden">
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
               {t("tripCardTitle")}
             </div>
@@ -568,7 +568,7 @@ function ItineraryDetail() {
             </div>
 
             {/* Sub-cards inside trip card */}
-            <div className="mt-4 grid gap-3 sm:gap-4">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:gap-4 [&>*]:w-full [&>*]:max-w-full [&>*]:min-w-0">
               <BudgetEstimate
                 itinerary={itinerary}
                 onTravelersChange={(n) => update(id, { travelers: n })}
@@ -644,6 +644,7 @@ function ItineraryDetail() {
                   onRegenerate={() => requestRegenerateDay(dayIdx)}
                   onMovePlace={(placeId, toDayIdx) => handleMovePlace(placeId, dayIdx, toDayIdx)}
                   onFocusPlace={focusPlace}
+                  selectedPlaceId={selectedPlaceId}
                   regenerating={regenLoading === d.day}
                   errorMessage={regenErrors[d.day]}
                   onDismissError={() => clearRegenError(d.day)}
@@ -888,6 +889,7 @@ interface DaySectionProps {
   onRegenerate: () => void;
   onMovePlace: (placeId: string, toDayIdx: number) => void;
   onFocusPlace: (placeId: string) => void;
+  selectedPlaceId?: string | null;
   onPushHistory: (prev: Place[]) => void;
   onUndoReorder: () => void;
   historyDepth: number;
@@ -912,6 +914,7 @@ function DaySection({
   onRegenerate,
   onMovePlace,
   onFocusPlace,
+  selectedPlaceId,
   onPushHistory,
   onUndoReorder,
   historyDepth,
@@ -1152,6 +1155,7 @@ function DaySection({
         itinerary={itinerary}
         dayIdx={dayIdx}
         onFocusLodging={(lodgingId) => onFocusPlace(`lodging:${lodgingId}`)}
+        selectedPlaceId={selectedPlaceId}
       />
     </section>
   );
