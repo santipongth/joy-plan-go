@@ -30,7 +30,7 @@ import {
   RefreshCw,
   X,
   Printer,
-  Maximize2,
+  Undo2,
   Minimize2,
   Bookmark,
   BookmarkCheck,
