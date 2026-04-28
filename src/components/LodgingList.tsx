@@ -3,7 +3,22 @@ import type { Itinerary } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BedDouble, ExternalLink, Star, Trash2 } from "lucide-react";
+import { BedDouble, ExternalLink, Star, Trash2, MapPin } from "lucide-react";
+
+function buildBookingUrl(name: string, lat: number, lng: number) {
+  const params = new URLSearchParams({
+    ss: name,
+    latitude: lat.toFixed(6),
+    longitude: lng.toFixed(6),
+  });
+  return `https://www.booking.com/searchresults.html?${params.toString()}`;
+}
+function buildAirbnbUrl(name: string) {
+  return `https://www.airbnb.com/s/${encodeURIComponent(name)}/homes`;
+}
+function buildMapUrl(lat: number, lng: number, name: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}&query_place_id=${encodeURIComponent(name)}`;
+}
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
