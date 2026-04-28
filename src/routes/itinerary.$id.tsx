@@ -644,6 +644,7 @@ function ItineraryDetail() {
                   onRegenerate={() => requestRegenerateDay(dayIdx)}
                   onMovePlace={(placeId, toDayIdx) => handleMovePlace(placeId, dayIdx, toDayIdx)}
                   onFocusPlace={focusPlace}
+                  selectedPlaceId={selectedPlaceId}
                   regenerating={regenLoading === d.day}
                   errorMessage={regenErrors[d.day]}
                   onDismissError={() => clearRegenError(d.day)}
