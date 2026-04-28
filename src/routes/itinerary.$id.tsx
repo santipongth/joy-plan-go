@@ -97,6 +97,9 @@ import ThemeToggle from "@/components/ThemeToggle";
 import AuthButton from "@/components/AuthButton";
 import AISuggestDialog from "@/components/AISuggestDialog";
 import PhotoGallery from "@/components/PhotoGallery";
+import LodgingSuggestDialog from "@/components/LodgingSuggestDialog";
+import LodgingList from "@/components/LodgingList";
+import DayTransportPanel from "@/components/DayTransportPanel";
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
@@ -663,6 +666,7 @@ function ItineraryDetail() {
                 </span>
               </Button>
               <AISuggestDialog itinerary={itinerary} />
+              <LodgingSuggestDialog itinerary={itinerary} />
               <Button variant="outline" size="sm" onClick={exportPdf} title={t("print")}>
                 <Printer className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">{t("print")}</span>
@@ -781,6 +785,7 @@ function ItineraryDetail() {
 
           <PackingChecklist itinerary={itinerary} />
           <LocalTipsCard itinerary={itinerary} />
+          <LodgingList itinerary={itinerary} />
 
           {/* Day legend with show/hide toggles */}
           <div className="mb-6 p-3 rounded-lg bg-card/60 border">
@@ -1388,6 +1393,7 @@ function DaySection({
           </div>
         </SortableContext>
       </DndContext>
+      <DayTransportPanel itinerary={itinerary} day={day} dayIdx={dayIdx} />
     </section>
   );
 }
