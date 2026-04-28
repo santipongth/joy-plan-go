@@ -193,8 +193,8 @@ export default function MapView({
       const icon = L.divIcon({
         html,
         className: "trip-lodging-marker",
-        iconSize: [30, 30],
-        iconAnchor: [15, 28],
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size - 2],
       });
       const popupHtml = `<div style="min-width:180px"><strong>${escapeHtml(lod.name)}</strong><br/><small>🛏️ ${escapeHtml(lod.type)}${typeof lod.rating === "number" ? ` · ★ ${lod.rating.toFixed(1)}` : ""}</small>${lod.address ? `<br/><small>${escapeHtml(lod.address)}</small>` : ""}${typeof lod.pricePerNight === "number" ? `<br/><small><b>${lod.pricePerNight.toLocaleString()} ${escapeHtml(lod.currency || "")}</b>/night</small>` : ""}${lod.bookingUrl ? `<br/><a href="${escapeHtml(lod.bookingUrl)}" target="_blank" rel="noopener noreferrer" style="color:#0f766e;font-size:12px">Book →</a>` : ""}</div>`;
       const lm = L.marker([lod.lat, lod.lng], { icon }).bindPopup(popupHtml).addTo(layer);
