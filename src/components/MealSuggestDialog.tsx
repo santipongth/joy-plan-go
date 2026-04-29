@@ -97,6 +97,7 @@ export default function MealSuggestDialog({
       setMealTypes(presetMealTypes ?? ["lunch", "dinner"]);
       setFilterPrices(new Set());
       setFilterExcludeCuisines(new Set());
+      setSortKey("relevance");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
