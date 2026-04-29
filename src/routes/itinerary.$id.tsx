@@ -96,7 +96,7 @@ import MealSuggestDialog from "@/components/MealSuggestDialog";
 import MealEmptyBanner from "@/components/MealEmptyBanner";
 import MealSlotInline, { detectMissingMealSlots } from "@/components/MealSlotInline";
 import MealReplacePopover from "@/components/MealReplacePopover";
-import { Utensils } from "lucide-react";
+
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
