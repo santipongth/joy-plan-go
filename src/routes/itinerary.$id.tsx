@@ -18,7 +18,7 @@ import {
   Pencil,
   Check,
   GripVertical,
-  Sparkles,
+  
   Loader2,
   Eye,
   EyeOff,
@@ -96,7 +96,7 @@ import MealSuggestDialog from "@/components/MealSuggestDialog";
 import MealEmptyBanner from "@/components/MealEmptyBanner";
 import MealSlotInline, { detectMissingMealSlots } from "@/components/MealSlotInline";
 import MealReplacePopover from "@/components/MealReplacePopover";
-import { Utensils } from "lucide-react";
+
 
 export const Route = createFileRoute("/itinerary/$id")({
   head: ({ params }) => ({
@@ -990,29 +990,6 @@ function DaySection({
               </span>
             </Button>
           )}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onRegenerate}
-            disabled={regenerating}
-            title={t("regenerateDay")}
-          >
-            {regenerating ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4 mr-1" />
-            )}
-            {regenerating ? t("regenerating") : t("regenerateDay")}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => openMealDialog()}
-            title={t("suggestMeals")}
-          >
-            <Utensils className="h-4 w-4 mr-1" />
-            {t("suggestMeals")}
-          </Button>
         </div>
       </div>
 
