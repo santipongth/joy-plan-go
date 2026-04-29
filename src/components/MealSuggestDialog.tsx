@@ -174,6 +174,8 @@ export default function MealSuggestDialog({
       }
       setResults(res.meals);
       setSelected(new Set(res.meals.map((_, i) => i)));
+      setFilterPrices(new Set());
+      setFilterExcludeCuisines(new Set());
       setPhase("preview");
     } catch {
       setError(t("aiError"));
