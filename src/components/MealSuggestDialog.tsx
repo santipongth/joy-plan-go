@@ -193,7 +193,15 @@ export default function MealSuggestDialog({
   }
 
   function applySelected() {
-    const picked = results.filter((_, i) => selected.has(i));
+    const picked = results.filter((m, i) => {
+      if (!selected.has(i)) return false;
+      if (filterPrices.size > 0 && (!m.priceRange || !filterPrices.has(m.priceRange))) return false;
+      if (filterExcludeCuisines.size > 0) {
+        const c = (m.cuisine || "").trim().toLowerCase();
+        if (c && filterExcludeCuisines.has(c)) return false;
+      }
+      return true;
+    });
     for (const m of picked) {
       addPlace(itinerary.id, dayIdx, {
         id: makeId(),
