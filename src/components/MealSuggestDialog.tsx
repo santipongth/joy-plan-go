@@ -411,7 +411,49 @@ export default function MealSuggestDialog({
               }
               return true;
             });
-          const visibleSet = new Set(visibleIndices);
+          // Reference point for distance-based sorting + cards
+          const sortRef =
+            nearLodging && lodgingForDay
+              ? { lat: lodgingForDay.lat, lng: lodgingForDay.lng, name: lodgingForDay.name }
+              : day?.places[0]
+                ? { lat: day.places[0].lat, lng: day.places[0].lng, name: day.places[0].name }
+                : null;
+          // Price match score: 0 = exact match with priceTier; 1/2 = off by 1/2 tiers; 3 = unknown
+          const priceOrder: Record<"$" | "$$" | "$$$", number> = { "$": 0, "$$": 1, "$$$": 2 };
+          const desiredPrice = priceOrder[priceTier === "low" ? "$" : priceTier === "high" ? "$$$" : "$$"];
+          function priceMatchScore(m: MealSuggestion): number {
+            if (!m.priceRange) return 3;
+            return Math.abs(priceOrder[m.priceRange] - desiredPrice);
+          }
+          function distanceMeters(m: MealSuggestion): number {
+            if (!sortRef) return Number.POSITIVE_INFINITY;
+            return haversineMeters(sortRef.lat, sortRef.lng, m.lat, m.lng);
+          }
+          const sortedVisible = [...visibleIndices].sort((a, b) => {
+            const ma = results[a];
+            const mb = results[b];
+            if (sortKey === "distance") {
+              return distanceMeters(ma) - distanceMeters(mb);
+            }
+            if (sortKey === "priceMatch") {
+              const pa = priceMatchScore(ma);
+              const pb = priceMatchScore(mb);
+              if (pa !== pb) return pa - pb;
+              return distanceMeters(ma) - distanceMeters(mb);
+            }
+            if (sortKey === "rating") {
+              const ra = ma.rating ?? 0;
+              const rb = mb.rating ?? 0;
+              if (rb !== ra) return rb - ra;
+              return distanceMeters(ma) - distanceMeters(mb);
+            }
+            // relevance: distance first, then price match
+            const da = distanceMeters(ma);
+            const db = distanceMeters(mb);
+            if (da !== db) return da - db;
+            return priceMatchScore(ma) - priceMatchScore(mb);
+          });
+          const visibleSet = new Set(sortedVisible);
           const filtersActive = filterPrices.size > 0 || filterExcludeCuisines.size > 0;
           return (
           <div className="space-y-3 py-2">
