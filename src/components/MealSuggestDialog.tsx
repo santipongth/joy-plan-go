@@ -21,6 +21,14 @@ import { Loader2, Sparkles, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 import MealCard from "./MealCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { haversineMeters } from "@/lib/route-utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ALL_MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 const CUISINE_OPTIONS: { value: string; key: string }[] = [
@@ -85,6 +93,8 @@ export default function MealSuggestDialog({
   // Quick filters in preview phase
   const [filterPrices, setFilterPrices] = useState<Set<"$" | "$$" | "$$$">>(new Set());
   const [filterExcludeCuisines, setFilterExcludeCuisines] = useState<Set<string>>(new Set());
+  type SortKey = "relevance" | "distance" | "priceMatch" | "rating";
+  const [sortKey, setSortKey] = useState<SortKey>("relevance");
 
   useEffect(() => {
     if (!open) {
@@ -95,6 +105,7 @@ export default function MealSuggestDialog({
       setMealTypes(presetMealTypes ?? ["lunch", "dinner"]);
       setFilterPrices(new Set());
       setFilterExcludeCuisines(new Set());
+      setSortKey("relevance");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -176,6 +187,7 @@ export default function MealSuggestDialog({
       setSelected(new Set(res.meals.map((_, i) => i)));
       setFilterPrices(new Set());
       setFilterExcludeCuisines(new Set());
+      setSortKey("relevance");
       setPhase("preview");
     } catch {
       setError(t("aiError"));
@@ -399,7 +411,48 @@ export default function MealSuggestDialog({
               }
               return true;
             });
-          const visibleSet = new Set(visibleIndices);
+          // Reference point for distance-based sorting + cards
+          const sortRef =
+            nearLodging && lodgingForDay
+              ? { lat: lodgingForDay.lat, lng: lodgingForDay.lng, name: lodgingForDay.name }
+              : day?.places[0]
+                ? { lat: day.places[0].lat, lng: day.places[0].lng, name: day.places[0].name }
+                : null;
+          // Price match score: 0 = exact match with priceTier; 1/2 = off by 1/2 tiers; 3 = unknown
+          const priceOrder: Record<"$" | "$$" | "$$$", number> = { "$": 0, "$$": 1, "$$$": 2 };
+          const desiredPrice = priceOrder[priceTier === "low" ? "$" : priceTier === "high" ? "$$$" : "$$"];
+          function priceMatchScore(m: MealSuggestion): number {
+            if (!m.priceRange) return 3;
+            return Math.abs(priceOrder[m.priceRange] - desiredPrice);
+          }
+          function distanceMeters(m: MealSuggestion): number {
+            if (!sortRef) return Number.POSITIVE_INFINITY;
+            return haversineMeters(sortRef, { lat: m.lat, lng: m.lng });
+          }
+          const sortedVisible = [...visibleIndices].sort((a, b) => {
+            const ma = results[a];
+            const mb = results[b];
+            if (sortKey === "distance") {
+              return distanceMeters(ma) - distanceMeters(mb);
+            }
+            if (sortKey === "priceMatch") {
+              const pa = priceMatchScore(ma);
+              const pb = priceMatchScore(mb);
+              if (pa !== pb) return pa - pb;
+              return distanceMeters(ma) - distanceMeters(mb);
+            }
+            if (sortKey === "rating") {
+              const ra = ma.rating ?? 0;
+              const rb = mb.rating ?? 0;
+              if (rb !== ra) return rb - ra;
+              return distanceMeters(ma) - distanceMeters(mb);
+            }
+            // relevance: distance first, then price match
+            const da = distanceMeters(ma);
+            const db = distanceMeters(mb);
+            if (da !== db) return da - db;
+            return priceMatchScore(ma) - priceMatchScore(mb);
+          });
           const filtersActive = filterPrices.size > 0 || filterExcludeCuisines.size > 0;
           return (
           <div className="space-y-3 py-2">
@@ -488,7 +541,7 @@ export default function MealSuggestDialog({
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => setSelected(new Set(visibleIndices))}
+                  onClick={() => setSelected(new Set(sortedVisible))}
                 >
                   {t("mealSelectAll")}
                 </Button>
@@ -499,7 +552,7 @@ export default function MealSuggestDialog({
                   onClick={() =>
                     setSelected((prev) => {
                       const next = new Set(prev);
-                      for (const i of visibleIndices) next.delete(i);
+                      for (const i of sortedVisible) next.delete(i);
                       return next;
                     })
                   }
@@ -507,33 +560,49 @@ export default function MealSuggestDialog({
                   {t("mealClearSelection")}
                 </Button>
                 <Badge variant="secondary" className="text-[10px] h-5">
-                  {visibleIndices.length}/{results.length}
+                  {sortedVisible.length}/{results.length}
                 </Badge>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => void run(true)}
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                {t("mealRequestAgain")}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground">{t("mealSortLabel")}:</span>
+                <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+                  <SelectTrigger className="h-7 text-xs w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="relevance" className="text-xs">
+                      {t("mealSortRelevance")}
+                    </SelectItem>
+                    <SelectItem value="distance" className="text-xs">
+                      {t("mealSortDistance")}
+                    </SelectItem>
+                    <SelectItem value="priceMatch" className="text-xs">
+                      {t("mealSortPriceMatch")}
+                    </SelectItem>
+                    <SelectItem value="rating" className="text-xs">
+                      {t("mealSortRating")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => void run(true)}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  {t("mealRequestAgain")}
+                </Button>
+              </div>
             </div>
-            {visibleIndices.length === 0 ? (
+            {sortedVisible.length === 0 ? (
               <div className="rounded-md border border-dashed py-8 text-center text-xs text-muted-foreground">
                 {t("mealFilterEmpty")}
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
-                {results.map((m, i) => {
-                  if (!visibleSet.has(i)) return null;
-                  const ref =
-                    nearLodging && lodgingForDay
-                      ? { lat: lodgingForDay.lat, lng: lodgingForDay.lng, name: lodgingForDay.name }
-                      : day?.places[0]
-                        ? { lat: day.places[0].lat, lng: day.places[0].lng, name: day.places[0].name }
-                        : null;
+                {sortedVisible.map((i) => {
+                  const m = results[i];
                   const refLabel =
                     nearLodging && lodgingForDay
                       ? t("mealDistanceFromLodging")
@@ -544,7 +613,7 @@ export default function MealSuggestDialog({
                       meal={m}
                       selected={selected.has(i)}
                       onToggleSelect={() => toggleSel(i)}
-                      referencePoint={ref}
+                      referencePoint={sortRef}
                       referenceLabel={refLabel}
                     />
                   );
