@@ -453,7 +453,6 @@ export default function MealSuggestDialog({
             if (da !== db) return da - db;
             return priceMatchScore(ma) - priceMatchScore(mb);
           });
-          const visibleSet = new Set(sortedVisible);
           const filtersActive = filterPrices.size > 0 || filterExcludeCuisines.size > 0;
           return (
           <div className="space-y-3 py-2">
