@@ -427,7 +427,7 @@ export default function MealSuggestDialog({
           }
           function distanceMeters(m: MealSuggestion): number {
             if (!sortRef) return Number.POSITIVE_INFINITY;
-            return haversineMeters(sortRef.lat, sortRef.lng, m.lat, m.lng);
+            return haversineMeters(sortRef, { lat: m.lat, lng: m.lng });
           }
           const sortedVisible = [...visibleIndices].sort((a, b) => {
             const ma = results[a];
