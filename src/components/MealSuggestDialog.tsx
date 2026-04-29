@@ -85,6 +85,8 @@ export default function MealSuggestDialog({
   // Quick filters in preview phase
   const [filterPrices, setFilterPrices] = useState<Set<"$" | "$$" | "$$$">>(new Set());
   const [filterExcludeCuisines, setFilterExcludeCuisines] = useState<Set<string>>(new Set());
+  type SortKey = "relevance" | "distance" | "priceMatch" | "rating";
+  const [sortKey, setSortKey] = useState<SortKey>("relevance");
 
   useEffect(() => {
     if (!open) {
