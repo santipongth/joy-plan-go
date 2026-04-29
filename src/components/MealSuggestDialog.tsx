@@ -179,6 +179,7 @@ export default function MealSuggestDialog({
       setSelected(new Set(res.meals.map((_, i) => i)));
       setFilterPrices(new Set());
       setFilterExcludeCuisines(new Set());
+      setSortKey("relevance");
       setPhase("preview");
     } catch {
       setError(t("aiError"));
