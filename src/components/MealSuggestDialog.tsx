@@ -21,6 +21,14 @@ import { Loader2, Sparkles, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 import MealCard from "./MealCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { haversineMeters } from "@/lib/route-utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ALL_MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 const CUISINE_OPTIONS: { value: string; key: string }[] = [
