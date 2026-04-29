@@ -542,7 +542,7 @@ export default function MealSuggestDialog({
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => setSelected(new Set(visibleIndices))}
+                  onClick={() => setSelected(new Set(sortedVisible))}
                 >
                   {t("mealSelectAll")}
                 </Button>
@@ -553,7 +553,7 @@ export default function MealSuggestDialog({
                   onClick={() =>
                     setSelected((prev) => {
                       const next = new Set(prev);
-                      for (const i of visibleIndices) next.delete(i);
+                      for (const i of sortedVisible) next.delete(i);
                       return next;
                     })
                   }
@@ -561,33 +561,49 @@ export default function MealSuggestDialog({
                   {t("mealClearSelection")}
                 </Button>
                 <Badge variant="secondary" className="text-[10px] h-5">
-                  {visibleIndices.length}/{results.length}
+                  {sortedVisible.length}/{results.length}
                 </Badge>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => void run(true)}
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                {t("mealRequestAgain")}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground">{t("mealSortLabel")}:</span>
+                <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+                  <SelectTrigger className="h-7 text-xs w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="relevance" className="text-xs">
+                      {t("mealSortRelevance")}
+                    </SelectItem>
+                    <SelectItem value="distance" className="text-xs">
+                      {t("mealSortDistance")}
+                    </SelectItem>
+                    <SelectItem value="priceMatch" className="text-xs">
+                      {t("mealSortPriceMatch")}
+                    </SelectItem>
+                    <SelectItem value="rating" className="text-xs">
+                      {t("mealSortRating")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => void run(true)}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  {t("mealRequestAgain")}
+                </Button>
+              </div>
             </div>
-            {visibleIndices.length === 0 ? (
+            {sortedVisible.length === 0 ? (
               <div className="rounded-md border border-dashed py-8 text-center text-xs text-muted-foreground">
                 {t("mealFilterEmpty")}
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
-                {results.map((m, i) => {
-                  if (!visibleSet.has(i)) return null;
-                  const ref =
-                    nearLodging && lodgingForDay
-                      ? { lat: lodgingForDay.lat, lng: lodgingForDay.lng, name: lodgingForDay.name }
-                      : day?.places[0]
-                        ? { lat: day.places[0].lat, lng: day.places[0].lng, name: day.places[0].name }
-                        : null;
+                {sortedVisible.map((i) => {
+                  const m = results[i];
                   const refLabel =
                     nearLodging && lodgingForDay
                       ? t("mealDistanceFromLodging")
@@ -598,7 +614,7 @@ export default function MealSuggestDialog({
                       meal={m}
                       selected={selected.has(i)}
                       onToggleSelect={() => toggleSel(i)}
-                      referencePoint={ref}
+                      referencePoint={sortRef}
                       referenceLabel={refLabel}
                     />
                   );
